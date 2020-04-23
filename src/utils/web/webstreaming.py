@@ -38,9 +38,12 @@ def stream_images(images):
     images = ((images * 0.5) + 0.5) * 255
     images = torchvision.utils.make_grid(images)
     images_cpu = images.permute(1, 2, 0).data.cpu().numpy()
-    images_cpu = cv2.cvtColor(images_cpu, cv2.COLOR_RGB2BGR)
+    if images.size(1) == 3:
+        images_cpu = cv2.cvtColor(images_cpu, cv2.COLOR_RGBA2BGRA)
+    elif images.size(1) == 4:
+        images_cpu = cv2.cvtColor(images_cpu, cv2.COLOR_RGB2BGR)
 
-    _, encoded_images = cv2.imencode(".jpg", images_cpu)
+    _, encoded_images = cv2.imencode(".png", images_cpu)
     encoded_images = bytearray(encoded_images)
 
     try:

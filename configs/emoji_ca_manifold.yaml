@@ -1,11 +1,11 @@
 data:
-  name: cifar10
+  name: emoji
   type: image
-  train_dir: data/cifar10
-  test_dir: data/cifar10
+  train_dir: data/Emoji
+  test_dir: data/Emoji
   image_size: 32
-  channels: 3
-  n_labels: 10
+  channels: 4
+  n_labels: 1
 network:
   class: ca_manifold
   kwargs:
@@ -15,7 +15,7 @@ network:
     n_calls: 4
     shared_params: False
 training:
-  out_dir: save/cifar10_ca_manifold
+  out_dir: save/emoji_ca_manifold
   batch_size: 64
   nworkers: 2
   optimizer: adam

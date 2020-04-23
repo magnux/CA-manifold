@@ -21,8 +21,8 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 # Inputs
-trainset = get_dataset(name=config['data']['name'], type=config['data']['type'], data_dir=config['data']['train_dir'],
-                       size=config['data']['image_size'], lsun_categories=None)
+trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
+                       data_dir=config['data']['train_dir'], size=config['data']['image_size'])
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=config['training']['batch_size'],
                                           shuffle=True, num_workers=config['training']['nworkers'], drop_last=True)
 
@@ -50,7 +50,6 @@ def get_inputs(trainiter, batch_size):
     return images, labels, trainiter
 
 
-reg_param = config['training']['reg_param']
 window_size = len(trainloader) // 10
 batch_size = config['training']['batch_size']
 images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size)

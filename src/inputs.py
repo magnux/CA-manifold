@@ -2,10 +2,11 @@ import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import numpy as np
+from src.utils.pngadataset import PNGADataset
 # from src.utils.captiondataset import CaptionDataset
 
 
-def get_dataset(name, type, data_dir, size=64, lsun_categories=None):
+def get_dataset(name, type, data_dir, size=32):
     transform = transforms.Compose([
         transforms.Resize(size),
         transforms.RandomHorizontalFlip(),
@@ -26,15 +27,8 @@ def get_dataset(name, type, data_dir, size=64, lsun_categories=None):
             dataset = datasets.CIFAR10(root=data_dir, train=True, download=True,
                                        transform=transform)
             # n_labels = 10
-        elif name == 'lsun':
-            if lsun_categories is None:
-                lsun_categories = 'train'
-            dataset = datasets.LSUN(data_dir, lsun_categories, transform)
-            # n_labels = len(dataset.classes)
-        elif name == 'lsun_class':
-            dataset = datasets.LSUNClass(data_dir, transform,
-                                         target_transform=(lambda t: 0))
-            # n_labels = 1
+        elif name == 'emoji':
+            dataset = PNGADataset(data_dir, transform)
         else:
             raise NotImplemented
     # elif type == 'caption':
