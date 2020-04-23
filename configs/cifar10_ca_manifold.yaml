@@ -10,7 +10,7 @@ network:
   class: ca_manifold
   kwargs:
     ds_size: 32
-    n_filter: 128
+    n_filter: 16
     lat_size: 512
     n_calls: 4
     shared_params: False

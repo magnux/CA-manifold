@@ -3,14 +3,14 @@ data:
   type: image
   train_dir: data/Emoji
   test_dir: data/Emoji
-  image_size: 32
+  image_size: 64
   channels: 4
   n_labels: 1
 network:
   class: ca_manifold
   kwargs:
-    ds_size: 32
-    n_filter: 128
+    ds_size: 64
+    n_filter: 16
     lat_size: 512
     n_calls: 4
     shared_params: False

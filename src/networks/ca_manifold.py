@@ -18,7 +18,7 @@ class Decoder(nn.Module):
         self.out_chan = channels
         self.n_labels = n_labels
         self.image_size = image_size
-        self.n_filter = n_filter // 8
+        self.n_filter = n_filter
         self.lat_size = lat_size
         self.n_calls = n_calls * 16
         self.shared_params = shared_params
