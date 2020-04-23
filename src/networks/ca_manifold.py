@@ -13,7 +13,7 @@ from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -21,7 +21,6 @@ class Decoder(nn.Module):
         self.n_filter = n_filter
         self.lat_size = lat_size
         self.n_calls = n_calls * 16
-        self.shared_params = shared_params
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         self.frac_sobel = Sobel(self.n_filter)
