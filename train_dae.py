@@ -76,11 +76,11 @@ for epoch in range(model_manager.start_epoch, config['training']['nepochs']):
 
                     for _ in range(batch_mult):
 
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size)
+                        images, labels, trainiter = get_inputs(trainiter, batch_size)
 
                         re_images = ran_erase_images(images)
                         lat_enc, _, _ = encoder(re_images)
-                        lat_enc = lat_enc + 1e-3 * torch.randn_like(lat_enc)
+                        lat_enc = lat_enc + (1e-3 * torch.randn_like(lat_enc))
                         _, _, images_redec_raw = decoder(lat_enc)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, images)
@@ -89,7 +89,7 @@ for epoch in range(model_manager.start_epoch, config['training']['nepochs']):
 
                 # Streaming Images
                 with torch.no_grad():
-                    lat_enc = encoder(images_test)
+                    lat_enc, _, _ = encoder(images_test)
                     images_dec, _, _ = decoder(lat_enc)
 
                 stream_images(images_dec)

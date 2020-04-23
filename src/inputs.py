@@ -2,17 +2,15 @@ import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import numpy as np
-from src.utils.captiondataset import CaptionDataset
+# from src.utils.captiondataset import CaptionDataset
 
 
 def get_dataset(name, type, data_dir, size=64, lsun_categories=None):
     transform = transforms.Compose([
         transforms.Resize(size),
-        # transforms.CenterCrop(size),
         transforms.RandomHorizontalFlip(),
-        # transforms.RandomAffine(15, (0.1, 0.1), (0.9, 1.1), 5),
         transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        transforms.Lambda(lambda x: (x - 0.5) * 2.0),
         transforms.Lambda(lambda x: x + 1./128 * torch.randn_like(x)),
         transforms.Lambda(lambda x: x.clamp_(-1.0, 1.0)),
     ])
@@ -39,17 +37,17 @@ def get_dataset(name, type, data_dir, size=64, lsun_categories=None):
             # n_labels = 1
         else:
             raise NotImplemented
-    elif type == 'caption':
-        if name in ('flowers', 'birds'):
-            text_transform = transforms.Compose([
-                transforms.Lambda(lambda x: torch.tensor(x, dtype=torch.float32)),
-                transforms.Lambda(lambda x: x + 1e-2 * torch.randn_like(x)),
-                # transforms.Lambda(lambda x: x.clamp_(-10.0, 10.0)),
-                transforms.Lambda(lambda x: x.clamp_(0.0, 1.0)),
-            ])
-            dataset = CaptionDataset(data_dir, preload=False, image_transform=transform, text_transform=text_transform)
-        else:
-            raise NotImplemented
+    # elif type == 'caption':
+    #     if name in ('flowers', 'birds'):
+    #         text_transform = transforms.Compose([
+    #             transforms.Lambda(lambda x: torch.tensor(x, dtype=torch.float32)),
+    #             transforms.Lambda(lambda x: x + 1e-2 * torch.randn_like(x)),
+    #             # transforms.Lambda(lambda x: x.clamp_(-10.0, 10.0)),
+    #             transforms.Lambda(lambda x: x.clamp_(0.0, 1.0)),
+    #         ])
+    #         dataset = CaptionDataset(data_dir, preload=False, image_transform=transform, text_transform=text_transform)
+    #     else:
+    #         raise NotImplemented
     else:
         raise NotImplemented
 

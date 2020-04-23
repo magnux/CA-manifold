@@ -10,11 +10,11 @@ from src.layers.lambd import LambdaLayer
 
 
 class Encoder(nn.Module):
-    def __init__(self, n_labels, lat_size, size, ds_size, channels, n_filter, n_calls, shared_params, injected=False):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, injected=False, **kwargs):
         super().__init__()
         self.injected = injected
         self.n_labels = n_labels
-        self.size = size
+        self.image_size = image_size
         self.ds_size = ds_size
         self.in_chan = channels
         self.n_filter = n_filter
@@ -27,8 +27,8 @@ class Encoder(nn.Module):
 
         self.conv_img = nn.Sequential(
             nn.Conv2d(self.in_chan, self.n_filter, 3, 1, 1),
-            *([DownScale(self.n_filter, self.n_filter, self.size, self.ds_size)] if self.ds_size < self.size else []),
-            # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.size else []),
+            *([DownScale(self.n_filter, self.n_filter, self.image_size, self.ds_size)] if self.ds_size < self.image_size else []),
+            # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
         )
 
@@ -84,10 +84,10 @@ class InjectedEncoder(Encoder):
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, size, ds_size, channels, n_filter, n_calls, shared_params):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, **kwargs):
         super().__init__()
         self.n_labels = n_labels
-        self.size = size
+        self.image_size = image_size
         self.ds_size = ds_size
         self.out_chan = channels
         self.n_filter = n_filter
@@ -112,8 +112,8 @@ class Decoder(nn.Module):
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
-            # *([LambdaLayer(lambda x: F.interpolate(x, size=self.size))] if self.ds_size < self.size else []),
-            *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.size)] if self.ds_size < self.size else []),
+            # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
+            *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
             nn.Conv2d(self.n_filter, self.out_chan, 3, 1, 1),
         )
 

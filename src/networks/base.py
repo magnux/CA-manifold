@@ -6,7 +6,7 @@ from src.layers.centroids import Centroids
 
 
 class Classifier(nn.Module):
-    def __init__(self, n_labels, lat_size):
+    def __init__(self, n_labels, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.labs = nn.Sequential(
@@ -20,7 +20,7 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size):
+    def __init__(self, n_labels, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.labs = nn.Sequential(
@@ -41,7 +41,7 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, injected):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, injected, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
@@ -66,7 +66,7 @@ class Generator(nn.Module):
 
 
 class UnconditionalDiscriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, injected):
+    def __init__(self, lat_size, injected, **kwargs):
         super().__init__()
         self.injected = injected
         self.lat_size = lat_size
@@ -83,7 +83,7 @@ class UnconditionalDiscriminator(nn.Module):
 
 
 class UnconditionalGenerator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size):
+    def __init__(self, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
@@ -95,7 +95,7 @@ class UnconditionalGenerator(nn.Module):
 
 
 class VarEncoder(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
@@ -121,7 +121,7 @@ class VarEncoder(nn.Module):
 
 
 class VarDecoder(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
@@ -146,7 +146,7 @@ class VarDecoder(nn.Module):
 
 
 class CodeBook(nn.Module):
-    def __init__(self, n_labels, lat_size):
+    def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.n_filter = 2 ** 5
