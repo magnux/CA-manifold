@@ -1,0 +1,31 @@
+data:
+  name: cifar10
+  type: image
+  train_dir: data/cifar10
+  test_dir: data/cifar10
+  image_size: 32
+  channels: 3
+  n_labels: 10
+network:
+  class: ca_manifold
+  kwargs:
+    ds_size: 32
+    n_filter: 128
+    lat_size: 512
+    n_calls: 4
+    shared_params: False
+training:
+  out_dir: save/cifar10_ca_manifold
+  reg_param: 10.
+  batch_size: 64
+  nworkers: 2
+  optimizer: adam
+  lr: 0.0001
+  equalize_lr: false
+  nepochs: 128
+  save_every: 1
+  lr_anneal: 1.0
+  lr_anneal_every: 0
+  monitoring: tensorboard
+  sample_every: 1
+  sample_labels: 10
