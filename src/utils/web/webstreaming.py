@@ -35,13 +35,14 @@ def stream_images(images):
         except ConnectionRefusedError:
             return
 
+    channels = images.size(1)
     images = ((images * 0.5) + 0.5) * 255
     images = torchvision.utils.make_grid(images)
     images_cpu = images.permute(1, 2, 0).data.cpu().numpy()
-    if images.size(1) == 3:
-        images_cpu = cv2.cvtColor(images_cpu, cv2.COLOR_RGBA2BGRA)
-    elif images.size(1) == 4:
+    if channels == 3:
         images_cpu = cv2.cvtColor(images_cpu, cv2.COLOR_RGB2BGR)
+    elif channels == 4:
+        images_cpu = cv2.cvtColor(images_cpu, cv2.COLOR_RGBA2BGRA)
 
     _, encoded_images = cv2.imencode(".png", images_cpu)
     encoded_images = bytearray(encoded_images)
