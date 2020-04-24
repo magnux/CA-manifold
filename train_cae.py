@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.inputs import get_dataset
 from src.utils.model_utils import get_nsamples
-from src.utils.media_utils import save_images, ran_erase_images
+from src.utils.media_utils import save_images, ran_erase_images, noise_letters
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 
@@ -30,10 +30,14 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=config['training'
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
+    'letter_encoder': {'class': 'base', 'sub_class': 'LetterEncoder'},
+    'letter_decoder': {'class': 'base', 'sub_class': 'LetterDecoder'},
 }
-model_manager = ModelManager('dae', networks_dict, config)
+model_manager = ModelManager('cae', networks_dict, config)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
+letter_encoder = model_manager.get_network('letter_encoder')
+letter_decoder = model_manager.get_network('letter_decoder')
 
 model_manager.print()
 
@@ -71,16 +75,25 @@ for epoch in range(model_manager.start_epoch, config['training']['nepochs']):
 
                 loss_dec_sum = 0
                 
-                with model_manager.on_step(['encoder', 'decoder', 'generator']):
+                with model_manager.on_step(['encoder', 'decoder', 'letter_encoder', 'letter_decoder']):
 
                     for _ in range(batch_mult):
 
                         images, labels, trainiter = get_inputs(trainiter, batch_size)
 
+                        # Adding to the input
                         re_images = ran_erase_images(images)
+
+                        # Encoding
                         lat_enc, _, _ = encoder(re_images)
-                        lat_enc = lat_enc + (1e-3 * torch.randn_like(lat_enc))
-                        _, _, images_redec_raw = decoder(lat_enc)
+                        letters = letter_encoder(lat_enc)
+
+                        # Adding to the latent space (encoded in letters)
+                        letters = noise_letters(letters)
+
+                        # Decoding
+                        lat_dec = letter_decoder(letters)
+                        _, _, images_redec_raw = decoder(lat_dec)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, images)
                         loss_dec.backward()
@@ -89,7 +102,9 @@ for epoch in range(model_manager.start_epoch, config['training']['nepochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_enc, _, _ = encoder(images_test)
-                    images_dec, _, _ = decoder(lat_enc)
+                    letters = letter_encoder(lat_enc)
+                    lat_dec = letter_decoder(letters)
+                    images_dec, _, _ = decoder(lat_dec)
 
                 stream_images(images_dec)
 
@@ -111,7 +126,9 @@ for epoch in range(model_manager.start_epoch, config['training']['nepochs']):
             t.write('Creating samples...')
             images, labels, trainiter = get_inputs(trainiter, config['training']['batch_size'])
             lat_enc, _, _ = encoder(images)
-            images_dec, _, _ = decoder(lat_enc)
+            letters = letter_encoder(lat_enc)
+            lat_dec = letter_decoder(letters)
+            images_dec, _, _ = decoder(lat_dec)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
 

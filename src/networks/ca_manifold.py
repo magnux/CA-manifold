@@ -13,7 +13,7 @@ from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, train_noise, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -22,6 +22,7 @@ class Decoder(nn.Module):
         self.lat_size = lat_size
         self.n_calls = n_calls * 16
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.train_noise = train_noise
 
         self.frac_sobel = Sobel(self.n_filter)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -35,10 +36,17 @@ class Decoder(nn.Module):
         # The starting point of the wave
         out[:, 0, self.image_size // 2, self.image_size // 2] = 1.0
 
+        if self.train_noise and self.training:
+            noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
+            noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
+
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
-            out_new = self.frac_sobel(out)
+            out_new = out
+            if self.train_noise and self.training:
+                out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
+            out_new = self.frac_sobel(out_new)
             out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
             out = out + (leak_factor * out_new)

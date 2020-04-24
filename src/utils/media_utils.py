@@ -31,6 +31,13 @@ def ran_erase_text(text):
     return text * re_mask
 
 
+def noise_letters(letters):
+    noise_mask = torch.round_(torch.rand([letters.size(0), 1, 1], device=letters.device))
+    noise_mask = noise_mask * torch.round_(torch.rand([letters.size(0), 1, letters.size(2)], device=letters.device))
+    rand_letters = torch.softmax(torch.randn_like(letters) * 10., dim=1)
+    return torch.where(noise_mask == 1, rand_letters, letters)
+
+
 rerase = torchvision.transforms.RandomErasing()
 
 

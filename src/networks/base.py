@@ -161,3 +161,30 @@ class CodeBook(nn.Module):
         new_lat = lat.reshape(lat.size(0), self.lat_size)
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         return new_lat * leak_factor, cent_loss
+
+
+class LetterEncoder(nn.Module):
+    def __init__(self, lat_size, letters=4, **kwargs):
+        super().__init__()
+        self.lat_size = lat_size
+        self.lat_to_letters = nn.Conv1d(1, letters, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, lat):
+        lat = lat.view(lat.size(0), 1, self.lat_size)
+        letters = self.lat_to_letters(lat)
+        letters = F.softmax(letters, dim=1)
+
+        return letters
+
+
+class LetterDecoder(nn.Module):
+    def __init__(self, lat_size, letters=4, **kwargs):
+        super().__init__()
+        self.lat_size = lat_size
+        self.letters_to_lat = nn.Conv1d(letters, 1, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, letters):
+        lat = self.letters_to_lat(letters)
+        lat = lat.squeeze(dim=1)
+
+        return lat
