@@ -170,7 +170,7 @@ class LetterEncoder(nn.Module):
     def __init__(self, lat_size, letter_channels=4, letter_bits=32, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        lognc = int(np.ceil(np.log2(letter_channels)))
+        lognc = int(np.ceil(np.log2(letter_channels))) + 2
         self.lat_to_letters = nn.Sequential(
             nn.ConvTranspose1d(1, letter_channels * (2 ** lognc), kernel_size=letter_bits, stride=letter_bits),
             *[LambdaLayer(lambda x: torch.sum(torch.stack(torch.split(x, letter_channels * (2 ** i), 1), -1), -1)) for i in range(lognc-1, -1, -1)],
