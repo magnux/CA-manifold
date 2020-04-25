@@ -167,7 +167,7 @@ class CodeBook(nn.Module):
 
 
 class LetterEncoder(nn.Module):
-    def __init__(self, lat_size, letter_channels=4, letter_bits=8, **kwargs):
+    def __init__(self, lat_size, letter_channels=4, letter_bits=32, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         lognc = int(np.ceil(np.log2(letter_channels)))
@@ -185,7 +185,7 @@ class LetterEncoder(nn.Module):
 
 
 class LetterDecoder(nn.Module):
-    def __init__(self, lat_size, letter_channels=4, letter_bits=8, **kwargs):
+    def __init__(self, lat_size, letter_channels=4, letter_bits=32, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.letters_to_lat = nn.Conv1d(letter_channels, 1, kernel_size=letter_bits, stride=letter_bits)
