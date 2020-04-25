@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.centroids import Centroids
 
@@ -164,10 +165,13 @@ class CodeBook(nn.Module):
 
 
 class LetterEncoder(nn.Module):
-    def __init__(self, lat_size, letters=4, **kwargs):
+    def __init__(self, lat_size, letter_channels=4, letter_bits=8, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_letters = nn.Conv1d(1, letters, kernel_size=1, stride=1, padding=0)
+        self.lat_to_letters = nn.Sequential(
+            nn.ConvTranspose1d(1, letter_channels, letter_bits + 1, letter_bits + 1, letter_bits // 2),
+            ResidualBlock(letter_channels, letter_channels, None, 1, 1, 0, nn.ConvTranspose1d),
+        )
 
     def forward(self, lat):
         lat = lat.view(lat.size(0), 1, self.lat_size)
@@ -178,10 +182,13 @@ class LetterEncoder(nn.Module):
 
 
 class LetterDecoder(nn.Module):
-    def __init__(self, lat_size, letters=4, **kwargs):
+    def __init__(self, lat_size, letter_channels=4, letter_bits=8, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.letters_to_lat = nn.Conv1d(letters, 1, kernel_size=1, stride=1, padding=0)
+        self.letters_to_lat = nn.Sequential(
+            ResidualBlock(letter_channels, letter_channels, None, 1, 1, 0, nn.Conv1d),
+            nn.Conv1d(letter_channels, 1, letter_bits + 1, letter_bits + 1, letter_bits // 2),
+        )
 
     def forward(self, letters):
         lat = self.letters_to_lat(letters)
