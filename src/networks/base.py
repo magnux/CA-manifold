@@ -170,10 +170,9 @@ class LetterEncoder(nn.Module):
     def __init__(self, lat_size, letter_channels=4, letter_bits=32, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        lognc = int(np.ceil(np.log2(letter_channels))) + 2
         self.lat_to_letters = nn.Sequential(
-            nn.ConvTranspose1d(1, letter_channels * (2 ** lognc), kernel_size=letter_bits, stride=letter_bits),
-            *[LambdaLayer(lambda x: torch.sum(torch.stack(torch.split(x, letter_channels * (2 ** i), 1), -1), -1)) for i in range(lognc-1, -1, -1)],
+            nn.ConvTranspose1d(1, letter_channels ** 2, kernel_size=letter_bits, stride=letter_bits),
+            ResidualBlock(letter_channels ** 2, letter_channels, None, 1, 1, 0, nn.ConvTranspose1d)
         )
 
     def forward(self, lat):
@@ -188,7 +187,10 @@ class LetterDecoder(nn.Module):
     def __init__(self, lat_size, letter_channels=4, letter_bits=32, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.letters_to_lat = nn.Conv1d(letter_channels, 1, kernel_size=letter_bits, stride=letter_bits)
+        self.letters_to_lat = nn.Sequential(
+            ResidualBlock(letter_channels, letter_channels ** 2, None, 1, 1, 0, nn.Conv1d),
+            nn.Conv1d(letter_channels ** 2, 1, kernel_size=letter_bits, stride=letter_bits),
+        )
 
     def forward(self, letters):
         lat = self.letters_to_lat(letters)
