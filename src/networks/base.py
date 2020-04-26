@@ -170,7 +170,10 @@ class LetterEncoder(nn.Module):
     def __init__(self, lat_size, letter_channels=4, letter_bits=16, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_letters = ResidualBlock(1, letter_channels, letter_channels * 16, letter_bits, letter_bits, 0, nn.ConvTranspose1d)
+        self.lat_to_letters = nn.Sequential(
+            nn.ConvTranspose1d(1, letter_channels, kernel_size=letter_bits, stride=letter_bits),
+            ResidualBlock(letter_channels, letter_channels, letter_channels * 64, letter_bits // 2, 1, letter_bits // 4, nn.ConvTranspose1d)
+        )
 
     def forward(self, lat):
         lat = lat.view(lat.size(0), 1, self.lat_size)
@@ -184,7 +187,10 @@ class LetterDecoder(nn.Module):
     def __init__(self, lat_size, letter_channels=4, letter_bits=16, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.letters_to_lat = ResidualBlock(letter_channels, 1, letter_channels * 16, letter_bits, letter_bits, 0, nn.Conv1d)
+        self.letters_to_lat = nn.Sequential(
+            ResidualBlock(letter_channels, letter_channels, letter_channels * 64, letter_bits // 2, 1, letter_bits // 4, nn.Conv1d),
+            nn.Conv1d(letter_channels, 1, kernel_size=letter_bits, stride=letter_bits),
+        )
 
     def forward(self, letters):
         lat = self.letters_to_lat(letters)
