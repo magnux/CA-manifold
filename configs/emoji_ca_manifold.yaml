@@ -1,8 +1,8 @@
 data:
   name: emoji
   type: image
-  train_dir: data/Emoji
-  test_dir: data/Emoji
+  train_dir: data/emoji
+  test_dir: data/emoji
   image_size: 64
   channels: 4
   n_labels: 1
