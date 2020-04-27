@@ -1,7 +1,7 @@
 import numpy as np
 from multiprocessing.pool import ThreadPool
 from tqdm import tqdm
-from src.utils.file_utils import download_url
+from file_utils import download_url
 
 url_base = 'https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u%s.png'
 
