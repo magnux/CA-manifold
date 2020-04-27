@@ -14,9 +14,9 @@ network:
     lat_size: 512
     n_calls: 4
     shared_params: False
-    train_noise: True
+    train_noise: False
 training:
-  out_dir: save/cifar10_ca_manifold
+  out_dir: save/cifar10_ca_manifold_no_train_noise
   batch_size: 64
   nworkers: 2
   optimizer: adam
