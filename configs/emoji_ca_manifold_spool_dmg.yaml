@@ -17,7 +17,7 @@ network:
     letter_encoding: False
     perception_noise: False
 training:
-  out_dir: save/emoji_ca_manifold
+  out_dir: save/emoji_ca_manifold_spool_dmg
   sample_pool: True
   damage_init: True
   batch_size: 64

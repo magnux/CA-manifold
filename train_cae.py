@@ -75,7 +75,7 @@ if use_sample_pool:
     for _ in range((n_slots // batch_size) + 1):
         images, _, trainiter = get_inputs(trainiter, batch_size)
         target.append(images)
-    target = torch.cat(target, dim=0)
+    target = torch.cat(target, dim=0)[:n_slots, ...]
     seed = ca_seed(n_slots, n_filter, image_size, device)
     sample_pool = SamplePool(init=seed, target=target)
 
@@ -111,6 +111,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 init_samples = rand_circle_masks(init_samples, batch_size // 16)
                             init_samples[:batch_size // 2, ...] = ca_seed(batch_size // 2, n_filter, image_size, device)
                             images[batch_size // 2:, ...] = target_samples[batch_size // 2:, ...]
+                            init_samples.detach_()
+                            images.detach_()
                         else:
                             init_samples = None
 
