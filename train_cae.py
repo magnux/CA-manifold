@@ -63,7 +63,7 @@ def get_inputs(trainiter, batch_size, device):
     images, labels = next_inputs
     images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
-    images.detach_().requires_grad_()
+    images.detach().requires_grad_()
     return images, labels, trainiter
 
 
