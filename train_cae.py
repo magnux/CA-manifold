@@ -31,7 +31,7 @@ n_workers = config['training']['n_workers']
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
                        data_dir=config['data']['train_dir'], size=config['data']['image_size'])
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size if not use_sample_pool else batch_size // 8,
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                           shuffle=True, num_workers=n_workers, drop_last=True)
 
 # Networks
@@ -72,7 +72,7 @@ images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, 
 if use_sample_pool:
     n_slots = len(trainloader) * 8
     target = []
-    for _ in range((n_slots // (batch_size // 8)) + 1):
+    for _ in range((n_slots // batch_size) + 1):
         images, _, trainiter = get_inputs(trainiter, batch_size, torch.device('cpu'))
         target.append(images)
     target = torch.cat(target, dim=0)[:n_slots, ...]
@@ -109,10 +109,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             if damage_init:
                                 init_samples = rand_circle_masks(init_samples, batch_size // 16)
                             init_samples[:batch_size // 8, ...] = ca_seed(batch_size // 8, n_filter, image_size, torch.device('cpu'))
-                            pool_samples[:batch_size // 8, ...] = images
-                            init_samples.detach_().to(device)
-                            pool_samples.detach_().to(device)
-                            images = pool_samples
+                            target_samples[:batch_size // 8, ...] = images
+                            init_samples = init_samples.detach().to(device)
+                            target_samples = target_samples.detach().to(device)
+                            images = target_samples
                         else:
                             images, _, trainiter = get_inputs(trainiter, batch_size, device)
                             init_samples = None
