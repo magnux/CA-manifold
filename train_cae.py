@@ -21,8 +21,8 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 image_size = config['data']['image_size']
-n_filter = config['network']['n_filter']
-letter_encoding = config['network']['letter_encoding']
+n_filter = config['network']['kwargs']['n_filter']
+letter_encoding = config['network']['kwargs']['letter_encoding']
 use_sample_pool = config['training']['sample_pool']
 damage_init = config['training']['damage_init']
 batch_size = config['training']['batch_size']
@@ -143,8 +143,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_enc, _, _ = encoder(images_test)
-                    letters = letter_encoder(lat_enc)
-                    lat_dec = letter_decoder(letters)
+                    if letter_encoding:
+                        letters = letter_encoder(lat_enc)
+                        lat_dec = letter_decoder(letters)
+                    else:
+                        lat_dec = lat_enc
                     images_dec, _, _ = decoder(lat_dec)
 
                 stream_images(images_dec)
@@ -167,8 +170,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             t.write('Creating samples...')
             images, labels, trainiter = get_inputs(trainiter, config['training']['batch_size'])
             lat_enc, _, _ = encoder(images)
-            letters = letter_encoder(lat_enc)
-            lat_dec = letter_decoder(letters)
+            if letter_encoding:
+                letters = letter_encoder(lat_enc)
+                lat_dec = letter_decoder(letters)
+            else:
+                lat_dec = lat_enc
             images_dec, _, _ = decoder(lat_dec)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
