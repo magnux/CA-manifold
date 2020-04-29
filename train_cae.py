@@ -7,8 +7,8 @@ import argparse
 from tqdm import trange
 from src.config import load_config
 from src.inputs import get_dataset
-from src.utils.model_utils import get_nsamples
-from src.utils.media_utils import save_images, ran_erase_images, noise_letters
+from src.utils.media_utils import save_images, rand_erase_images, rand_change_letters, rand_circle_masks
+from src.utils.model_utils import ca_seed, SamplePool
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 
@@ -20,24 +20,37 @@ config = load_config(args.config)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
+image_size = config['data']['image_size']
+n_filter = config['network']['n_filter']
+letter_encoding = config['network']['letter_encoding']
+use_sample_pool = config['training']['sample_pool']
+damage_init = config['training']['damage_init']
+batch_size = config['training']['batch_size']
+n_workers = config['training']['n_workers']
+
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
                        data_dir=config['data']['train_dir'], size=config['data']['image_size'])
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=config['training']['batch_size'],
-                                          shuffle=True, num_workers=config['training']['nworkers'], drop_last=True)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                          shuffle=True, num_workers=n_workers, drop_last=True)
 
 # Networks
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
-    'letter_encoder': {'class': 'base', 'sub_class': 'LetterEncoder'},
-    'letter_decoder': {'class': 'base', 'sub_class': 'LetterDecoder'},
 }
+if letter_encoding:
+    networks_dict.update({
+        'letter_encoder': {'class': 'base', 'sub_class': 'LetterEncoder'},
+        'letter_decoder': {'class': 'base', 'sub_class': 'LetterDecoder'},
+    })
+
 model_manager = ModelManager('cae', networks_dict, config)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
-letter_encoder = model_manager.get_network('letter_encoder')
-letter_decoder = model_manager.get_network('letter_decoder')
+if letter_encoding:
+    letter_encoder = model_manager.get_network('letter_encoder')
+    letter_decoder = model_manager.get_network('letter_decoder')
 
 model_manager.print()
 
@@ -54,16 +67,26 @@ def get_inputs(trainiter, batch_size):
     return images, labels, trainiter
 
 
-window_size = len(trainloader) // 10
-batch_size = config['training']['batch_size']
 images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size)
 
-for epoch in range(model_manager.start_epoch, config['training']['nepochs']):
+if use_sample_pool:
+    n_slots = 1024
+    target = []
+    for _ in range((n_slots // batch_size) + 1):
+        images, _, trainiter = get_inputs(trainiter, batch_size)
+        target.append(images)
+    target = torch.cat(target, dim=0)
+    seed = ca_seed(n_slots, n_filter, image_size, device)
+    sample_pool = SamplePool(init=seed, target=target)
+
+window_size = len(trainloader) // 10
+
+for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
 
         running_loss = np.zeros(window_size)
 
-        batch_mult = int((epoch / config['training']['nepochs']) * 4) + 1
+        batch_mult = int((epoch / config['training']['n_epochs']) * 4) + 1
 
         it = (epoch * len(trainloader))
 
@@ -74,30 +97,48 @@ for epoch in range(model_manager.start_epoch, config['training']['nepochs']):
             with model_manager.on_batch():
 
                 loss_dec_sum = 0
-                
-                with model_manager.on_step(['encoder', 'decoder', 'letter_encoder', 'letter_decoder']):
+
+                with model_manager.on_step(['encoder', 'decoder'] + (['letter_encoder', 'letter_decoder'] if letter_encoding else [])):
 
                     for _ in range(batch_mult):
 
                         images, labels, trainiter = get_inputs(trainiter, batch_size)
 
-                        # Adding to the input
-                        re_images = ran_erase_images(images)
+                        if use_sample_pool:
+                            pool_samples = sample_pool.sample(batch_size)
+                            init_samples, target_samples = pool_samples.init, pool_samples.target
+                            if damage_init:
+                                init_samples = rand_circle_masks(init_samples, batch_size // 16)
+                            init_samples[:batch_size // 2, ...] = ca_seed(batch_size // 2, n_filter, image_size, device)
+                            images[batch_size // 2:, ...] = target_samples[batch_size // 2:, ...]
+                        else:
+                            init_samples = None
+
+                        # Obscure the input
+                        re_images = rand_erase_images(images)
 
                         # Encoding
                         lat_enc, _, _ = encoder(re_images)
-                        letters = letter_encoder(lat_enc)
 
-                        # Adding to the latent space (encoded in letters)
-                        letters = noise_letters(letters)
+                        if letter_encoding:
+                            letters = letter_encoder(lat_enc)
+                            letters = rand_change_letters(letters)
+                            lat_dec = letter_decoder(letters)
+                        else:
+                            lat_dec = lat_enc + (1e-3 * torch.randn_like(lat_enc))
 
                         # Decoding
-                        lat_dec = letter_decoder(letters)
-                        _, _, images_redec_raw = decoder(lat_dec)
+                        _, out_embs, images_redec_raw = decoder(lat_dec, init_samples)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, images)
                         loss_dec.backward()
                         loss_dec_sum += loss_dec.item()
+
+                        if use_sample_pool:
+                            ca_out = out_embs[-1]
+                            pool_samples.init[:] = ca_out
+                            pool_samples.target[:] = images
+                            pool_samples.commit()
 
                 # Streaming Images
                 with torch.no_grad():

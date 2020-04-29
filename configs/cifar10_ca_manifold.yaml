@@ -14,15 +14,18 @@ network:
     lat_size: 512
     n_calls: 4
     shared_params: False
-    train_noise: True
+    letter_encoding: False
+    perception_noise: False
 training:
   out_dir: save/cifar10_ca_manifold
+  sample_pool: False
+  damage_init: False
   batch_size: 64
-  nworkers: 2
+  n_workers: 2
   optimizer: adam
   lr: 0.0001
   equalize_lr: false
-  nepochs: 128
+  n_epochs: 128
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0

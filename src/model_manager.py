@@ -3,7 +3,7 @@ from torch.nn.utils import clip_grad_norm_
 from src.log_manager import LogManager
 from src.checkpoint_manager import CheckpointManager
 from src.config import build_network, build_optimizer, build_lr_scheduler
-from src.utils.model_utils import toggle_grad, count_parameters, make_grads_safe
+from src.utils.model_utils import toggle_grad, count_parameters, make_grad_safe
 from os import path
 from contextlib import contextmanager
 
@@ -126,7 +126,7 @@ class ModelManager(object):
     def on_step_end(self, nets_to_train):
         for net_name in self.networks_dict.keys():
             if net_name in nets_to_train:
-                make_grads_safe(self.networks_dict[net_name]['net'])
+                make_grad_safe(self.networks_dict[net_name]['net'])
                 clip_grad_norm_(self.networks_dict[net_name]['net'].parameters(), 1., torch._six.inf)
                 self.networks_dict[net_name]['optimizer'].step()
 

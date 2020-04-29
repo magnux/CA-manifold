@@ -18,8 +18,8 @@ network:
     perception_noise: False
 training:
   out_dir: save/emoji_ca_manifold
-  sample_pool: False
-  damage_init: False
+  sample_pool: True
+  damage_init: True
   batch_size: 64
   n_workers: 2
   optimizer: adam

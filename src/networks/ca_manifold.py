@@ -8,12 +8,13 @@ from src.layers.scale import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import Sobel, SinSobel
 from src.layers.dynaconvblock import DynaConvBlock
+from src.utils.model_utils import ca_seed
 
 from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, train_noise, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -22,21 +23,21 @@ class Decoder(nn.Module):
         self.lat_size = lat_size
         self.n_calls = n_calls * 16
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        self.train_noise = train_noise
+        self.perception_noise = perception_noise
 
         self.frac_sobel = Sobel(self.n_filter)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
         self.frac_dyna_conv = DynaConvBlock(self.lat_size, self.n_filter * 3, self.n_filter)
 
-    def forward(self, lat):
+    def forward(self, lat, ca_init=None):
         batch_size = lat.size(0)
 
-        # The canvas
-        out = torch.zeros(batch_size, self.n_filter, self.image_size, self.image_size, device=lat.device)
-        # The starting point of the wave
-        out[:, 0, self.image_size // 2, self.image_size // 2] = 1.0
+        if ca_init is None:
+            out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device)
+        else:
+            out = ca_init
 
-        if self.train_noise and self.training:
+        if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
 
@@ -44,7 +45,7 @@ class Decoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
             out_new = out
-            if self.train_noise and self.training:
+            if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
             out_new = self.frac_norm(out_new)

@@ -14,10 +14,10 @@ network:
     lat_size: 512
     n_calls: 4
     shared_params: False
-    letter_encoding: False
+    letter_encoding: True
     perception_noise: False
 training:
-  out_dir: save/emoji_ca_manifold
+  out_dir: save/emoji_ca_manifold_letenc
   sample_pool: False
   damage_init: False
   batch_size: 64

@@ -2,7 +2,6 @@ import torch
 import numpy as np
 from src.metrics.inception_score import inception_score
 from src.metrics.fid_score import calculate_fid_given_images
-from src.utils.loss_utils import make_safe
 
 
 def count_parameters(network):
@@ -22,28 +21,16 @@ def zero_grad(network):
             p.grad.zero_()
 
 
-def make_grads_safe(network):
+def make_safe(tens, min=-1e3, max=1e3):
+    tens = torch.where(torch.isnan(tens), torch.zeros_like(tens), tens)
+    tens = tens.clamp(min=min, max=max)
+    return tens
+
+
+def make_grad_safe(network):
     for p in network.parameters():
         if p.grad is not None:
             p.grad.data.copy_(make_safe(p.grad))
-
-
-def get_nsamples(data_loader, N, device):
-    x = []
-    y = []
-    n = 0
-    while n < N:
-        x_next, y_next = next(iter(data_loader))
-        x.append(x_next)
-        y.append(y_next)
-        n += x_next.size(0)
-    x = torch.cat(x, dim=0)[:N]
-    y = torch.cat(y, dim=0)[:N]
-
-    x = x.to(device)
-    y = y.to(device)
-
-    return x, y
 
 
 def compute_inception_score(generator, decoder, inception_sample_size, fid_sample_size, batch_size, zdist, ydist, fid_real_samples, device):
@@ -77,3 +64,35 @@ def update_average(model_tgt, model_src, beta):
         p_src = param_dict_src[p_name]
         assert(p_src is not p_tgt)
         p_tgt.copy_(beta*p_tgt + (1. - beta)*p_src)
+
+
+def ca_seed(batch_size, n_filter, image_size, device):
+    # The canvas
+    seed = torch.zeros(batch_size, n_filter, image_size, image_size, device=device)
+    # The starting point of the wave
+    seed[:, 0, image_size // 2, image_size // 2] = 1.0
+    return seed
+
+
+class SamplePool:
+  def __init__(self, *, _parent=None, _parent_idx=None, **slots):
+    self._parent = _parent
+    self._parent_idx = _parent_idx
+    self._slot_names = slots.keys()
+    self._size = None
+    for k, v in slots.items():
+      if self._size is None:
+        self._size = len(v)
+      assert self._size == len(v)
+      setattr(self, k, v)
+
+  def sample(self, n):
+    idx = np.random.choice(self._size, n, False)
+    batch = {k: getattr(self, k)[idx] for k in self._slot_names}
+    batch = SamplePool(**batch, _parent=self, _parent_idx=idx)
+    return batch
+
+  def commit(self):
+    for k in self._slot_names:
+      getattr(self._parent, k)[self._parent_idx] = getattr(self, k)
+

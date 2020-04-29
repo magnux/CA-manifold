@@ -3,12 +3,6 @@ import torch
 from torch.nn import functional as F
 
 
-def make_safe(tens, min=-1e3, max=1e3):
-    tens = torch.where(torch.isnan(tens), torch.zeros_like(tens), tens)
-    tens = tens.clamp(min=min, max=max)
-    return tens
-
-
 def compute_gan_loss(d_out, target, gan_type='standard'):
     targets = d_out.new_full(size=d_out.size(), fill_value=target)
 
