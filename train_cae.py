@@ -31,7 +31,7 @@ n_workers = config['training']['n_workers']
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
                        data_dir=config['data']['train_dir'], size=config['data']['image_size'])
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size if not use_sample_pool else batch_size // 8,
                                           shuffle=True, num_workers=n_workers, drop_last=True)
 
 # Networks
@@ -55,7 +55,7 @@ if letter_encoding:
 model_manager.print()
 
 
-def get_inputs(trainiter, batch_size):
+def get_inputs(trainiter, batch_size, device):
     next_inputs = next(trainiter, None)
     if trainiter is None or next_inputs is None:
         trainiter = iter(trainloader)
@@ -67,16 +67,16 @@ def get_inputs(trainiter, batch_size):
     return images, labels, trainiter
 
 
-images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size)
+images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
 if use_sample_pool:
-    n_slots = 1024
+    n_slots = len(trainloader) * 8
     target = []
-    for _ in range((n_slots // batch_size) + 1):
-        images, _, trainiter = get_inputs(trainiter, batch_size)
+    for _ in range((n_slots // (batch_size // 8)) + 1):
+        images, _, trainiter = get_inputs(trainiter, batch_size, torch.device('cpu'))
         target.append(images)
     target = torch.cat(target, dim=0)[:n_slots, ...]
-    seed = ca_seed(n_slots, n_filter, image_size, device)
+    seed = ca_seed(n_slots, n_filter, image_size, torch.device('cpu'))
     sample_pool = SamplePool(init=seed, target=target)
 
 window_size = len(trainloader) // 10
@@ -102,18 +102,19 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     for _ in range(batch_mult):
 
-                        images, labels, trainiter = get_inputs(trainiter, batch_size)
-
                         if use_sample_pool:
+                            images, _, trainiter = get_inputs(trainiter, batch_size // 8, torch.device('cpu'))
                             pool_samples = sample_pool.sample(batch_size)
                             init_samples, target_samples = pool_samples.init, pool_samples.target
                             if damage_init:
                                 init_samples = rand_circle_masks(init_samples, batch_size // 16)
-                            init_samples[:batch_size // 2, ...] = ca_seed(batch_size // 2, n_filter, image_size, device)
-                            images[batch_size // 2:, ...] = target_samples[batch_size // 2:, ...]
-                            init_samples.detach_()
-                            images.detach_()
+                            init_samples[:batch_size // 8, ...] = ca_seed(batch_size // 8, n_filter, image_size, torch.device('cpu'))
+                            pool_samples[:batch_size // 8, ...] = images
+                            init_samples.detach_().to(device)
+                            pool_samples.detach_().to(device)
+                            images = pool_samples
                         else:
+                            images, _, trainiter = get_inputs(trainiter, batch_size, device)
                             init_samples = None
 
                         # Obscure the input
@@ -170,7 +171,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, trainiter = get_inputs(trainiter, config['training']['batch_size'])
+            images, labels, trainiter = get_inputs(trainiter, config['training']['batch_size'], device)
             lat_enc, _, _ = encoder(images)
             if letter_encoding:
                 letters = letter_encoder(lat_enc)

@@ -9,7 +9,7 @@ from src.utils.pngadataset import PNGADataset
 def get_dataset(name, type, data_dir, size=32):
     transform = transforms.Compose([
         transforms.Resize(size),
-        transforms.RandomHorizontalFlip(),
+        # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Lambda(lambda x: (x - 0.5) * 2.0),
         transforms.Lambda(lambda x: x + 1./128 * torch.randn_like(x)),
