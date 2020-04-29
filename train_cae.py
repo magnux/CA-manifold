@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from os import path
+import time
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -173,4 +173,5 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
 
+time.sleep(30)
 print('Training is complete...')
