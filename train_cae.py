@@ -136,9 +136,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec_sum += loss_dec.item()
 
                         if use_sample_pool:
-                            pool_samples.init[:] = out_embs[-1]
+                            pool_samples.init.copy_(out_embs[-1])
                             pool_samples.commit()
-                            del init_samples, images, pool_samples, out_embs
 
                 # Streaming Images
                 with torch.no_grad():

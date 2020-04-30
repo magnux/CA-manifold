@@ -94,5 +94,5 @@ class SamplePool:
 
   def commit(self):
     for k in self._slot_names:
-      getattr(self._parent, k)[self._parent_idx] = getattr(self, k)
+      getattr(self._parent, k)[self._parent_idx].copy_(getattr(self, k))
 
