@@ -109,8 +109,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             init_samples[:batch_size // 8, ...].copy_(init_seed)
                             if damage_init:
                                 init_samples = rand_circle_masks(init_samples, batch_size // 16)
-                            init_samples = init_samples.to(device)
-                            images = images.to(device)
+                            init_samples, images = init_samples.to(device), images.to(device)
                         else:
                             images, _, trainiter = get_inputs(trainiter, batch_size, device)
                             init_samples = None
