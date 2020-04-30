@@ -88,7 +88,7 @@ class SamplePool:
 
   def sample(self, n):
     idx = np.random.choice(self._size, n, False)
-    batch = {k: getattr(self, k)[idx] for k in self._slot_names}
+    batch = {k: getattr(self, k)[idx].detach() for k in self._slot_names}
     batch = SamplePool(**batch, _parent=self, _parent_idx=idx)
     return batch
 
