@@ -105,13 +105,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if use_sample_pool:
                             pool_samples = sample_pool.sample(batch_size)
-                            init_samples, target_samples = pool_samples.init, pool_samples.target
+                            init_samples, images = pool_samples.init, pool_samples.target
+                            init_samples[:batch_size // 8, ...] = init_seed
                             if damage_init:
                                 init_samples = rand_circle_masks(init_samples, batch_size // 16)
-                            init_samples[:batch_size // 8, ...] = init_seed
                             init_samples = init_samples.detach().to(device)
-                            target_samples = target_samples.detach().to(device)
-                            images = target_samples
+                            images = images.detach().to(device)
                         else:
                             images, _, trainiter = get_inputs(trainiter, batch_size, device)
                             init_samples = None
@@ -139,7 +138,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if use_sample_pool:
                             ca_out = out_embs[-1]
                             pool_samples.init[:] = ca_out
-                            pool_samples.target[:] = images
                             pool_samples.commit()
 
                 # Streaming Images
