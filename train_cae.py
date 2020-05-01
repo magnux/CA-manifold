@@ -70,15 +70,15 @@ def get_inputs(trainiter, batch_size, device):
 images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
 if use_sample_pool:
-    n_slots = len(trainloader) * 8
+    n_slots = len(trainloader) * 16
     target = []
     for _ in range((n_slots // batch_size) + 1):
         images, _, trainiter = get_inputs(trainiter, batch_size, torch.device('cpu'))
         target.append(images)
-    target = torch.cat(target, dim=0)[:n_slots, ...]
-    seed = ca_seed(n_slots, n_filter, image_size, torch.device('cpu'))
-    sample_pool = SamplePool(init=seed, target=target)
-    init_seed = ca_seed(batch_size // 8, n_filter, image_size, torch.device('cpu'))
+    target = torch.cat(target, dim=0)[:n_slots, ...].numpy()
+    seed = ca_seed(n_slots, n_filter, image_size, torch.device('cpu')).numpy()
+    sample_pool = SamplePool(target=target, init=seed)
+    init_seed = ca_seed(batch_size // 8, n_filter, image_size, torch.device('cpu')).numpy()
 
 window_size = len(trainloader) // 10
 
@@ -105,11 +105,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if use_sample_pool:
                             pool_samples = sample_pool.sample(batch_size)
-                            init_samples, images = pool_samples.init, pool_samples.target
+                            images, init_samples = pool_samples.target, pool_samples.init
                             init_samples[:batch_size // 8, ...] = init_seed
+                            images = torch.tensor(images, device=device, requires_grad=True)
+                            init_samples = torch.tensor(init_samples, device=device, requires_grad=True)
                             if damage_init:
                                 init_samples = rand_circle_masks(init_samples, batch_size // 16)
-                            init_samples, images = init_samples.to(device), images.to(device)
                         else:
                             images, _, trainiter = get_inputs(trainiter, batch_size, device)
                             init_samples = None
@@ -135,7 +136,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec_sum += loss_dec.item()
 
                         if use_sample_pool:
-                            pool_samples.init[:] = out_embs[-1]
+                            pool_samples.init[:] = out_embs[-1].cpu().detach().numpy()
                             pool_samples.commit()
 
                 # Streaming Images
