@@ -106,6 +106,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if use_sample_pool:
                             pool_samples = sample_pool.sample(batch_size)
                             images, init_samples = pool_samples.target, pool_samples.init
+                            loss_rank = np.mean(np.square(images - init_samples[:, :images.shape[1], :, :]), axis=(1,2,3)).argsort()[::-1]
+                            images = images[loss_rank]
+                            pool_samples.target[:] = images
+                            init_samples = init_samples[loss_rank]
                             init_samples[:batch_size // 8, ...] = init_seed
                             images = torch.tensor(images, device=device, requires_grad=True)
                             init_samples = torch.tensor(init_samples, device=device, requires_grad=True)
