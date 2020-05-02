@@ -55,7 +55,9 @@ async def stream_images_client(images, model_name):
         images_cpu = images.permute(1, 2, 0).data.cpu().numpy()
         images_size = np.array(images_cpu.shape)
 
-        writer.writelines([model_name.encode(), images_size.tobytes(), images_cpu.tobytes()])
+        writer.writelines([model_name.encode()])
+        writer.writelines([images_size.tobytes()])
+        writer.writelines([images_cpu.tobytes()])
 
         await writer.drain()
         writer.close()
