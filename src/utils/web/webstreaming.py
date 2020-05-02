@@ -130,7 +130,6 @@ if __name__ == '__main__':
 
     refresh_images = threading.Event()
 
+    asyncio.ensure_future(listen_images())
     app.run(host=args["ip"], port=args["port"], debug=True, threaded=True, use_reloader=False)
-
-    asyncio.run(listen_images())
 
