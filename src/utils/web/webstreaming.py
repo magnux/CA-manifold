@@ -8,65 +8,94 @@ import time
 import cv2
 import torch
 import torchvision
-import numpy
-from multiprocessing.connection import Listener, Client
+import asyncio
+import numpy as np
 
-inter_process_address = ('localhost', 8888)
-inter_process_pass = b':3 ... rawr!!!'
+asyncio_address = 'localhost'
+asyncio_port = 8888
 app = Flask(__name__, template_folder="./")
 
-inter_process_client = None
-inter_process_listener = None
 current_images = None
 refresh_images = None
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+class VideoWriter:
+  def __init__(self, filename, fps=30.0, **kw):
+    self.writer = None
+    self.params = dict(filename=filename, fps=fps, **kw)
+
+  def add(self, img):
+    img = np.asarray(img)
+    if self.writer is None:
+      h, w = img.shape[:2]
+      self.writer = FFMPEG_VideoWriter(size=(w, h), **self.params)
+    if img.dtype in [np.float32, np.float64]:
+      img = np.uint8(img.clip(0, 1)*255)
+    if len(img.shape) == 2:
+      img = np.repeat(img[..., None], 3, -1)
+    self.writer.write_frame(img)
+
+  def close(self):
+    if self.writer:
+      self.writer.close()
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, *kw):
+    self.close()
 
 
-def stream_images(images):
-    global inter_process_client
+async def stream_images_client(images, model_name):
+    reader, writer = await asyncio.open_connection(asyncio_address, asyncio_port)
 
-    if inter_process_client is None:
-        try:
-            inter_process_client = Client(inter_process_address, authkey=inter_process_pass)
-        except ConnectionRefusedError:
-            return
-
-    channels = images.size(1)
     images = ((images * 0.5) + 0.5) * 255
     images = torchvision.utils.make_grid(images)
     images_cpu = images.permute(1, 2, 0).data.cpu().numpy()
+    images_size = [int(d) for d in images_cpu.shape]
+
+    writer.write(model_name.encode())
+    writer.write(bytearray(images_size))
+    writer.write(images_cpu.tobytes())
+
+    await writer.drain()
+    writer.close()
+
+
+def stream_images(images, model_name):
+    asyncio.run(stream_images_client(images, model_name))
+
+
+async def stream_images_server(reader, writer):
+    global current_images, refresh_images
+
+    data = await reader.read()
+    model_name = data.decode()
+
+    data = await reader.read()
+    images_size = list(data)
+
+    data = await reader.read()
+    images = np.frombuffer(data, dtype=np.float)
+    images = np.reshape(images, images_size)
+
+    channels = images_size[2]
+
     if channels == 3:
-        images_cpu = cv2.cvtColor(images_cpu, cv2.COLOR_RGB2BGR)
+        cv2_images = cv2.cvtColor(images, cv2.COLOR_RGB2BGR)
     elif channels == 4:
-        images_cpu = cv2.cvtColor(images_cpu, cv2.COLOR_RGBA2BGRA)
+        cv2_images = cv2.cvtColor(images, cv2.COLOR_RGBA2BGRA)
 
-    _, encoded_images = cv2.imencode(".png", images_cpu)
-    encoded_images = bytearray(encoded_images)
-
-    try:
-        inter_process_client.send_bytes(encoded_images)
-    except BrokenPipeError:
-        inter_process_client = None
+    _, cv2_images = cv2.imencode(".png", cv2_images)
+    current_images = cv2_images
+    refresh_images.set()
 
 
-def listen_images():
-    global inter_process_listener, current_images, refresh_images
+async def listen_images():
+    server = await asyncio.start_server(stream_images_server, asyncio_address, asyncio_port)
 
-    if inter_process_listener is None:
-        inter_process_listener = Listener(inter_process_address, authkey=inter_process_pass)
-
-    while True:
-        with inter_process_listener.accept() as listener_conn:
-            while True:
-                try:
-                    current_images = listener_conn.recv_bytes()
-                    refresh_images.set()
-                except EOFError:
-                    break
+    async with server:
+        await server.serve_forever()
 
 
 def generate():
@@ -81,10 +110,17 @@ def generate():
         refresh_images.clear()
 
 
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
 @app.route("/video_feed")
 def video_feed():
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
+
+# python webstreaming.py --ip 0.0.0.0 --port 8000
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
@@ -94,10 +130,7 @@ if __name__ == '__main__':
 
     refresh_images = threading.Event()
 
-    t = threading.Thread(target=listen_images)
-    t.daemon = True
-    t.start()
-
     app.run(host=args["ip"], port=args["port"], debug=True, threaded=True, use_reloader=False)
 
-# python webstreaming.py --ip 0.0.0.0 --port 8000
+    asyncio.run(listen_images())
+

@@ -11,11 +11,13 @@ from src.utils.media_utils import save_images, rand_erase_images, rand_change_le
 from src.utils.model_utils import ca_seed, SamplePool
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
+from os.path import basename, splitext
 
 parser = argparse.ArgumentParser(description='Train a FractalNet')
 parser.add_argument('config', type=str, help='Path to config file.')
 args = parser.parse_args()
 config = load_config(args.config)
+config_name = splitext(basename(args.config))[0]
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
@@ -153,7 +155,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_dec = lat_enc
                     images_dec, _, _ = decoder(lat_dec)
 
-                stream_images(images_dec)
+                stream_images(images_dec, config_name)
 
                 # Print progress
                 running_loss[batch % window_size] = loss_dec_sum
