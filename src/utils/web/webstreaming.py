@@ -47,17 +47,20 @@ refresh_images = None
 
 
 async def stream_images_client(images, model_name):
-    reader, writer = await asyncio.open_connection(asyncio_address, asyncio_port)
+    try:
+        reader, writer = await asyncio.open_connection(asyncio_address, asyncio_port)
 
-    images = ((images * 0.5) + 0.5) * 255
-    images = torchvision.utils.make_grid(images)
-    images_cpu = images.permute(1, 2, 0).data.cpu().numpy()
-    images_size = np.array(images_cpu.shape)
+        images = ((images * 0.5) + 0.5) * 255
+        images = torchvision.utils.make_grid(images)
+        images_cpu = images.permute(1, 2, 0).data.cpu().numpy()
+        images_size = np.array(images_cpu.shape)
 
-    writer.writelines([model_name.encode(), images_size.tobytes(), images_cpu.tobytes()])
+        writer.writelines([model_name.encode(), images_size.tobytes(), images_cpu.tobytes()])
 
-    await writer.drain()
-    writer.close()
+        await writer.drain()
+        writer.close()
+    except ConnectionRefusedError as e:
+        pass
 
 
 def stream_images(images, model_name):
