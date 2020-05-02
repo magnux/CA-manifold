@@ -54,9 +54,7 @@ async def stream_images_client(images, model_name):
     images_cpu = images.permute(1, 2, 0).data.cpu().numpy()
     images_size = [int(d) for d in images_cpu.shape]
 
-    writer.write(model_name.encode())
-    writer.write(bytearray(images_size))
-    writer.write(images_cpu.tobytes())
+    writer.writelines([model_name.encode(), bytearray(images_size), images_cpu.tobytes()])
 
     await writer.drain()
     writer.close()
@@ -69,13 +67,13 @@ def stream_images(images, model_name):
 async def stream_images_server(reader, writer):
     global current_images, refresh_images
 
-    data = await reader.read()
+    data = await reader.readline()
     model_name = data.decode()
 
-    data = await reader.read()
+    data = await reader.readline()
     images_size = list(data)
 
-    data = await reader.read()
+    data = await reader.readline()
     images = np.frombuffer(data, dtype=np.float)
     images = np.reshape(images, images_size)
 
