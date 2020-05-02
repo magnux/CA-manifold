@@ -19,31 +19,31 @@ current_images = None
 refresh_images = None
 
 
-class VideoWriter:
-  def __init__(self, filename, fps=30.0, **kw):
-    self.writer = None
-    self.params = dict(filename=filename, fps=fps, **kw)
-
-  def add(self, img):
-    img = np.asarray(img)
-    if self.writer is None:
-      h, w = img.shape[:2]
-      self.writer = FFMPEG_VideoWriter(size=(w, h), **self.params)
-    if img.dtype in [np.float32, np.float64]:
-      img = np.uint8(img.clip(0, 1)*255)
-    if len(img.shape) == 2:
-      img = np.repeat(img[..., None], 3, -1)
-    self.writer.write_frame(img)
-
-  def close(self):
-    if self.writer:
-      self.writer.close()
-
-  def __enter__(self):
-    return self
-
-  def __exit__(self, *kw):
-    self.close()
+# class VideoWriter:
+#   def __init__(self, filename, fps=30.0, **kw):
+#     self.writer = None
+#     self.params = dict(filename=filename, fps=fps, **kw)
+#
+#   def add(self, img):
+#     img = np.asarray(img)
+#     if self.writer is None:
+#       h, w = img.shape[:2]
+#       self.writer = FFMPEG_VideoWriter(size=(w, h), **self.params)
+#     if img.dtype in [np.float32, np.float64]:
+#       img = np.uint8(img.clip(0, 1)*255)
+#     if len(img.shape) == 2:
+#       img = np.repeat(img[..., None], 3, -1)
+#     self.writer.write_frame(img)
+#
+#   def close(self):
+#     if self.writer:
+#       self.writer.close()
+#
+#   def __enter__(self):
+#     return self
+#
+#   def __exit__(self, *kw):
+#     self.close()
 
 
 async def stream_images_client(images, model_name):
@@ -130,6 +130,9 @@ if __name__ == '__main__':
 
     refresh_images = threading.Event()
 
-    asyncio.ensure_future(listen_images())
+    t = threading.Thread(target=asyncio.run, args=[listen_images()])
+    t.daemon = True
+    t.start()
+
     app.run(host=args["ip"], port=args["port"], debug=True, threaded=True, use_reloader=False)
 
