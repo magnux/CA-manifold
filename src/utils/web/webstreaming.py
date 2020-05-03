@@ -93,7 +93,7 @@ async def stream_images_server(reader, writer):
         cv2_images = cv2.cvtColor(images, cv2.COLOR_RGBA2BGRA)
 
     _, cv2_images = cv2.imencode(".png", cv2_images)
-    current_images[model_name] = cv2_images
+    current_images[model_name] = bytearray(cv2_images)
 
     if model_name not in refresh_images:
         refresh_images[model_name] = threading.Event()
@@ -111,7 +111,7 @@ def generate(model_name):
     global current_images, refresh_images
 
     while True:
-        if current_images[model_name] is None:
+        if current_images[model_name] not in current_images:
             continue
 
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + current_images[model_name] + b'\r\n')
@@ -121,7 +121,7 @@ def generate(model_name):
 
 @app.route("/")
 def index():
-    return render_template("index.html", len=len(current_images.keys()), model_names=current_images.keys())
+    return render_template("index.html", len=len(current_images.keys()), model_names=list(current_images.keys()))
 
 
 @app.route("/video_feed")
