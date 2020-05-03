@@ -58,11 +58,12 @@ async def stream_images_client(images, model_name):
 
         writer.writelines([model_name.encode(), b'\n',
                            images_size.tobytes(), b'\n',
-                           images_cpu.tobytes(), b'\n'])
+                           images_cpu.tobytes()])
 
         await writer.drain()
         writer.close()
         await writer.wait_closed()
+
     except Exception as e:
         pass
 
@@ -81,7 +82,7 @@ async def stream_images_server(reader, writer):
     images_size = np.frombuffer(data[:-1], dtype=np.float)
 
     data = await reader.readline()
-    images = np.frombuffer(data[:-1], dtype=np.float)
+    images = np.frombuffer(data, dtype=np.float)
     images = np.reshape(images, images_size)
 
     channels = images_size[2]
