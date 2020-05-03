@@ -62,7 +62,8 @@ async def stream_images_client(images, model_name):
 
         await writer.drain()
         writer.close()
-    except ConnectionRefusedError as e:
+        await writer.wait_closed()
+    except Exception as e:
         pass
 
 
@@ -74,13 +75,13 @@ async def stream_images_server(reader, writer):
     global current_images, refresh_images
 
     data = await reader.readline()
-    model_name = data.decode()
+    model_name = data[:-1].decode()
 
     data = await reader.readline()
-    images_size = np.frombuffer(data, dtype=np.float)
+    images_size = np.frombuffer(data[:-1], dtype=np.float)
 
     data = await reader.readline()
-    images = np.frombuffer(data, dtype=np.float)
+    images = np.frombuffer(data[:-1], dtype=np.float)
     images = np.reshape(images, images_size)
 
     channels = images_size[2]
