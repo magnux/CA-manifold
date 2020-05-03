@@ -111,7 +111,7 @@ def generate(model_name):
     global current_images, refresh_images
 
     while True:
-        if current_images[model_name] not in current_images:
+        if model_name not in current_images:
             continue
 
         refresh_images[model_name].wait()
