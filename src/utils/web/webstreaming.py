@@ -114,8 +114,8 @@ def generate(model_name):
         if current_images[model_name] not in current_images:
             continue
 
-        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + current_images[model_name] + b'\r\n')
         refresh_images[model_name].wait()
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + current_images[model_name] + b'\r\n')
         refresh_images[model_name].clear()
 
 
