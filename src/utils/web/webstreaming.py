@@ -79,9 +79,9 @@ async def stream_images_server(reader, writer):
     model_name = data[:-1].decode()
 
     data = await reader.readline()
-    images_size = np.frombuffer(data[:-1], dtype=np.float)
+    images_size = np.frombuffer(data[:-1], dtype=np.int)
 
-    data = await reader.readline()
+    data = await reader.read()
     images = np.frombuffer(data, dtype=np.float)
     images = np.reshape(images, images_size)
 
