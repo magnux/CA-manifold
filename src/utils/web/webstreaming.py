@@ -53,7 +53,7 @@ async def stream_images_client(images, model_name):
 
         images = ((images * 0.5) + 0.5) * 255
         images = torchvision.utils.make_grid(images)
-        images_cpu = images.permute(1, 2, 0).data.cpu().numpy()
+        images_cpu = images.permute(1, 2, 0).data.cpu().numpy().astype(np.float32)
         images_size = np.array(images_cpu.shape)
 
         writer.writelines([model_name.encode(), b'\n',
