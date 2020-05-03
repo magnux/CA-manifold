@@ -5,21 +5,16 @@
   <body>
     <h1>Training Real-Time Monitor</h1>
 
-  <div>
-    {%for i in range(0, len)%}
-      <li>{{model_names[i]}}</li>
-      <img src="{{ url_for('video_feed', model_name=model_names[i]) }}">
-    {%endfor%}
-  </div>
+  <div></div>
 
-    <!--<script>-->
-      <!--function autoRefresh_div() {-->
-          <!--$("#div").load("load.html", function() {-->
-              <!--setTimeout(autoRefresh_div, 5000);-->
-          <!--});-->
-      <!--}-->
+    <script>
+      function autoRefresh_div() {
+          $('div').load("load.html", function() {
+              setTimeout(autoRefresh_div, 5000);
+          });
+      }
 
-      <!--autoRefresh_div();-->
-    <!--</script>-->
+      autoRefresh_div();
+    </script>
   </body>
 </html>
