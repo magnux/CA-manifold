@@ -110,7 +110,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images, init_samples = pool_samples.target, pool_samples.init
                             loss_init = np.mean(np.square(images - init_samples[:, :images.shape[1], :, :]), axis=(1,2,3))
                             loss_rank = loss_init.argsort()[::-1]
-                            bad_frac = (np.sum(np.int(loss_init > 5e-2)) // (batch_size // 16))
+                            bad_frac = (np.sum(loss_init > 5e-2) // (batch_size // 16))
                             images = images[loss_rank]
                             pool_samples.target[:] = images
                             init_samples = init_samples[loss_rank]
