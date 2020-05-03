@@ -105,7 +105,7 @@ async def listen_images():
         await server.serve_forever()
 
 
-def generate(model_name):
+def gen_image_stream(model_name):
     global current_images, refresh_images
 
     while True:
@@ -130,7 +130,7 @@ def strem_list():
 @app.route("/image_stream")
 def image_stream():
     model_name = request.args.get('model_name', default='', type=str)
-    return Response(generate(model_name), mimetype="multipart/x-mixed-replace; boundary=frame")
+    return Response(gen_image_stream(model_name), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
 # python -B -m src.utils.web.webstreaming -i localhost -o 8000
