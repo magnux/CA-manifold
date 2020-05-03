@@ -4,6 +4,11 @@
   </head>
   <body>
     <h1>Training Real-Time Monitor</h1>
-    <img src="{{ url_for('video_feed') }}">
+
+
+  {%for i in range(0, len)%}
+    <li>{{model_names[i]}}</li>
+    <img src="{{ url_for('video_feed', model_name=model_names[i]) }}">
+  {%endfor%}
   </body>
 </html>

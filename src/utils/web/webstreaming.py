@@ -1,3 +1,4 @@
+from flask import request
 from flask import Response
 from flask import Flask
 from flask import render_template
@@ -15,8 +16,8 @@ asyncio_address = 'localhost'
 asyncio_port = 8888
 app = Flask(__name__, template_folder="./")
 
-current_images = None
-refresh_images = None
+current_images = {}
+refresh_images = {}
 
 
 # class VideoWriter:
@@ -55,9 +56,9 @@ async def stream_images_client(images, model_name):
         images_cpu = images.permute(1, 2, 0).data.cpu().numpy()
         images_size = np.array(images_cpu.shape)
 
-        writer.writelines([model_name.encode()])
-        writer.writelines([images_size.tobytes()])
-        writer.writelines([images_cpu.tobytes()])
+        writer.writelines([model_name.encode(), b'\n',
+                           images_size.tobytes(), b'\n',
+                           images_cpu.tobytes(), b'\n'])
 
         await writer.drain()
         writer.close()
@@ -90,8 +91,8 @@ async def stream_images_server(reader, writer):
         cv2_images = cv2.cvtColor(images, cv2.COLOR_RGBA2BGRA)
 
     _, cv2_images = cv2.imencode(".png", cv2_images)
-    current_images = cv2_images
-    refresh_images.set()
+    current_images[model_name] = cv2_images
+    refresh_images[model_name].set()
 
 
 async def listen_images():
@@ -101,26 +102,27 @@ async def listen_images():
         await server.serve_forever()
 
 
-def generate():
+def generate(model_name):
     global current_images, refresh_images
 
     while True:
-        if current_images is None:
+        if current_images[model_name] is None:
             continue
 
-        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + current_images + b'\r\n')
-        refresh_images.wait()
-        refresh_images.clear()
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + current_images[model_name] + b'\r\n')
+        refresh_images[model_name].wait()
+        refresh_images[model_name].clear()
 
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", len=len(current_images.keys()), model_names=current_images.keys())
 
 
 @app.route("/video_feed")
 def video_feed():
-    return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+    model_name = request.args.get('model_name', default='', type=str)
+    return Response(generate(model_name), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
 # python webstreaming.py --ip 0.0.0.0 --port 8000
