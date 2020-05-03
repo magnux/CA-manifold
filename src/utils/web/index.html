@@ -10,7 +10,7 @@
 
     <script>
       function autoRefresh_div() {
-          $('div').load("stream_list.html", function() {
+          $('div').load("stream_list", function() {
               setTimeout(autoRefresh_div, 5000);
           });
       }

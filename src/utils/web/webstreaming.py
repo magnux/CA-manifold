@@ -121,7 +121,12 @@ def generate(model_name):
 
 @app.route("/")
 def index():
-    return render_template("index.html", len=len(current_images.keys()), model_names=list(current_images.keys()))
+    return render_template("index.html")
+
+
+@app.route("/stream_list")
+def index():
+    return render_template("stream_list.html", len=len(current_images.keys()), model_names=list(current_images.keys()))
 
 
 @app.route("/video_feed")
