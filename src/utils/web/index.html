@@ -11,7 +11,7 @@
     <script>
       function autoRefresh_div() {
           $('div').load("stream_list", function() {
-              setTimeout(autoRefresh_div, 5000);
+              setTimeout(autoRefresh_div, 60000);
           });
       }
 

@@ -1,4 +1,4 @@
 {%for i in range(0, len)%}
   <li>{{model_names[i]}}</li>
-  <img src="{{ url_for('video_feed', model_name=model_names[i]) }}">
+  <img src="{{ url_for('image_stream', model_name=model_names[i], rand_key=rand_key) }}">
 {%endfor%}

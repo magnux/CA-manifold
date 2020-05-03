@@ -2,6 +2,7 @@ from flask import request
 from flask import Response
 from flask import Flask
 from flask import render_template
+import os
 import threading
 import argparse
 import datetime
@@ -11,43 +12,23 @@ import torch
 import torchvision
 import asyncio
 import numpy as np
+from src.utils.file_utils import makedir_exist_ok
+from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 
 asyncio_address = 'localhost'
 asyncio_port = 8888
+video_fps = 15
+video_secs = 60
+
 app = Flask(__name__, template_folder="./")
 
 current_images = {}
+video_writers = {}
+len_videos = {}
 refresh_images = {}
 
 
-# class VideoWriter:
-#   def __init__(self, filename, fps=30.0, **kw):
-#     self.writer = None
-#     self.params = dict(filename=filename, fps=fps, **kw)
-#
-#   def add(self, img):
-#     img = np.asarray(img)
-#     if self.writer is None:
-#       h, w = img.shape[:2]
-#       self.writer = FFMPEG_VideoWriter(size=(w, h), **self.params)
-#     if img.dtype in [np.float32, np.float64]:
-#       img = np.uint8(img.clip(0, 1)*255)
-#     if len(img.shape) == 2:
-#       img = np.repeat(img[..., None], 3, -1)
-#     self.writer.write_frame(img)
-#
-#   def close(self):
-#     if self.writer:
-#       self.writer.close()
-#
-#   def __enter__(self):
-#     return self
-#
-#   def __exit__(self, *kw):
-#     self.close()
-
-
-async def stream_images_client(images, model_name):
+async def stream_images_client(images, model_name, out_dir):
     try:
         reader, writer = await asyncio.open_connection(asyncio_address, asyncio_port)
 
@@ -57,6 +38,7 @@ async def stream_images_client(images, model_name):
         images_size = np.array(images_cpu.shape)
 
         writer.writelines([model_name.encode(), b'\n',
+                           out_dir.encode(), b'\n',
                            images_size.tobytes(), b'\n',
                            images_cpu.tobytes()])
 
@@ -68,8 +50,8 @@ async def stream_images_client(images, model_name):
         pass
 
 
-def stream_images(images, model_name):
-    asyncio.run(stream_images_client(images, model_name))
+def stream_images(images, model_name, out_dir):
+    asyncio.run(stream_images_client(images, model_name, out_dir))
 
 
 async def stream_images_server(reader, writer):
@@ -79,20 +61,36 @@ async def stream_images_server(reader, writer):
     model_name = data[:-1].decode()
 
     data = await reader.readline()
+    out_dir = data[:-1].decode()
+
+    data = await reader.readline()
     images_size = np.frombuffer(data[:-1], dtype=np.int)
 
     data = await reader.read()
     images = np.frombuffer(data, dtype=np.float32)
     images = np.reshape(images, images_size)
 
-    channels = images_size[2]
+    if images_size[2] == 4:
+        alpha = (images[..., 3:4] / 255).clip(0.0, 1.0)
+        images = images[..., :3] * alpha
+        images = ((1.0 - alpha) * 255) + images
 
-    if channels == 3:
-        cv2_images = cv2.cvtColor(images, cv2.COLOR_RGB2BGR)
-    elif channels == 4:
-        cv2_images = cv2.cvtColor(images, cv2.COLOR_RGBA2BGRA)
+    if model_name not in video_writers:
+        h, w = images_size[:2]
+        now = datetime.datetime.now().strftime("%d_%m_%Y_%H:%M:%S")
+        video_file = os.path.join(out_dir, 'video', '%s.mp4' % now)
+        makedir_exist_ok(os.path.dirname(video_file))
+        video_writers[model_name] = FFMPEG_VideoWriter(size=(w, h), filename=video_file, fps=video_fps)
+        len_videos[model_name] = 0
+    video_writers[model_name].write_frame(np.uint8(images))
+    len_videos[model_name] += 1
 
-    _, cv2_images = cv2.imencode(".png", cv2_images)
+    if len_videos[model_name] >= (video_fps * video_secs):
+        video_writers[model_name].close()
+        del video_writers[model_name]
+
+    cv2_images = cv2.cvtColor(images, cv2.COLOR_RGB2BGR)
+    _, cv2_images = cv2.imencode(".jpeg", cv2_images)
     current_images[model_name] = bytearray(cv2_images)
 
     if model_name not in refresh_images:
@@ -126,16 +124,16 @@ def index():
 
 @app.route("/stream_list")
 def strem_list():
-    return render_template("stream_list.html", len=len(current_images.keys()), model_names=list(current_images.keys()))
+    return render_template("stream_list.html", len=len(current_images.keys()), model_names=list(current_images.keys()), rand_key=np.random.randint(0, 2 ** 20))
 
 
-@app.route("/video_feed")
-def video_feed():
+@app.route("/image_stream")
+def image_stream():
     model_name = request.args.get('model_name', default='', type=str)
     return Response(generate(model_name), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-# python webstreaming.py --ip 0.0.0.0 --port 8000
+# python -B -m src.utils.web.webstreaming -i localhost -o 8000
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
