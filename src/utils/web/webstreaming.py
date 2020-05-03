@@ -82,7 +82,7 @@ async def stream_images_server(reader, writer):
     images_size = np.frombuffer(data[:-1], dtype=np.int)
 
     data = await reader.read()
-    images = np.frombuffer(data, dtype=np.float)
+    images = np.frombuffer(data, dtype=np.float32)
     images = np.reshape(images, images_size)
 
     channels = images_size[2]
@@ -94,6 +94,9 @@ async def stream_images_server(reader, writer):
 
     _, cv2_images = cv2.imencode(".png", cv2_images)
     current_images[model_name] = cv2_images
+
+    if model_name not in refresh_images:
+        refresh_images[model_name] = threading.Event()
     refresh_images[model_name].set()
 
 
@@ -134,8 +137,6 @@ if __name__ == '__main__':
     ap.add_argument("-i", "--ip", type=str, required=True, help="ip address of the device")
     ap.add_argument("-o", "--port", type=int, required=True, help="ephemeral port number of the server (1024 to 65535)")
     args = vars(ap.parse_args())
-
-    refresh_images = threading.Event()
 
     t = threading.Thread(target=asyncio.run, args=[listen_images()])
     t.daemon = True
