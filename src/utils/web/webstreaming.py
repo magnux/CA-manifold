@@ -93,7 +93,7 @@ async def stream_images_server(reader, writer):
         cv2_images = cv2.cvtColor(images, cv2.COLOR_RGBA2BGRA)
 
     _, cv2_images = cv2.imencode(".png", cv2_images)
-    current_images[model_name] = bytearray(cv2_images)
+    current_images[model_name] = bytearray(cv2_images).decode()
 
     if model_name not in refresh_images:
         refresh_images[model_name] = threading.Event()
