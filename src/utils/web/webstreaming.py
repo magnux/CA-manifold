@@ -125,7 +125,7 @@ def index():
 
 
 @app.route("/stream_list")
-def index():
+def strem_list():
     return render_template("stream_list.html", len=len(current_images.keys()), model_names=list(current_images.keys()))
 
 
