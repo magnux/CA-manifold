@@ -96,3 +96,49 @@ class SinSobel(nn.Module):
         for i in range(1, self.n_pass + 1):
             s_input.append(self.conv(s_input[i-1], weight=self.weight, stride=1, padding=self.padding, groups=self.groups))
         return torch.cat(s_input, dim=1)
+
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    import imageio
+
+
+    def close_event():
+        plt.close()
+
+    fig = plt.figure()
+    timer = fig.canvas.new_timer(interval=500)
+    timer.add_callback(close_event)
+
+    c_size = 128
+    n_calls = 64
+
+    canvas = torch.zeros([1, 1, c_size, c_size])
+    canvas[:, :, c_size // 2, c_size // 2] = 1.0
+
+    plt.imshow(canvas.view(c_size, c_size))
+    timer.start()
+    plt.show()
+    canvas_l = [canvas.view(c_size, c_size)]
+
+    sobel_f, pad_f = get_sobel_kernel_2d(1), 1
+    # sobel_f, pad_f = get_sin_sobel_kernel_nd(1, 7, 2), 3
+
+    for _ in range(n_calls):
+        canvas = F.instance_norm(canvas)
+        canvas_sob = F.conv2d(canvas, weight=sobel_f, stride=1, padding=pad_f)
+        canvas = torch.cat([canvas, canvas_sob], dim=1)
+        canvas = canvas.mean(dim=1, keepdim=True)
+        plt.imshow(canvas.view(c_size, c_size))
+        timer.start()
+        plt.show()
+        canvas_l.append(canvas.view(c_size, c_size))
+
+    timer.stop()
+    plt.imshow(canvas.view(c_size, c_size))
+    plt.show()
+
+    def _canvas(idx):
+        return canvas_l[idx]
+
+    imageio.mimsave('./sobel_waves.gif', [_canvas(i) for i in range(n_calls)], fps=5)
