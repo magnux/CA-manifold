@@ -123,7 +123,7 @@ def index():
 
 
 @app.route("/stream_list")
-def strem_list():
+def stream_list():
     return render_template("stream_list.html", len=len(current_images.keys()), model_names=list(current_images.keys()), rand_key=np.random.randint(0, 2 ** 20))
 
 
