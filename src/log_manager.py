@@ -29,12 +29,7 @@ class LogManager(object):
         self.monitoring = monitoring
         self.monitoring_dir = monitoring_dir
 
-        if monitoring == 'telemetry':
-            import telemetry
-            self.tm = telemetry.ApplicationTelemetry()
-            if self.tm.get_status() == 0:
-                print('Telemetry successfully connected.')
-        elif monitoring == 'tensorboard':
+        if monitoring == 'tensorboard':
             import tensorboardX
             self.tb = tensorboardX.SummaryWriter(monitoring_dir, flush_secs=30)
         else:
@@ -51,11 +46,7 @@ class LogManager(object):
         self.stats[category][k].append((it, v))
 
         k_name = '%s/%s' % (category, k)
-        if self.monitoring == 'telemetry':
-            self.tm.metric_push_async({
-                'metric': k_name, 'value': v, 'it': it
-            })
-        elif self.monitoring == 'tensorboard':
+        if self.monitoring == 'tensorboard':
             self.tb.add_scalar(k_name, v, it)
 
     def add_imgs(self, imgs, tag, it):
