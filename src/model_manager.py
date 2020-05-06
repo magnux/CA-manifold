@@ -89,6 +89,7 @@ class ModelManager(object):
         if self.config['training']['save_every'] > 0 and ((self.epoch + 1) % self.config['training']['save_every']) == 0:
             self.checkpoint_manager.save(self.epoch + 1, '%s.pt' % self.model_name)
             self.log_manager.save_stats('%s_stats.p' % self.model_name)
+            self.log_manager.flush()
 
         if self.config['training']['lr_anneal_every'] > 0:
             for net_name in self.networks_dict.keys():

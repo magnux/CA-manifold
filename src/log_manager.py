@@ -36,7 +36,7 @@ class LogManager(object):
                 print('Telemetry successfully connected.')
         elif monitoring == 'tensorboard':
             import tensorboardX
-            self.tb = tensorboardX.SummaryWriter(monitoring_dir)
+            self.tb = tensorboardX.SummaryWriter(monitoring_dir, flush_secs=30)
         else:
             raise NotImplementedError('Monitoring tool "%s" not supported!'
                                       % monitoring)
@@ -121,3 +121,7 @@ class LogManager(object):
                 self.stats = pickle.load(f)
         except EOFError:
             print('Warning: log file corrupted!')
+
+    def flush(self):
+        if self.monitoring == 'tensorboard':
+            self.tb.flush()

@@ -24,19 +24,6 @@ def check_integrity(fpath, md5=None):
     return check_md5(fpath, md5)
 
 
-def makedir_exist_ok(dirpath):
-    """
-    Python2 support for os.makedirs(.., exist_ok=True)
-    """
-    try:
-        os.makedirs(dirpath)
-    except OSError as e:
-        if e.errno == errno.EEXIST:
-            pass
-        else:
-            raise
-
-
 def download_url(url, root, filename=None, md5=None, verbose=False):
     """Download a file from a url and place it in root.
 
@@ -52,7 +39,8 @@ def download_url(url, root, filename=None, md5=None, verbose=False):
         filename = os.path.basename(url)
     fpath = os.path.join(root, filename)
 
-    makedir_exist_ok(root)
+    if not os.path.exists(root):
+        os.makedirs(root)
 
     # check if file is already present locally
     if check_integrity(fpath, md5):

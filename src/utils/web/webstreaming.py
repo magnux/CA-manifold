@@ -12,7 +12,6 @@ import torch
 import torchvision
 import asyncio
 import numpy as np
-from src.utils.file_utils import makedir_exist_ok
 from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 
 asyncio_address = 'localhost'
@@ -79,7 +78,8 @@ async def stream_images_server(reader, writer):
         h, w = images_size[:2]
         now = datetime.datetime.now().strftime("%d_%m_%Y_%H:%M:%S")
         video_file = os.path.join(out_dir, 'video', '%s.mp4' % now)
-        makedir_exist_ok(os.path.dirname(video_file))
+        if not os.path.exists(os.path.dirname(video_file)):
+            os.makedirs(os.path.dirname(video_file))
         video_writers[model_name] = FFMPEG_VideoWriter(size=(w, h), filename=video_file, fps=video_fps)
         len_videos[model_name] = 0
     video_writers[model_name].write_frame(np.uint8(images))
@@ -133,7 +133,9 @@ def image_stream():
     return Response(gen_image_stream(model_name), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
+# python -B src/utils/web/webstreaming.py -i localhost -o 8000
 # python -B -m src.utils.web.webstreaming -i localhost -o 8000
+
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
