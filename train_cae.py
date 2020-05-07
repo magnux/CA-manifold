@@ -108,18 +108,19 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if use_sample_pool:
                             pool_samples = sample_pool.sample(batch_size)
                             images, init_samples = pool_samples.target, pool_samples.init
-                            loss_init = np.mean(np.square(images - init_samples[:, :images.shape[1], :, :]), axis=(1,2,3))
-                            loss_rank = loss_init.argsort()[::-1]
-                            images = images[loss_rank]
-                            pool_samples.target[:] = images
-                            init_samples = init_samples[loss_rank]
-                            bad_frac = (np.sum(loss_init > 1e-2) // (batch_size // 16))
-                            for i in range(max(1, bad_frac // 2)):
-                                init_samples[(batch_size // 16) * i:(batch_size // 16) * (i + 1), ...] = init_seed
-                            images = torch.tensor(images, device=device, requires_grad=True)
-                            init_samples = torch.tensor(init_samples, device=device, requires_grad=True)
-                            if damage_init:
-                                init_samples = rand_circle_masks(init_samples, batch_size // 16)
+                            if (batch % 4) == 0:
+                                init_samples = None
+                            else:
+                                loss_init = np.mean(np.square(images - init_samples[:, :images.shape[1], :, :]), axis=(1,2,3))
+                                loss_rank = loss_init.argsort()[::-1]
+                                images = images[loss_rank]
+                                pool_samples.target[:] = images
+                                init_samples = init_samples[loss_rank]
+                                init_samples[:batch_size // 16] = init_seed
+                                images = torch.tensor(images, device=device, requires_grad=True)
+                                init_samples = torch.tensor(init_samples, device=device, requires_grad=True)
+                                if damage_init:
+                                    init_samples = rand_circle_masks(init_samples, batch_size // 16)
                         else:
                             images, _, trainiter = get_inputs(trainiter, batch_size, device)
                             init_samples = None
