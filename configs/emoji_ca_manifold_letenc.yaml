@@ -25,7 +25,7 @@ training:
   optimizer: adam
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 1024
+  n_epochs: 2048
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0
