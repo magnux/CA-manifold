@@ -109,6 +109,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             pool_samples = sample_pool.sample(batch_size)
                             images, init_samples = pool_samples.target, pool_samples.init
                             if (batch % 4) == 0:
+                                images = torch.tensor(images, device=device, requires_grad=True)
                                 init_samples = None
                             else:
                                 loss_init = np.mean(np.square(images - init_samples[:, :images.shape[1], :, :]), axis=(1,2,3))
