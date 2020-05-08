@@ -173,8 +173,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec.backward()
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                    # Encoder step
-                    with model_manager.on_step(['encoder', 'code_book']):
+                # Encoder step
+                with model_manager.on_step(['encoder', 'code_book']):
+
+                    for _ in range(batch_mult):
+
                         images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
 
                         with torch.no_grad():
