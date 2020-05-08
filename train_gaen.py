@@ -109,7 +109,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             with model_manager.on_batch():
 
-                loss_dis_enc_sum, loss_dis_dec_sum, reg_dis_enc_sum, reg_dis_dec_sum = 0, 0, 0, 0
+                loss_dis_enc_sum, loss_dis_dec_sum, loss_dis_gen_sum, reg_dis_enc_sum, reg_dis_dec_sum, reg_dis_gen_sum = 0, 0, 0, 0, 0, 0
                 loss_gen_dec_sum, loss_gen_redec_sum, loss_gen_cent_sum, loss_gen_gen_sum = 0, 0, 0, 0
 
                 # Discriminator step
@@ -131,12 +131,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc.backward()
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                        images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
                         with torch.no_grad():
                             z_enc, _, _ = encoder(images)
-                            lat_gen = qgenerator(z_enc, labels)
-                            images_dec, _, _ = decoder(lat_gen)
+                            lat_enc = qgenerator(z_enc, labels)
+                            images_dec, _, _ = decoder(lat_enc)
 
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec)
@@ -150,6 +150,23 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         
                         loss_dis_dec.backward()
                         loss_dis_dec_sum += loss_dis_dec.item()
+
+                        with torch.no_grad():
+                            lat_gen = qgenerator(z_gen, labels)
+                            images_gen, _, _ = decoder(lat_gen)
+
+                        images_gen.requires_grad_()
+                        lat_top_gen, _, _ = dis_encoder(images_gen)
+                        labs_gen = discriminator(lat_top_gen, labels)
+
+                        loss_dis_gen = (1 / batch_mult) * compute_gan_loss(labs_gen, 0)
+
+                        reg_dis_gen = (1 / batch_mult) * reg_param * compute_grad2(labs_gen, images_gen).mean()
+                        reg_dis_gen.backward(retain_graph=True)
+                        reg_dis_gen_sum += reg_dis_gen.item()
+
+                        loss_dis_gen.backward()
+                        loss_dis_gen_sum += loss_dis_gen.item()
 
                 # Generator step
                 with model_manager.on_step(['encoder', 'code_book', 'decoder', 'generator']):
@@ -180,8 +197,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         qz_gen, _ = code_book(z_gen)
                         lat_gen = generator(qz_gen, labels)
                         images_gen, _, _ = decoder(lat_gen)
-                        lat_top_dec, _, _ = dis_encoder(images_gen)
-                        labs_gen = discriminator(lat_top_dec, labels)
+                        lat_top_gen, _, _ = dis_encoder(images_gen)
+                        labs_gen = discriminator(lat_top_gen, labels)
 
                         loss_gen_gen = (1 / batch_mult) * compute_gan_loss(labs_gen, 1)
                         loss_gen_gen.backward()
@@ -206,9 +223,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_dis_gen', loss_dis_gen_sum, it=it)
 
                 model_manager.log_manager.add_scalar('losses', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'reg_dis_dec', reg_dis_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'reg_dis_gen', reg_dis_gen_sum, it=it)
 
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_redec', loss_gen_redec_sum, it=it)
