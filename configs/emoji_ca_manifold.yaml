@@ -35,6 +35,6 @@ training:
   lr_anneal_every: 0
   monitoring: tensorboard
   sample_every: 1
-  sample_labels: 10
+  sample_labels: 9
   reg_param: 10.
   inception_every: 0
