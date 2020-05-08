@@ -104,7 +104,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             with model_manager.on_batch():
 
                 loss_dis_enc_sum, loss_dis_dec_sum, reg_dis_enc_sum, reg_dis_dec_sum = 0, 0, 0, 0
-                loss_gen_dec_sum, loss_gen_reenc_sum, loss_gen_cent_sum = 0, 0
+                loss_gen_dec_sum, loss_gen_reenc_sum, loss_gen_cent_sum = 0, 0, 0
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
