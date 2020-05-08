@@ -51,7 +51,11 @@ class Generator(nn.Module):
         self.injected = injected
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
+        self.embed_to_lat = nn.Sequential(
+            nn.Linear(z_dim + embed_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+        )
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -89,7 +93,11 @@ class UnconditionalGenerator(nn.Module):
     def __init__(self, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
+        self.embed_to_lat = nn.Sequential(
+            nn.Linear(z_dim + embed_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+        )
 
     def forward(self, z):
         lat = self.embed_to_lat(z)
