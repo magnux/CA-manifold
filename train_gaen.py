@@ -69,7 +69,7 @@ def get_inputs(trainiter, batch_size, device):
     images, labels = next_inputs
     images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
-    images = images.detach().requires_grad_()
+    images.detach_().requires_grad_()
     z_gen = zdist.sample((images.size(0),)).clamp_(-3, 3)
     z_gen.detach_().requires_grad_()
     return images, labels, z_gen, trainiter
@@ -82,7 +82,7 @@ if config['training']['inception_every'] > 0:
     for _ in range(10000 // batch_size):
         images, _, _, trainiter = get_inputs(trainiter, batch_size, torch.device('cpu'))
         fid_real_samples.append(images)
-    fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].numpy()
+    fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
 
 window_size = len(trainloader) // 10
