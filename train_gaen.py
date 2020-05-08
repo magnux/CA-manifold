@@ -147,7 +147,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                 # Generator step
-                with model_manager.on_step(['encoder', 'code_book', 'decoder', 'generator']):
+                with model_manager.on_step(['encoder', 'decoder', 'generator']):
 
                     for _ in range(batch_mult):
 
@@ -170,22 +170,29 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size)
 
                         with torch.no_grad():
-                            qz_gen = code_book(z_gen)
+                            qz_gen, _ = code_book(z_gen)
                             lat_gen = generator(qz_gen, labels)
                             images_gen, _, _ = decoder(lat_gen)
 
                         qz_gen.requires_grad_()
                         images_gen.requires_grad_()
                         z_enc, _, _ = encoder(images_gen)
-                        qz_enc, cent_loss = code_book(z_gen)
-
-                        loss_gen_cent = (1 / batch_mult) * cent_loss
-                        loss_gen_cent.backward(retain_graph=True)
-                        loss_gen_cent_sum += loss_gen_cent.item()
+                        qz_enc, _ = code_book(z_gen)
 
                         loss_gen_reenc = (1 / batch_mult) * F.mse_loss(qz_enc, qz_gen)
                         loss_gen_reenc.backward()
                         loss_gen_reenc_sum += loss_gen_reenc.item()
+
+                    # Code book step
+                    with model_manager.on_step(['encoder', 'code_book']):
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size)
+
+                        z_enc, _, _ = encoder(images)
+                        _, cent_loss = code_book(z_gen)
+
+                        loss_gen_cent = (1 / batch_mult) * cent_loss
+                        loss_gen_cent.backward(retain_graph=True)
+                        loss_gen_cent_sum += loss_gen_cent.item()
 
                 # Streaming Images
                 with torch.no_grad():
