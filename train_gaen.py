@@ -110,7 +110,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             with model_manager.on_batch():
 
                 loss_dis_enc_sum, loss_dis_dec_sum, reg_dis_enc_sum, reg_dis_dec_sum = 0, 0, 0, 0
-                loss_gen_dec_sum, loss_gen_reenc_sum, loss_gen_cent_sum = 0, 0, 0
+                loss_gen_dec_sum, loss_gen_redec_sum, loss_gen_cent_sum = 0, 0, 0
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
@@ -152,52 +152,31 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec.backward()
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                # Decoder step
-                with model_manager.on_step(['decoder', 'generator']):
+                # Generator step
+                with model_manager.on_step(['encoder', 'code_book', 'decoder', 'generator']):
 
                     for _ in range(batch_mult):
 
                         images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
 
-                        with torch.no_grad():
-                            z_enc, _, _ = encoder(images)
-                            qz_enc, _ = code_book(z_enc)
-
-                        qz_enc.requires_grad_()
+                        z_enc, _, _ = encoder(images)
+                        qz_enc, cent_loss = code_book(z_enc)
                         lat_gen = generator(qz_enc, labels)
-                        images_dec, _, _ = decoder(lat_gen)
+                        images_dec, _, images_dec_raw = decoder(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_dec)
                         labs_dec = discriminator(lat_top_dec, labels)
-
-                        loss_gen_dec = (1/batch_mult) * compute_gan_loss(labs_dec, 1)
-                        loss_gen_dec.backward()
-                        loss_gen_dec_sum += loss_gen_dec.item()
-
-                # Encoder step
-                with model_manager.on_step(['encoder', 'code_book']):
-
-                    for _ in range(batch_mult):
-
-                        images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
-
-                        with torch.no_grad():
-                            z_enc, _, _ = encoder(images)
-                            qz_enc, _ = code_book(z_enc)
-                            lat_gen = generator(qz_enc, labels)
-                            images_gen, _, _ = decoder(lat_gen)
-
-                        qz_enc.requires_grad_()
-                        images_gen.requires_grad_()
-                        z_reenc, _, _ = encoder(images_gen)
-                        qz_reenc, cent_loss = code_book(z_reenc)
 
                         loss_gen_cent = (1 / batch_mult) * cent_loss.mean()
                         loss_gen_cent.backward(retain_graph=True)
                         loss_gen_cent_sum += loss_gen_cent.item()
 
-                        loss_gen_reenc = (1 / batch_mult) * F.mse_loss(qz_reenc, qz_enc)
-                        loss_gen_reenc.backward()
-                        loss_gen_reenc_sum += loss_gen_reenc.item()
+                        loss_gen_redec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
+                        loss_gen_redec.backward(retain_graph=True)
+                        loss_gen_redec_sum += loss_gen_redec.item()
+
+                        loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
+                        loss_gen_dec.backward()
+                        loss_gen_dec_sum += loss_gen_dec.item()
 
                 # Streaming Images
                 with torch.no_grad():
@@ -223,7 +202,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'reg_dis_dec', reg_dis_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'loss_gen_reenc', loss_gen_reenc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen_redec', loss_gen_redec_sum, it=it)
 
                 it += 1
 
