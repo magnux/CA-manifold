@@ -69,7 +69,7 @@ def get_inputs(trainiter, batch_size, device):
     images, labels = next_inputs
     images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
-    images.detach().requires_grad_()
+    images = images.detach().requires_grad_()
     z_gen = zdist.sample((images.size(0),)).clamp_(-3, 3)
     z_gen.detach_().requires_grad_()
     return images, labels, z_gen, trainiter
