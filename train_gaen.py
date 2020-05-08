@@ -188,7 +188,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size)
 
                         z_enc, _, _ = encoder(images)
-                        _, cent_loss = code_book(z_gen)
+                        _, cent_loss = code_book(z_enc)
 
                         loss_gen_cent = (1 / batch_mult) * cent_loss
                         loss_gen_cent.backward(retain_graph=True)
