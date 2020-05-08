@@ -5,7 +5,7 @@ data:
   test_dir: data/emoji
   image_size: 64
   channels: 4
-  n_labels: 1
+  n_labels: 9
 network:
   class: ca_manifold
   kwargs:
