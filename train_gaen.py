@@ -117,19 +117,21 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     for _ in range(batch_mult):
 
-                        images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
+                        for _ in range(2):
 
-                        lat_top_enc, _, _ = dis_encoder(images)
-                        labs_enc = discriminator(lat_top_enc, labels)
+                            images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
 
-                        loss_dis_enc = (1/batch_mult) * compute_gan_loss(labs_enc, 1)
+                            lat_top_enc, _, _ = dis_encoder(images)
+                            labs_enc = discriminator(lat_top_enc, labels)
 
-                        reg_dis_enc = (1/batch_mult) * reg_param * compute_grad2(labs_enc, images).mean()
-                        reg_dis_enc.backward(retain_graph=True)
-                        reg_dis_enc_sum += reg_dis_enc.item()
+                            loss_dis_enc = 0.5 * (1/batch_mult) * compute_gan_loss(labs_enc, 1)
 
-                        loss_dis_enc.backward()
-                        loss_dis_enc_sum += loss_dis_enc.item()
+                            reg_dis_enc = 0.5 * (1/batch_mult) * reg_param * compute_grad2(labs_enc, images).mean()
+                            reg_dis_enc.backward(retain_graph=True)
+                            reg_dis_enc_sum += reg_dis_enc.item()
+
+                            loss_dis_enc.backward()
+                            loss_dis_enc_sum += loss_dis_enc.item()
 
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
