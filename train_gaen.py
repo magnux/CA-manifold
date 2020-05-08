@@ -87,13 +87,13 @@ if config['training']['inception_every'] > 0:
 
 window_size = len(trainloader) // 10
 
-for epoch in range(model_manager.start_epoch, config['training']['nepochs']):
+for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
 
         running_loss_dis = np.zeros(window_size)
         running_loss_gen = np.zeros(window_size)
 
-        batch_mult = int((epoch / config['training']['nepochs']) * 4) + 1
+        batch_mult = int((epoch / config['training']['n_epochs']) * 4) + 1
 
         it = (epoch * len(trainloader))
 
