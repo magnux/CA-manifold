@@ -44,11 +44,10 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, injected, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
-        self.injected = injected
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
         self.embed_to_lat = nn.Sequential(
@@ -73,12 +72,11 @@ class Generator(nn.Module):
 
 
 class UnconditionalDiscriminator(nn.Module):
-    def __init__(self, lat_size, injected, **kwargs):
+    def __init__(self, lat_size, **kwargs):
         super().__init__()
-        self.injected = injected
         self.lat_size = lat_size
         self.labs = nn.Sequential(
-            LinearResidualBlock(self.lat_size * (2 if self.injected else 1), self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             nn.Linear(self.lat_size, 1)
         )

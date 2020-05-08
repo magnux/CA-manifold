@@ -18,7 +18,7 @@ network:
     letter_encoding: False
 z_dist:
   type: gauss
-  dim: 512
+  z_dim: 512
 training:
   out_dir: save/cifar10_conv_ae
   batch_size: 64

@@ -39,7 +39,7 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
 
 # Distributions
 ydist = get_ydist(config['data']['n_labels'], device=device)
-zdist = get_zdist(config['z_dist']['type'], config['z_dist']['dim'], device=device)
+zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=device)
 
 # Networks
 networks_dict = {
