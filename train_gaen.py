@@ -167,7 +167,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec.backward()
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size)
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
                         with torch.no_grad():
                             qz_gen, _ = code_book(z_gen)
@@ -185,7 +185,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     # Code book step
                     with model_manager.on_step(['encoder', 'code_book']):
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size)
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
                         z_enc, _, _ = encoder(images)
                         _, cent_loss = code_book(z_enc)
@@ -227,7 +227,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, z_gen, trainiter = get_inputs(trainiter, config['training']['batch_size'])
+            images, labels, z_gen, trainiter = get_inputs(trainiter, config['training']['batch_size'], device)
             qz_test, _ = code_book(z_test)
             lat_gen = generator(qz_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
