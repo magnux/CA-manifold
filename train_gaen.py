@@ -85,6 +85,12 @@ if config['training']['inception_every'] > 0:
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
 
+def qgenerator(z, lab):
+    qz, _ = code_book(z)
+    lat = generator(qz, lab)
+    return lat
+
+
 window_size = len(trainloader) // 10
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
@@ -196,8 +202,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Streaming Images
                 with torch.no_grad():
-                    qz_test = code_book(z_test)
-                    lat_gen = generator(z_test, labels_test)
+                    lat_gen = qgenerator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
 
                 stream_images(images_gen, config_name, config['training']['out_dir'])
@@ -228,26 +233,24 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, config['training']['batch_size'], device)
-            qz_test, _ = code_book(z_test)
-            lat_gen = generator(qz_test, labels_test)
+            lat_gen = qgenerator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
             z_enc, _, _ = encoder(images)
-            qz_enc, _ = code_book(z_enc)
-            lat_enc = generator(qz_enc, labels)
+            lat_enc = qgenerator(z_enc, labels)
             images_dec, _, _ = decoder(lat_enc)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
                 fixed_lab = torch.full((config['training']['batch_size'],), lab, device=device, dtype=torch.int64)
-                lat_gen = generator(qz_test, fixed_lab)
+                lat_gen = qgenerator(z_test, fixed_lab)
                 images_gen, _, _ = decoder(lat_gen)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
             t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
+            inception_mean, inception_std, fid = compute_inception_score(qgenerator, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
                                                                          zdist, ydist, fid_real_samples, device)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
