@@ -1,11 +1,11 @@
 data:
-  name: cifar10
+  name: emoji
   type: image
-  train_dir: data/cifar10
-  test_dir: data/cifar10
+  train_dir: data/emoji
+  test_dir: data/emoji
   image_size: 32
-  channels: 3
-  n_labels: 10
+  channels: 4
+  n_labels: 1
 network:
   class: ca_manifold
   kwargs:
@@ -21,7 +21,7 @@ z_dist:
   type: gauss
   z_dim: 512
 training:
-  out_dir: save/cifar10_ca_manifold
+  out_dir: save/emoji_ca_manifold
   sample_pool: False
   damage_init: False
   batch_size: 64
@@ -29,7 +29,7 @@ training:
   optimizer: adam
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 128
+  n_epochs: 2048
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0
@@ -37,4 +37,4 @@ training:
   sample_every: 1
   sample_labels: 10
   reg_param: 10.
-  inception_every: 16
+  inception_every: 0

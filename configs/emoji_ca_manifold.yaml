@@ -11,11 +11,15 @@ network:
   kwargs:
     ds_size: 64
     n_filter: 16
+    embed_size: 256
     lat_size: 512
     n_calls: 4
     shared_params: False
     letter_encoding: False
     perception_noise: False
+z_dist:
+  type: gauss
+  z_dim: 512
 training:
   out_dir: save/emoji_ca_manifold
   sample_pool: False
@@ -32,3 +36,5 @@ training:
   monitoring: tensorboard
   sample_every: 1
   sample_labels: 10
+  reg_param: 10.
+  inception_every: 0
