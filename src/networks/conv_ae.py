@@ -67,7 +67,9 @@ class Encoder(nn.Module):
             out_new = self.frac_norm[0 if self.shared_params else c](out)
             if self.injected:
                 s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
-                out_new = (out_new * s_fact.view(batch_size, self.n_filter, 1, 1)) + b_fact.view(batch_size, self.n_filter, 1, 1)
+                s_fact = s_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
+                b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
+                out_new = (out_new * s_fact) + b_fact
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
