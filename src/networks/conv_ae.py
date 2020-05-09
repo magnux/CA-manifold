@@ -34,9 +34,9 @@ class Encoder(nn.Module):
 
         if self.injected:
             self.inj_cond = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls)),
-        )
+                LinearResidualBlock(self.lat_size, self.lat_size),
+                LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls)),
+            )
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
@@ -59,14 +59,14 @@ class Encoder(nn.Module):
 
         if self.injected:
             cond_factors = self.inj_cond(inj_lat)
-            cond_factors = torch.split(cond_factors, 1 if self.shared_params else self.n_calls, dim=1)
+            cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
             out_new = self.frac_norm[0 if self.shared_params else c](out)
             if self.injected:
-                s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], 2, dim=1)
+                s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
                 out_new = (out_new * s_fact.view(batch_size, self.n_filter, 1, 1)) + b_fact.view(batch_size, self.n_filter, 1, 1)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
