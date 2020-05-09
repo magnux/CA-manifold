@@ -12,12 +12,7 @@ class Classifier(nn.Module):
     def __init__(self, n_labels, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.labs = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, n_labels),
-        )
+        self.labs = nn.Linear(self.lat_size, n_labels)
 
     def forward(self, lat):
         return self.labs(lat)
@@ -27,12 +22,7 @@ class Discriminator(nn.Module):
     def __init__(self, n_labels, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.labs = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, n_labels),
-        )
+        self.labs = nn.Linear(self.lat_size, n_labels)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -52,12 +42,7 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        self.embed_to_lat = nn.Sequential(
-            LinearResidualBlock(z_dim + embed_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
+        self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -78,12 +63,7 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.labs = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, 1),
-        )
+        self.labs = nn.Linear(self.lat_size, 1)
 
     def forward(self, lat):
         labs = self.labs(lat)
@@ -95,12 +75,7 @@ class UnconditionalGenerator(nn.Module):
     def __init__(self, lat_size, z_dim, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.embed_to_lat = nn.Sequential(
-            LinearResidualBlock(z_dim, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
+        self.embed_to_lat = nn.Linear(z_dim, self.lat_size)
 
     def forward(self, z):
         lat = self.embed_to_lat(z)
