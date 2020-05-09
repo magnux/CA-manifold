@@ -71,7 +71,7 @@ def get_inputs(trainiter, batch_size, device):
 images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
 if use_sample_pool:
-    n_slots = len(trainloader) * 16
+    n_slots = len(trainset) * 16
     target = []
     for _ in range((n_slots // batch_size) + 1):
         images, _, trainiter = get_inputs(trainiter, batch_size, torch.device('cpu'))
