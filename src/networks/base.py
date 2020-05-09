@@ -15,7 +15,8 @@ class Classifier(nn.Module):
         self.labs = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, n_labels)
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, n_labels),
         )
 
     def forward(self, lat):
@@ -29,7 +30,8 @@ class Discriminator(nn.Module):
         self.labs = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, n_labels)
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, n_labels),
         )
 
     def forward(self, lat, y):
@@ -51,7 +53,8 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
         self.embed_to_lat = nn.Sequential(
-            nn.Linear(z_dim + embed_size, self.lat_size),
+            LinearResidualBlock(z_dim + embed_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
         )
@@ -78,7 +81,8 @@ class UnconditionalDiscriminator(nn.Module):
         self.labs = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, 1)
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, 1),
         )
 
     def forward(self, lat):
@@ -88,11 +92,12 @@ class UnconditionalDiscriminator(nn.Module):
 
 
 class UnconditionalGenerator(nn.Module):
-    def __init__(self, lat_size, z_dim, embed_size, **kwargs):
+    def __init__(self, lat_size, z_dim, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.embed_to_lat = nn.Sequential(
-            nn.Linear(z_dim + embed_size, self.lat_size),
+            LinearResidualBlock(z_dim, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
         )
@@ -159,9 +164,9 @@ class CodeBook(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.n_filter = 2 ** 5
-        self.ncents = 2 ** 10
+        self.n_cents = 2 ** 10
         assert self.lat_size % self.n_filter == 0
-        self.centroids = Centroids(self.n_filter, self.ncents)
+        self.centroids = Centroids(self.n_filter, self.n_cents)
         self.leak_factor = nn.Parameter(torch.ones([]) * 1.0)
 
     def forward(self, lat):

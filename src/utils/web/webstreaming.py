@@ -74,12 +74,13 @@ async def stream_images_server(reader, writer):
         images = images[..., :3] * alpha
         images = ((1.0 - alpha) * 255) + images
 
-    if model_name not in video_writers:
+    video_dir = os.path.join(out_dir, 'video')
+    if model_name not in video_writers or not os.path.exists(video_dir):
         h, w = images_size[:2]
         now = datetime.datetime.now().strftime("%d_%m_%Y_%H:%M:%S")
-        video_file = os.path.join(out_dir, 'video', '%s.mp4' % now)
-        if not os.path.exists(os.path.dirname(video_file)):
-            os.makedirs(os.path.dirname(video_file))
+        if not os.path.exists(video_dir):
+            os.makedirs(video_dir)
+        video_file = os.path.join(video_dir, '%s.mp4' % now)
         video_writers[model_name] = FFMPEG_VideoWriter(size=(w, h), filename=video_file, fps=video_fps)
         len_videos[model_name] = 0
     video_writers[model_name].write_frame(np.uint8(images))
