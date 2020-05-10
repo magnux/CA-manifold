@@ -113,7 +113,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images = images[loss_rank]
                             pool_samples.target[:] = images
                             init_samples = init_samples[loss_rank]
-                            bad_frac = (np.sum(loss_init > 5e-2) // frac_size)
+                            bad_frac = (np.sum(loss_init > 1e-2) // frac_size)
                             bad_frac = min(max(1, bad_frac), (batch_size // frac_size) // 2)
                             for i in range(bad_frac):
                                 init_samples[frac_size * i:frac_size * (i + 1), ...] = frac_seed
