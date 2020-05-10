@@ -79,7 +79,8 @@ if use_sample_pool:
     target = torch.cat(target, dim=0)[:n_slots, ...].numpy()
     seed = ca_seed(n_slots, n_filter, image_size, torch.device('cpu')).numpy()
     sample_pool = SamplePool(target=target, init=seed)
-    init_seed = ca_seed(batch_size // 16, n_filter, image_size, torch.device('cpu')).numpy()
+    frac_size = batch_size // 16
+    frac_seed = ca_seed(frac_size, n_filter, image_size, torch.device('cpu')).numpy()
 
 window_size = len(trainloader) // 10
 
@@ -107,20 +108,19 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if use_sample_pool:
                             pool_samples = sample_pool.sample(batch_size)
                             images, init_samples = pool_samples.target, pool_samples.init
-                            if (batch % 4) == 0:
-                                images = torch.tensor(images, device=device, requires_grad=True)
-                                init_samples = None
-                            else:
-                                loss_init = np.mean(np.square(images - init_samples[:, :images.shape[1], :, :]), axis=(1,2,3))
-                                loss_rank = loss_init.argsort()[::-1]
-                                images = images[loss_rank]
-                                pool_samples.target[:] = images
-                                init_samples = init_samples[loss_rank]
-                                init_samples[:batch_size // 16] = init_seed
-                                images = torch.tensor(images, device=device, requires_grad=True)
-                                init_samples = torch.tensor(init_samples, device=device, requires_grad=True)
-                                if damage_init:
-                                    init_samples = rand_circle_masks(init_samples, batch_size // 16)
+                            loss_init = np.mean(np.square(images - init_samples[:, :images.shape[1], :, :]), axis=(1,2,3))
+                            loss_rank = loss_init.argsort()[::-1]
+                            images = images[loss_rank]
+                            pool_samples.target[:] = images
+                            init_samples = init_samples[loss_rank]
+                            bad_frac = (np.sum(loss_init > 5e-2) // frac_size)
+                            bad_frac = min(max(1, bad_frac), (batch_size // frac_size) // 2)
+                            for i in range(bad_frac):
+                                init_samples[frac_size * i:frac_size * (i + 1), ...] = frac_seed
+                            images = torch.tensor(images, device=device, requires_grad=True)
+                            init_samples = torch.tensor(init_samples, device=device, requires_grad=True)
+                            if damage_init:
+                                init_samples = rand_circle_masks(init_samples, batch_size // 16)
                         else:
                             images, _, trainiter = get_inputs(trainiter, batch_size, device)
                             init_samples = None
