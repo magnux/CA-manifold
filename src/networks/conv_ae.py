@@ -101,7 +101,7 @@ class Decoder(nn.Module):
         self.out_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls * 2
+        self.n_calls = n_calls * 8
         self.shared_params = shared_params
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
@@ -144,8 +144,8 @@ class Decoder(nn.Module):
         # out = self.in_conv(out)
 
         cond_factors = self.lat_to_facts(lat)
-        out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device, cond_factors[:, 0])
-        cond_factors = torch.split(cond_factors[:, 1:], self.n_filter * 2, dim=1)
+        out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device)
+        cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
