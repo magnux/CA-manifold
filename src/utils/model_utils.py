@@ -66,11 +66,11 @@ def update_average(model_tgt, model_src, beta):
         p_tgt.copy_(beta*p_tgt + (1. - beta)*p_src)
 
 
-def ca_seed(batch_size, n_filter, image_size, device):
+def ca_seed(batch_size, n_filter, image_size, device, seed_value=1.0):
     # The canvas
     seed = torch.zeros(batch_size, n_filter, image_size, image_size, device=device)
     # The starting point of the wave
-    seed[:, 0, image_size // 2, image_size // 2] = 1.0
+    seed[:, 0, image_size // 2, image_size // 2] = seed_value
     return seed
 
 

@@ -7,6 +7,7 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.scale import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
+from src.utils.model_utils import ca_seed
 
 
 class Encoder(nn.Module):
@@ -69,7 +70,7 @@ class Encoder(nn.Module):
                 s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
                 s_fact = s_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
                 b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
-                out_new = (out_new * s_fact) + b_fact
+                out_new = (s_fact * out_new) + b_fact
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
@@ -100,7 +101,7 @@ class Decoder(nn.Module):
         self.out_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls
+        self.n_calls = n_calls * 2
         self.shared_params = shared_params
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
@@ -112,11 +113,16 @@ class Decoder(nn.Module):
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
                                         ) for _ in range(1 if self.shared_params else self.n_calls)])
 
-        self.lat_to_out = nn.Sequential(
+        # self.lat_to_out = nn.Sequential(
+        #     LinearResidualBlock(self.lat_size, self.lat_size),
+        #     LinearResidualBlock(self.lat_size, sum(self.conv_state_size), self.lat_size * 2),
+        # )
+        # self.in_conv = ResidualBlock(sum(self.merge_sizes), self.n_filter, None, 1, 1, 0)
+
+        self.lat_to_facts = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, sum(self.conv_state_size), self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, 1 + (self.n_filter * 2 * (1 if self.shared_params else self.n_calls))),
         )
-        self.in_conv = ResidualBlock(sum(self.merge_sizes), self.n_filter, None, 1, 1, 0)
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
@@ -128,19 +134,27 @@ class Decoder(nn.Module):
     def forward(self, lat):
         batch_size = lat.size(0)
 
-        conv_state = self.lat_to_out(lat)
-        cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
-        cs_f_m = cs_f_m.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
-        cs_fh = cs_fh.view(batch_size, self.n_filter, self.ds_size, 1).repeat(1, 1, 1, self.ds_size)
-        cs_fw = cs_fw.view(batch_size, self.n_filter, 1, self.ds_size).repeat(1, 1, self.ds_size, 1)
-        cs_hw = cs_hw.view(batch_size, 1, self.ds_size, self.ds_size)
-        out = torch.cat([cs_f_m, cs_fh, cs_fw, cs_hw], dim=1)
-        out = self.in_conv(out)
+        # conv_state = self.lat_to_out(lat)
+        # cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
+        # cs_f_m = cs_f_m.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
+        # cs_fh = cs_fh.view(batch_size, self.n_filter, self.ds_size, 1).repeat(1, 1, 1, self.ds_size)
+        # cs_fw = cs_fw.view(batch_size, self.n_filter, 1, self.ds_size).repeat(1, 1, self.ds_size, 1)
+        # cs_hw = cs_hw.view(batch_size, 1, self.ds_size, self.ds_size)
+        # out = torch.cat([cs_f_m, cs_fh, cs_fw, cs_hw], dim=1)
+        # out = self.in_conv(out)
+
+        cond_factors = self.lat_to_facts(lat)
+        out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device, cond_factors[:, 0])
+        cond_factors = torch.split(cond_factors[:, 1:], self.n_filter * 2, dim=1)
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
             out_new = self.frac_norm[0 if self.shared_params else c](out)
+            s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
+            s_fact = s_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
+            b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
+            out_new = (s_fact * out_new) + b_fact
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
