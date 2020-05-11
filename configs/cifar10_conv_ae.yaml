@@ -3,7 +3,7 @@ data:
   type: image
   train_dir: data/cifar10
   test_dir: data/cifar10
-  image_size: 32
+  image_size: 16
   channels: 3
   n_labels: 10
 network:
