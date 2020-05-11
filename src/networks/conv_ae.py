@@ -117,7 +117,7 @@ class Decoder(nn.Module):
         if self.adain:
             self.lat_to_facts = nn.Sequential(
                 LinearResidualBlock(self.lat_size, self.lat_size),
-                LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls)),
+                LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
             )
         else:
             self.lat_to_out = nn.Sequential(
