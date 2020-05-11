@@ -9,8 +9,8 @@ data:
 network:
   class: conv_ae
   kwargs:
-    ds_size: 32
-    n_filter: 16
+    ds_size: 16
+    n_filter: 64
     embed_size: 256
     lat_size: 512
     n_calls: 4

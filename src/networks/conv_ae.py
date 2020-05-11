@@ -101,7 +101,7 @@ class Decoder(nn.Module):
         self.out_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls * 8
+        self.n_calls = n_calls * (8 if self.adain else 1)
         self.shared_params = shared_params
         self.adain = adain
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
