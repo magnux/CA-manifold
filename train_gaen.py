@@ -165,15 +165,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
+                        reg_gen_enc = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(lat_enc, images).mean()
+                        reg_gen_enc.backward(retain_graph=True)
+                        reg_gen_enc_sum += reg_gen_enc.item()
+
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         loss_gen_enc.backward()
                         loss_gen_enc_sum += loss_gen_enc.item()
-
-                        lat_enc, _, _ = encoder(images)
-
-                        reg_gen_enc = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(lat_enc, images).mean()
-                        reg_gen_enc.backward()
-                        reg_gen_enc_sum += reg_gen_enc.item()
 
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
@@ -182,18 +180,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
+                        reg_gen_dec = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(images_dec, z_gen).mean()
+                        reg_gen_dec.backward(retain_graph=True)
+                        reg_gen_dec_sum += reg_gen_dec.item()
+
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         loss_gen_dec.backward()
                         loss_gen_dec_sum += loss_gen_dec.item()
-
-                        lat_gen = generator(z_gen, labels)
-                        images_dec, _, images_dec_raw = decoder(lat_gen)
-
-                        reg_gen_dec = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(images_dec, z_gen).mean()
-                        reg_gen_dec.backward()
-                        reg_gen_dec_sum += reg_gen_dec.item()
-
-
 
                 # Streaming Images
                 with torch.no_grad():
