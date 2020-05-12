@@ -53,11 +53,11 @@ def apply_grad_bkp(network, *args):
     for p in network.parameters():
         if p.grad is not None:
             if hasattr(p, 'grad_bkp'):
-                if len(args) == 3:
+                if len(args) == 2:
                     bkp_name = args[0]
                     func = args[1]
                     p.grad_bkp[bkp_name] = func(p.grad_bkp[bkp_name])
-                elif len(args) == 2:
+                elif len(args) == 3:
                     bkp_name_a = args[0]
                     bkp_name_b = args[1]
                     func = args[2]
