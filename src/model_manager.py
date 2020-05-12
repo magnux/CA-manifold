@@ -13,17 +13,11 @@ class ModelManager(object):
         self.model_name = model_name
         self.networks_dict = networks_dict
         self.config = config
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         for net_name in self.networks_dict.keys():
 
             self.networks_dict[net_name]['net'] = build_network(self.config, self.networks_dict[net_name]['class'],
                                                                 self.networks_dict[net_name]['sub_class'])
-
-            self.networks_dict[net_name]['net'].to(self.device)
-
-            if torch.cuda.device_count() > 1:
-                self.networks_dict[net_name]['net'] = torch.nn.DataParallel(self.networks_dict[net_name]['net'])
 
             self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], self.config)
 
@@ -52,6 +46,10 @@ class ModelManager(object):
         self.lr = self.config['training']['lr']
 
         if torch.cuda.is_available():
+            for net_name in self.networks_dict.keys():
+                self.networks_dict[net_name]['net'].to("cuda:0")
+                if torch.cuda.device_count() > 1:
+                    self.networks_dict[net_name]['net'] = torch.nn.DataParallel(self.networks_dict[net_name]['net'])
             torch.cuda.empty_cache()
 
     def print(self):
@@ -69,7 +67,7 @@ class ModelManager(object):
                 param_group['lr'] = self.lr
 
     def set_n_calls(self, net_name, n_calls):
-        if torch.cuda.device_count() > 1:
+        if isinstance(self.networks_dict[net_name]['net'], torch.nn.DataParallel):
             self.networks_dict[net_name]['net'].module.n_calls = n_calls
         else:
             self.networks_dict[net_name]['net'].n_calls = n_calls

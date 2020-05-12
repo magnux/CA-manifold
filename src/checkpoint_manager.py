@@ -32,7 +32,16 @@ class CheckpointManager(object):
             self.it = out_dict['it']
             for k, v in self.module_dict.items():
                 if k in out_dict:
-                    v.load_state_dict(out_dict[k])
+                    first_key = list(out_dict[k].keys())[0]
+                    if first_key in v.state_dict().keys():
+                        v.load_state_dict(out_dict[k])
+                    elif first_key[7:] in v.state_dict().keys():
+                        # TODO: Remove this if branch after updating all the checkpoints
+                        print('Warning: Loading old module: ', k)
+                        out_dict_mod = {}
+                        for old_k in out_dict[k]:
+                            out_dict_mod[old_k[7:]] = out_dict[k][old_k]
+                        v.load_state_dict(out_dict_mod)
                 else:
                     print('Warning: Could not find %s in checkpoint!' % k)
 
