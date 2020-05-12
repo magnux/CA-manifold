@@ -49,23 +49,25 @@ def del_grad_bkp(network):
                 print('warning, no grad_bkp found!')
 
 
-def apply_grad_bkp(network, bkp_name, func):
+def apply_grad_bkp(network, *args):
     for p in network.parameters():
         if p.grad is not None:
             if hasattr(p, 'grad_bkp'):
-                p.grad_bkp[bkp_name] = func(p.grad_bkp[bkp_name])
+                if len(args) == 3:
+                    bkp_name = args[0]
+                    func = args[1]
+                    p.grad_bkp[bkp_name] = func(p.grad_bkp[bkp_name])
+                elif len(args) == 2:
+                    bkp_name_a = args[0]
+                    bkp_name_b = args[1]
+                    func = args[2]
+                    p.grad_bkp[bkp_name_a] = func(p.grad_bkp[bkp_name_a], p.grad_bkp[bkp_name_b])
+                    p.grad_bkp[bkp_name_b] = p.grad_bkp[bkp_name_a]
+                else:
+                    raise RuntimeError('args not suported: %s' % str(args))
             else:
                 print('warning, no grad_bkp found!')
 
-
-def apply_grad_bkp(network, bkp_name_a, bkp_name_b, func):
-    for p in network.parameters():
-        if p.grad is not None:
-            if hasattr(p, 'grad_bkp'):
-                p.grad_bkp[bkp_name_a] = func(p.grad_bkp[bkp_name_a], p.grad_bkp[bkp_name_b])
-                p.grad_bkp[bkp_name_b] = p.grad_bkp[bkp_name_a]
-            else:
-                print('warning, no grad_bkp found!')
 
 
 def make_safe(tens, min=-1e3, max=1e3):
