@@ -161,11 +161,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
-                        lat_enc, _, _ = encoder(images)
+                        lat_enc, out_embs, _ = encoder(images)
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
-                        reg_gen_enc = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(lat_enc, images).mean()
+                        reg_gen_enc = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(lat_enc, out_embs[-1]).mean()
                         reg_gen_enc.backward(retain_graph=True)
                         reg_gen_enc_sum += reg_gen_enc.item()
 
@@ -180,7 +180,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        reg_gen_dec = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(images_dec, z_gen).mean()
+                        reg_gen_dec = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(lat_gen, z_gen).mean()
                         reg_gen_dec.backward(retain_graph=True)
                         reg_gen_dec_sum += reg_gen_dec.item()
 
