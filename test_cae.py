@@ -12,6 +12,7 @@ from src.utils.model_utils import ca_seed, SamplePool
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 import os
+from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 
 parser = argparse.ArgumentParser(description='Train a FractalNet')
 parser.add_argument('config', type=str, help='Path to config file.')
@@ -83,13 +84,29 @@ if use_sample_pool:
     frac_seed = ca_seed(frac_size, n_filter, image_size, torch.device('cpu')).numpy()
 
 
-def save_imgs(imgs, outdir, tag):
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    outfile = os.path.join(outdir, '%s.png' % tag)
+def save_imgs(images, out_dir, tag):
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    images_file = os.path.join(out_dir, '%s.png' % tag)
 
-    imgs = (imgs * 0.5) + 0.5
-    torchvision.utils.save_image(imgs, outfile, nrow=8)  # imgs.size(0))
+    images = (images * 0.5) + 0.5
+    torchvision.utils.save_image(images, images_file, nrow=8)  # imgs.size(0))
+
+    if images.size(1) == 4:
+        alpha = images[:, 3:4, :, :].clamp(0.0, 1.0)
+        images = images[:, :3, :, :] * alpha
+        images = ((1.0 - alpha) + images).clamp(0.0, 1.0)
+
+    images = images * 255
+
+    h, w = images.size()[2:]
+    video_file = os.path.join(out_dir, '%s.mp4' % tag)
+    video_writer = FFMPEG_VideoWriter(size=(w, h), filename=video_file, fps=images.size(0) / 8)
+    for i in range(images.size(0)):
+        video_writer.write_frame(np.uint8(images[i, ...].permute(1, 2, 0).cpu().numpy()))
+    for _ in range(images.size(0) // 4):
+        video_writer.write_frame(np.uint8(images[-1, ...].permute(1, 2, 0).cpu().numpy()))
+    video_writer.close()
 
 
 its = [i for i in range(64)]
