@@ -182,9 +182,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_reenc.backward()
                         bkp_grad(encoder, 'loss_l2')
                         zero_grad(encoder)
-                        apply_grad_bkp(encoder, 'loss_l2', lambda x: x / (1.0 + x.abs().max()))
-                        apply_grad_bkp(encoder, 'loss_l2', 'loss_gan', lambda x, y: (((x + x.abs()) / 2) * ((y + y.abs()) / 2))
-                                                                                  + (((x - x.abs()) / 2) * ((y - y.abs()) / 2)) + y)
+                        apply_grad_bkp(encoder, 'loss_l2', 'loss_gan', lambda x, y: ((x.sign() * y.sign()) * y * 0.1) + y)
                         copy_grad_bkp(encoder, 'loss_l2')
                         del_grad_bkp(encoder)
 
@@ -211,9 +209,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_redec.backward()
                         bkp_grad(decoder, 'loss_l2')
                         zero_grad(decoder)
-                        apply_grad_bkp(decoder, 'loss_l2', lambda x: x / (1.0 + x.abs().max()))
-                        apply_grad_bkp(decoder, 'loss_l2', 'loss_gan', lambda x, y: (((x + x.abs()) / 2) * ((y + y.abs()) / 2))
-                                                                                  + (((x - x.abs()) / 2) * ((y - y.abs()) / 2)) + y)
+                        apply_grad_bkp(decoder, 'loss_l2', 'loss_gan', lambda x, y: ((x.sign() * y.sign()) * y * 0.1) + y)
                         copy_grad_bkp(decoder, 'loss_l2')
                         del_grad_bkp(decoder)
 
