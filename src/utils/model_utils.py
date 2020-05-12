@@ -42,7 +42,7 @@ def del_grad_bkp(network):
     for p in network.parameters():
         if p.grad is not None:
             if hasattr(p, 'grad_bkp'):
-                for k in p.grad_bkp.keys():
+                for k in list(p.grad_bkp.keys()):
                     del p.grad_bkp[k]
                 delattr(p, 'grad_bkp')
             else:
@@ -67,7 +67,6 @@ def apply_grad_bkp(network, *args):
                     raise RuntimeError('args not suported: %s' % str(args))
             else:
                 print('warning, no grad_bkp found!')
-
 
 
 def make_safe(tens, min=-1e3, max=1e3):
