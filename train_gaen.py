@@ -102,7 +102,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             with model_manager.on_batch():
 
                 loss_dis_enc_sum, loss_dis_dec_sum, reg_dis_enc_sum, reg_dis_dec_sum = 0, 0, 0, 0
-                loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
+                loss_gen_enc_sum, loss_gen_dec_sum, reg_gen_enc_sum, reg_gen_dec_sum = 0, 0, 0, 0
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
@@ -165,26 +165,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
+                        reg_gen_enc = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(lat_enc, images).mean()
+                        reg_gen_enc.backward(retain_graph=True)
+                        reg_gen_enc_sum += reg_gen_enc.item()
+
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         loss_gen_enc.backward()
                         loss_gen_enc_sum += loss_gen_enc.item()
-
-                        # Gradient alignment
-                        bkp_grad(encoder, 'loss_gan')
-                        zero_grad(encoder)
-
-                        with torch.no_grad():
-                            lat_gen = generator(z_gen, labels)
-                            images_gen, _, _ = decoder(lat_gen)
-
-                        lat_reenc, _, _ = encoder(images_gen)
-                        loss_reenc = (1 / batch_mult) * F.mse_loss(lat_reenc, lat_gen)
-                        loss_reenc.backward()
-                        bkp_grad(encoder, 'loss_l2')
-                        zero_grad(encoder)
-                        apply_grad_bkp(encoder, 'loss_l2', 'loss_gan', lambda x, y: ((x.sign() * y.sign()) * y * 0.1) + y)
-                        copy_grad_bkp(encoder, 'loss_l2')
-                        del_grad_bkp(encoder)
 
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
@@ -193,25 +180,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
+                        reg_gen_dec = (1 / batch_mult) * reg_param * 0.1 * compute_grad2(images_dec, z_gen).mean()
+                        reg_gen_dec.backward(retain_graph=True)
+                        reg_gen_dec_sum += reg_gen_dec.item()
+
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         loss_gen_dec.backward()
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                        # Gradient alignment
-                        bkp_grad(decoder, 'loss_gan')
-                        zero_grad(decoder)
 
-                        with torch.no_grad():
-                            lat_enc, _, _ = encoder(images)
-
-                        images_dec, _, _ = decoder(lat_enc)
-                        loss_redec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        loss_redec.backward()
-                        bkp_grad(decoder, 'loss_l2')
-                        zero_grad(decoder)
-                        apply_grad_bkp(decoder, 'loss_l2', 'loss_gan', lambda x, y: ((x.sign() * y.sign()) * y * 0.1) + y)
-                        copy_grad_bkp(decoder, 'loss_l2')
-                        del_grad_bkp(decoder)
 
                 # Streaming Images
                 with torch.no_grad():
@@ -238,6 +215,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
+
+                model_manager.log_manager.add_scalar('losses', 'reg_gen_enc', reg_dis_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'reg_gen_dec', reg_dis_dec_sum, it=it)
 
                 it += 1
 
