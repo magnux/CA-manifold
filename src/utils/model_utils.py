@@ -21,6 +21,53 @@ def zero_grad(network):
             p.grad.zero_()
 
 
+def bkp_grad(network, bkp_name):
+    for p in network.parameters():
+        if p.grad is not None:
+            if not hasattr(p, 'grad_bkp'):
+                p.grad_bkp = {}
+            p.grad_bkp[bkp_name] = p.grad
+
+
+def copy_grad_bkp(network, bkp_name):
+    for p in network.parameters():
+        if p.grad is not None:
+            if hasattr(p, 'grad_bkp'):
+                p.grad = p.grad_bkp[bkp_name]
+            else:
+                print('warning, no grad_bkp found!')
+
+
+def del_grad_bkp(network):
+    for p in network.parameters():
+        if p.grad is not None:
+            if hasattr(p, 'grad_bkp'):
+                for k in p.grad_bkp.keys():
+                    del p.grad_bkp[k]
+                delattr(p, 'grad_bkp')
+            else:
+                print('warning, no grad_bkp found!')
+
+
+def apply_grad_bkp(network, bkp_name, func):
+    for p in network.parameters():
+        if p.grad is not None:
+            if hasattr(p, 'grad_bkp'):
+                p.grad_bkp[bkp_name] = func(p.grad_bkp[bkp_name])
+            else:
+                print('warning, no grad_bkp found!')
+
+
+def apply_grad_bkp(network, bkp_name_a, bkp_name_b, func):
+    for p in network.parameters():
+        if p.grad is not None:
+            if hasattr(p, 'grad_bkp'):
+                p.grad_bkp[bkp_name_a] = func(p.grad_bkp[bkp_name_a], p.grad_bkp[bkp_name_b])
+                p.grad_bkp[bkp_name_b] = p.grad_bkp[bkp_name_a]
+            else:
+                print('warning, no grad_bkp found!')
+
+
 def make_safe(tens, min=-1e3, max=1e3):
     tens = torch.where(torch.isnan(tens), torch.zeros_like(tens), tens)
     tens = tens.clamp(min=min, max=max)

@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad2
-from src.utils.model_utils import compute_inception_score, toggle_grad
+from src.utils.model_utils import compute_inception_score, toggle_grad, zero_grad, bkp_grad, copy_grad_bkp, del_grad_bkp, apply_grad_bkp
 from src.utils.media_utils import save_images
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -169,6 +169,26 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_enc.backward()
                         loss_gen_enc_sum += loss_gen_enc.item()
 
+                        # Gradient alignment
+                        bkp_grad(encoder, 'loss_gan')
+                        zero_grad(encoder)
+
+                        with torch.no_grad():
+                            lat_gen = generator(z_gen, labels)
+                            images_gen, _, _ = decoder(lat_gen)
+
+                        lat_reenc, _, _ = encoder(images_gen)
+                        loss_reenc = (1 / batch_mult) * F.mse_loss(lat_reenc, lat_gen)
+                        loss_reenc.backward()
+                        bkp_grad(encoder, 'loss_l2')
+                        zero_grad(encoder)
+                        apply_grad_bkp(encoder, 'loss_l2', torch.abs)
+                        apply_grad_bkp(encoder, 'loss_l2', lambda x: x / (1.0 + x.norm()))
+                        apply_grad_bkp(encoder, 'loss_l2', lambda x: x + 1.0)
+                        apply_grad_bkp(encoder, 'loss_l2', 'loss_gan', lambda x, y: x * y)
+                        copy_grad_bkp(encoder, 'loss_l2')
+                        del_grad_bkp(encoder)
+
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
                         lat_gen = generator(z_gen, labels)
@@ -179,6 +199,25 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         loss_gen_dec.backward()
                         loss_gen_dec_sum += loss_gen_dec.item()
+
+                        # Gradient alignment
+                        bkp_grad(decoder, 'loss_gan')
+                        zero_grad(decoder)
+
+                        with torch.no_grad():
+                            lat_enc, _, _ = encoder(images)
+
+                        images_dec, _, _ = decoder(lat_enc)
+                        loss_redec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                        loss_redec.backward()
+                        bkp_grad(decoder, 'loss_l2')
+                        zero_grad(decoder)
+                        apply_grad_bkp(decoder, 'loss_l2', torch.abs)
+                        apply_grad_bkp(decoder, 'loss_l2', lambda x: x / (1.0 + x.norm()))
+                        apply_grad_bkp(decoder, 'loss_l2', lambda x: x + 1.0)
+                        apply_grad_bkp(decoder, 'loss_l2', 'loss_gan', lambda x, y: x * y)
+                        copy_grad_bkp(decoder, 'loss_l2')
+                        del_grad_bkp(decoder)
 
                 # Streaming Images
                 with torch.no_grad():
