@@ -68,12 +68,11 @@ class ModelManager(object):
             for param_group in self.networks_dict[net_name]['optimizer'].param_groups:
                 param_group['lr'] = self.lr
 
-    def set_n_calls(self, n_calls):
-        for net_name in self.networks_dict.keys():
-            if torch.cuda.device_count() > 1:
-                self.networks_dict[net_name]['net'].module.n_calls = n_calls
-            else:
-                self.networks_dict[net_name]['net'].n_calls = n_calls
+    def set_n_calls(self, net_name, n_calls):
+        if torch.cuda.device_count() > 1:
+            self.networks_dict[net_name]['net'].module.n_calls = n_calls
+        else:
+            self.networks_dict[net_name]['net'].n_calls = n_calls
 
     def on_epoch_start(self, epoch):
         self.epoch = epoch
