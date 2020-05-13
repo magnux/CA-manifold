@@ -110,8 +110,8 @@ class Decoder(nn.Module):
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
+                                            ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
                                             ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0),
-                                            ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
                                         ) for _ in range(1 if self.shared_params else self.n_calls)])
 
         if self.adain:
