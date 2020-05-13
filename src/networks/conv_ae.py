@@ -118,7 +118,7 @@ class Decoder(nn.Module):
         self.out_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls * (4 if adain or dyncin else 1)
+        self.n_calls = n_calls * (2 if adain or dyncin else 1)
         self.shared_params = shared_params
         self.adain = adain
         self.dyncin = dyncin
