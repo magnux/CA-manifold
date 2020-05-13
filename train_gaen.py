@@ -108,7 +108,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
 
                     for _ in range(batch_mult):
-
                         images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
 
                         with torch.no_grad():
@@ -150,7 +149,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
 
                     for _ in range(batch_mult):
-
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
                         with torch.no_grad():
