@@ -7,13 +7,16 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.scale import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
+from src.layers.dynaresidualblock import DynaResidualBlock
 from src.utils.model_utils import ca_seed
 
 
 class Encoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, injected=False, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, injected=False, adain=False, dyncin=False, **kwargs):
         super().__init__()
         self.injected = injected
+        self.adain = adain
+        self.dyncin = dyncin
         self.n_labels = n_labels
         self.image_size = image_size
         self.ds_size = ds_size
@@ -34,10 +37,15 @@ class Encoder(nn.Module):
         )
 
         if self.injected:
-            self.inj_cond = nn.Sequential(
-                LinearResidualBlock(self.lat_size, self.lat_size),
-                LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls)),
-            )
+            if self.adain:
+                self.inj_cond = nn.Sequential(
+                    LinearResidualBlock(self.lat_size, self.lat_size),
+                    LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls)),
+                )
+            elif self.dyncin:
+                self.inj_cond = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter)
+            else:
+                self.inj_cond = ResidualBlock(self.n_filter + self.lat_size, self.n_filter, None, 1, 1, 0)
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
@@ -59,18 +67,27 @@ class Encoder(nn.Module):
         out = self.conv_img(x)
 
         if self.injected:
-            cond_factors = self.inj_cond(inj_lat)
-            cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
+            if self.adain:
+                cond_factors = self.inj_cond(inj_lat)
+                cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
+            elif self.dyncin:
+                pass
+            else:
+                inj_lat = inj_lat.view(batch_size, self.lat_size, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
+                out = self.inj_cond(torch.cat([out, inj_lat], dim=1))
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
             out_new = self.frac_norm[0 if self.shared_params else c](out)
             if self.injected:
-                s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
-                s_fact = s_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
-                b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
-                out_new = (s_fact * out_new) + b_fact
+                if self.adain:
+                    s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
+                    s_fact = s_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
+                    b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
+                    out_new = (s_fact * out_new) + b_fact
+                elif self.dyncin:
+                    out_new = self.inj_cond(out_new, inj_lat)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
@@ -93,7 +110,7 @@ class InjectedEncoder(Encoder):
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, adain, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, adain=False, dyncin=False, **kwargs):
         super().__init__()
         self.n_labels = n_labels
         self.image_size = image_size
@@ -101,17 +118,18 @@ class Decoder(nn.Module):
         self.out_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls * (4 if adain else 1)
+        self.n_calls = n_calls * (4 if adain or dyncin else 1)
         self.shared_params = shared_params
         self.adain = adain
+        self.dyncin = dyncin
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
-                                            ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
                                             ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0),
+                                            ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
                                         ) for _ in range(1 if self.shared_params else self.n_calls)])
 
         if self.adain:
@@ -119,6 +137,8 @@ class Decoder(nn.Module):
                 LinearResidualBlock(self.lat_size, self.lat_size),
                 LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
             )
+        elif self.dyncin:
+            self.dyn_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter)
         else:
             self.lat_to_out = nn.Sequential(
                 LinearResidualBlock(self.lat_size, self.lat_size),
@@ -140,6 +160,8 @@ class Decoder(nn.Module):
             cond_factors = self.lat_to_facts(lat)
             cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
             out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device)
+        elif self.dyncin:
+            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device)
         else:
             conv_state = self.lat_to_out(lat)
             cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
@@ -159,6 +181,8 @@ class Decoder(nn.Module):
                 s_fact = s_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
                 b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
                 out_new = (s_fact * out_new) + b_fact
+            elif self.dyncin:
+                out_new = self.dyn_conv(out_new, lat)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
