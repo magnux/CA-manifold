@@ -18,6 +18,10 @@ class ModelManager(object):
 
             self.networks_dict[net_name]['net'] = build_network(self.config, self.networks_dict[net_name]['class'],
                                                                 self.networks_dict[net_name]['sub_class'])
+            if torch.cuda.is_available():
+                self.networks_dict[net_name]['net'].to("cuda:0")
+                if torch.cuda.device_count() > 1:
+                    self.networks_dict[net_name]['net'] = torch.nn.DataParallel(self.networks_dict[net_name]['net'])
 
             self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], self.config)
 
@@ -46,10 +50,6 @@ class ModelManager(object):
         self.lr = self.config['training']['lr']
 
         if torch.cuda.is_available():
-            for net_name in self.networks_dict.keys():
-                self.networks_dict[net_name]['net'].to("cuda:0")
-                if torch.cuda.device_count() > 1:
-                    self.networks_dict[net_name]['net'] = torch.nn.DataParallel(self.networks_dict[net_name]['net'])
             torch.cuda.empty_cache()
 
     def print(self):

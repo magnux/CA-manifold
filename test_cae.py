@@ -151,31 +151,31 @@ with torch.no_grad():
 
     init_occ = out_embs[-1, ...].clone()
     init_occ[:, :, image_size // 2:, :] = 0.0
-    images_dec, out_embs = forward_pass(images, init_occ)
+    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '0_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '0')
 
     init_occ = out_embs[-1, ...].clone()
     init_occ[:, :, :image_size // 2, :] = 0.0
-    images_dec, out_embs = forward_pass(images, init_occ)
+    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '1_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '1')
 
     init_occ = out_embs[-1, ...].clone()
     init_occ[:, :, :, image_size // 2:] = 0.0
-    images_dec, out_embs = forward_pass(images, init_occ)
+    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '2_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '2')
 
     init_occ = out_embs[-1, ...].clone()
     init_occ[:, :, :, :image_size // 2] = 0.0
-    images_dec, out_embs = forward_pass(images, init_occ)
+    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '3_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '3')
 
     init_occ = out_embs[-1, ...].clone()
     init_occ[:, :, image_size // 4:(image_size // 4) * 3, image_size // 4:(image_size // 4) * 3] = 0.0
-    images_dec, out_embs = forward_pass(images, init_occ)
+    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '4_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '4')
 
