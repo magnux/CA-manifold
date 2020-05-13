@@ -45,7 +45,7 @@ class CheckpointManager(object):
                         print('Warning: loading single gpu or cpu module on multigpu: ', k)
                         out_dict_mod = {}
                         for old_k in out_dict[k]:
-                            out_dict_mod['module.%s' % k] = out_dict[k][old_k]
+                            out_dict_mod['module.%s' % old_k] = out_dict[k][old_k]
                         v.load_state_dict(out_dict_mod)
                 else:
                     print('Warning: Could not find %s in checkpoint!' % k)
