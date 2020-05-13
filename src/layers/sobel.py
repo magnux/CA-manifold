@@ -125,9 +125,9 @@ if __name__ == '__main__':
     # sobel_f, pad_f = get_sin_sobel_kernel_nd(1, 7, 2), 3
 
     for _ in range(n_calls):
-        canvas = F.instance_norm(canvas)
         canvas_sob = F.conv2d(canvas, weight=sobel_f, stride=1, padding=pad_f)
         canvas = torch.cat([canvas, canvas_sob], dim=1)
+        canvas = F.instance_norm(canvas)
         canvas = canvas.mean(dim=1, keepdim=True)
         plt.imshow(canvas.view(c_size, c_size))
         timer.start()
