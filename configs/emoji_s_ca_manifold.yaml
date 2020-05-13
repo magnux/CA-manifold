@@ -14,7 +14,7 @@ network:
     embed_size: 256
     lat_size: 512
     n_calls: 4
-    shared_params: False
+    shared_params: True
     adain: False
     dyncin: True
     letter_encoding: False
