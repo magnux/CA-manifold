@@ -15,6 +15,8 @@ network:
     lat_size: 512
     n_calls: 4
     shared_params: False
+    adain: False
+    dyncin: True
     letter_encoding: False
     perception_noise: False
 z_dist:
@@ -24,7 +26,7 @@ training:
   out_dir: save/emoji_s_ca_manifold
   sample_pool: False
   damage_init: False
-  batch_size: 64
+  batch_size: 32
   n_workers: 2
   optimizer: adam
   lr: 0.0001

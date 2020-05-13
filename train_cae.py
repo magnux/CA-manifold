@@ -79,7 +79,7 @@ if use_sample_pool:
     target = torch.cat(target, dim=0)[:n_slots, ...].numpy()
     seed = ca_seed(n_slots, n_filter, image_size, torch.device('cpu')).numpy()
     sample_pool = SamplePool(target=target, init=seed)
-    frac_size = batch_size // 16
+    frac_size = batch_size // 8
     frac_seed = ca_seed(frac_size, n_filter, image_size, torch.device('cpu')).numpy()
 
 window_size = len(trainloader) // 10
@@ -113,10 +113,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images = images[loss_rank]
                             pool_samples.target[:] = images
                             init_samples = init_samples[loss_rank]
-                            bad_frac = (np.sum(loss_init > 1e-2) // frac_size)
-                            bad_frac = min(max(1, bad_frac), (batch_size // frac_size) // 2)
-                            for i in range(bad_frac):
-                                init_samples[frac_size * i:frac_size * (i + 1), ...] = frac_seed
+                            # Static seeding
+                            init_samples[:frac_size, ...] = frac_seed
+                            # Dynamic seeding
+                            # bad_frac = (np.sum(loss_init > 1e-2) // frac_size)
+                            # bad_frac = min(max(1, bad_frac), (batch_size // frac_size) // 2)
+                            # for i in range(bad_frac):
+                            #     init_samples[frac_size * i:frac_size * (i + 1), ...] = frac_seed
                             images = torch.tensor(images, device=device, requires_grad=True)
                             init_samples = torch.tensor(init_samples, device=device, requires_grad=True)
                             if damage_init:
