@@ -147,39 +147,35 @@ with torch.no_grad():
 
     print('Plotting Regeneration...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
+    _, out_embs = forward_pass(images)
 
-    images_occ = torch.zeros(batch_size, n_filter, image_size, image_size, device=device)
-    images_occ[:, :config['data']['channels'], ...] = images.clone()
-    images_occ[:, :, image_size // 2:, :] = 0.0
-    images_dec, out_embs = forward_pass(images, images_occ)
-    save_imgs(images_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '0_occ')
+    init_occ = out_embs[-1, ...].clone()
+    init_occ[:, :, image_size // 2:, :] = 0.0
+    images_dec, out_embs = forward_pass(images, init_occ)
+    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '0_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '0')
 
-    images_occ = torch.zeros(batch_size, n_filter, image_size, image_size, device=device)
-    images_occ[:, :config['data']['channels'], ...] = images.clone()
-    images_occ[:, :, :image_size // 2, :] = 0.0
-    images_dec, out_embs = forward_pass(images, images_occ)
-    save_imgs(images_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '1_occ')
+    init_occ = out_embs[-1, ...].clone()
+    init_occ[:, :, :image_size // 2, :] = 0.0
+    images_dec, out_embs = forward_pass(images, init_occ)
+    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '1_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '1')
 
-    images_occ = torch.zeros(batch_size, n_filter, image_size, image_size, device=device)
-    images_occ[:, :config['data']['channels'], ...] = images.clone()
-    images_occ[:, :, :, image_size // 2:] = 0.0
-    images_dec, out_embs = forward_pass(images, images_occ)
-    save_imgs(images_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '2_occ')
+    init_occ = out_embs[-1, ...].clone()
+    init_occ[:, :, :, image_size // 2:] = 0.0
+    images_dec, out_embs = forward_pass(images, init_occ)
+    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '2_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '2')
 
-    images_occ = torch.zeros(batch_size, n_filter, image_size, image_size, device=device)
-    images_occ[:, :config['data']['channels'], ...] = images.clone()
-    images_occ[:, :, :, :image_size // 2] = 0.0
-    images_dec, out_embs = forward_pass(images, images_occ)
-    save_imgs(images_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '3_occ')
+    init_occ = out_embs[-1, ...].clone()
+    init_occ[:, :, :, :image_size // 2] = 0.0
+    images_dec, out_embs = forward_pass(images, init_occ)
+    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '3_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '3')
 
-    images_occ = torch.zeros(batch_size, n_filter, image_size, image_size, device=device)
-    images_occ[:, :config['data']['channels'], ...] = images.clone()
-    images_occ[:, :, image_size // 4:(image_size // 4) * 3, image_size // 4:(image_size // 4) * 3] = 0.0
-    images_dec, out_embs = forward_pass(images, images_occ)
-    save_imgs(images_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '4_occ')
+    init_occ = out_embs[-1, ...].clone()
+    init_occ[:, :, image_size // 4:(image_size // 4) * 3, image_size // 4:(image_size // 4) * 3] = 0.0
+    images_dec, out_embs = forward_pass(images, init_occ)
+    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '4_occ')
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '4')
 

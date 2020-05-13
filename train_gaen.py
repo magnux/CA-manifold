@@ -91,7 +91,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_dis = np.zeros(window_size)
         running_loss_gen = np.zeros(window_size)
 
-        batch_mult = int((epoch / config['training']['n_epochs']) * 4) + 1
+        batch_mult = int((epoch / config['training']['n_epochs']) * 4) + 2
 
         it = (epoch * len(trainloader))
 
