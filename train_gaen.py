@@ -102,7 +102,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             with model_manager.on_batch():
 
                 loss_dis_enc_sum, loss_dis_dec_sum, reg_dis_enc_sum, reg_dis_dec_sum = 0, 0, 0, 0
-                loss_gen_enc_sum, loss_gen_dec_sum, reg_gen_enc_sum, reg_gen_dec_sum = 0, 0, 0, 0
+                loss_gen_enc_sum, loss_gen_dec_sum, reg_gen_sum = 0, 0, 0
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
@@ -165,10 +165,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
-                        reg_gen_enc = (1 / batch_mult) * reg_param * compute_grad2(lat_enc, out_embs[-1]).mean()
-                        reg_gen_enc.backward(retain_graph=True)
-                        reg_gen_enc_sum += reg_gen_enc.item()
-
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         loss_gen_enc.backward()
                         loss_gen_enc_sum += loss_gen_enc.item()
@@ -180,9 +176,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        reg_gen_dec = (1 / batch_mult) * reg_param * compute_grad2(lat_gen, z_gen).mean()
-                        reg_gen_dec.backward(retain_graph=True)
-                        reg_gen_dec_sum += reg_gen_dec.item()
+                        reg_gen = (1 / batch_mult) * reg_param * compute_grad2(lat_gen, z_gen).mean()
+                        reg_gen.backward(retain_graph=True)
+                        reg_gen_sum += reg_gen.item()
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         loss_gen_dec.backward()
@@ -214,8 +210,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
-                model_manager.log_manager.add_scalar('losses', 'reg_gen_enc', reg_gen_enc_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'reg_gen_dec', reg_gen_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'reg_gen', reg_gen_sum, it=it)
 
                 it += 1
 
