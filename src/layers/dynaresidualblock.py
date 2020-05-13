@@ -34,8 +34,6 @@ class DynaResidualBlock(nn.Module):
 
         self.meta_k = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.k_in_size + self.k_mid_size +
                                                self.k_out_size + self.k_short_size +
                                                self.b_in_size + self.b_mid_size +
