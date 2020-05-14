@@ -104,7 +104,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_dis_enc_sum, loss_dis_dec_sum, reg_dis_enc_sum, reg_dis_dec_sum = 0, 0, 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
 
-                # Discriminator Encoder step
+                # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
 
                     for _ in range(batch_mult):
@@ -130,25 +130,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc.backward()
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                # Generator Decoder step
-                with model_manager.on_step(['decoder', 'generator']):
-
-                    for _ in range(batch_mult):
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-
-                        lat_gen = generator(z_gen, labels)
-                        images_dec, _, images_dec_raw = decoder(lat_gen)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
-                        labs_dec = discriminator(lat_top_dec, labels)
-
-                        loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
-                        loss_gen_dec.backward()
-                        loss_gen_dec_sum += loss_gen_dec.item()
-
-                # Discriminator Decoder step
-                with model_manager.on_step(['dis_encoder', 'discriminator']):
-
-                    for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
 
                         with torch.no_grad():
@@ -173,8 +154,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec.backward()
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                # Generator Encoder step
-                with model_manager.on_step(['encoder']):
+                # Generator step
+                with model_manager.on_step(['encoder', 'decoder', 'generator']):
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
@@ -186,6 +167,17 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         loss_gen_enc.backward()
                         loss_gen_enc_sum += loss_gen_enc.item()
+
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
+
+                        lat_gen = generator(z_gen, labels)
+                        images_dec, _, images_dec_raw = decoder(lat_gen)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
+                        labs_dec = discriminator(lat_top_dec, labels)
+
+                        loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
+                        loss_gen_dec.backward()
+                        loss_gen_dec_sum += loss_gen_dec.item()
 
                 # Streaming Images
                 with torch.no_grad():
