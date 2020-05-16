@@ -32,7 +32,7 @@ class DynaResidualBlock(nn.Module):
         self.b_out_size = self.fout
         self.b_short_size = self.fout
 
-        self.meta_k = nn.Sequential(
+        self.dyna_k = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.k_in_size + self.k_mid_size +
                                                self.k_out_size + self.k_short_size +
@@ -50,7 +50,7 @@ class DynaResidualBlock(nn.Module):
         batch_size = x.size(0)
         
         if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
-            ks = self.meta_k(lat)
+            ks = self.dyna_k(lat)
             k_in, k_mid, k_out, k_short, b_in, b_mid, b_out, b_short = torch.split(ks, [self.k_in_size, self.k_mid_size,
                                                                                         self.k_out_size, self.k_short_size,
                                                                                         self.b_in_size, self.b_mid_size,

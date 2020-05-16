@@ -28,7 +28,7 @@ class DynaConvBlock(nn.Module):
         self.b_in_size = self.fhidden
         self.b_out_size = self.fout
 
-        self.meta_k = nn.Sequential(
+        self.dyna_k = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.k_in_size + self.k_out_size +
                                                self.b_in_size + self.b_out_size, self.lat_size * 2),
@@ -43,7 +43,7 @@ class DynaConvBlock(nn.Module):
         batch_size = x.size(0)
 
         if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
-            ks = self.meta_k(lat)
+            ks = self.dyna_k(lat)
             k_in, k_out, b_in, b_out = torch.split(ks, [self.k_in_size, self.k_out_size, self.b_in_size, self.b_out_size], dim=1)
             self.k_in = k_in.view([batch_size, self.fhidden, self.fin] + self.kernel_size).reshape([batch_size * self.fhidden, self.fin] + self.kernel_size)
             self.k_out = k_out.view([batch_size, self.fout, self.fhidden] + self.kernel_size).reshape([batch_size * self.fout, self.fhidden] + self.kernel_size)
