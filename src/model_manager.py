@@ -9,10 +9,11 @@ from contextlib import contextmanager
 
 
 class ModelManager(object):
-    def __init__(self, model_name, networks_dict, config):
+    def __init__(self, model_name, networks_dict, config, logging=True):
         self.model_name = model_name
         self.networks_dict = networks_dict
         self.config = config
+        self.logging = logging
 
         for net_name in self.networks_dict.keys():
 
@@ -37,14 +38,15 @@ class ModelManager(object):
                 self.networks_dict[net_name]['lr_scheduler'] = build_lr_scheduler(self.networks_dict[net_name]['optimizer'],
                                                                                   self.config, self.start_epoch)
 
-        self.log_manager = LogManager(log_dir=path.join(self.config['training']['out_dir'], '%s_logs' % self.model_name),
-                                      img_dir=path.join(self.config['training']['out_dir'], '%s_imgs' % self.model_name),
-                                      txt_dir=path.join(self.config['training']['out_dir'], '%s_txts' % self.model_name),
-                                      monitoring=self.config['training']['monitoring'],
-                                      monitoring_dir=path.join(self.config['training']['out_dir'], '%s_monitoring' % self.model_name))
+        if self.logging:
+            self.log_manager = LogManager(log_dir=path.join(self.config['training']['out_dir'], '%s_logs' % self.model_name),
+                                          img_dir=path.join(self.config['training']['out_dir'], '%s_imgs' % self.model_name),
+                                          txt_dir=path.join(self.config['training']['out_dir'], '%s_txts' % self.model_name),
+                                          monitoring=self.config['training']['monitoring'],
+                                          monitoring_dir=path.join(self.config['training']['out_dir'], '%s_monitoring' % self.model_name))
 
-        if self.start_epoch != 0:
-            self.log_manager.load_stats('%s_stats.p' % self.model_name)
+            if self.start_epoch != 0:
+                self.log_manager.load_stats('%s_stats.p' % self.model_name)
 
         self.epoch = self.start_epoch
         self.lr = self.config['training']['lr']
@@ -85,8 +87,9 @@ class ModelManager(object):
     def on_epoch_end(self):
         if self.config['training']['save_every'] > 0 and ((self.epoch + 1) % self.config['training']['save_every']) == 0:
             self.checkpoint_manager.save(self.epoch + 1, '%s.pt' % self.model_name)
-            self.log_manager.save_stats('%s_stats.p' % self.model_name)
-            self.log_manager.flush()
+            if self.logging:
+                self.log_manager.save_stats('%s_stats.p' % self.model_name)
+                self.log_manager.flush()
 
         if self.config['training']['lr_anneal_every'] > 0:
             for net_name in self.networks_dict.keys():

@@ -47,7 +47,7 @@ if letter_encoding:
         'letter_decoder': {'class': 'base', 'sub_class': 'LetterDecoder'},
     })
 
-model_manager = ModelManager('cae', networks_dict, config)
+model_manager = ModelManager('cae', networks_dict, config, False)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
 if letter_encoding:
@@ -117,7 +117,7 @@ with torch.no_grad():
         loss = F.mse_loss(images_dec, images, reduction='none').mean(dim=(1, 2, 3))
         losses.append(loss)
     losses = torch.cat(losses, 0)
-    print('MSE: ', losses.mean())
+    print('MSE: ', losses.mean().item())
 
     l_sort = torch.argsort(losses)
     sorted_idxs = torch.arange(len(trainset))[l_sort]
@@ -141,41 +141,52 @@ with torch.no_grad():
     print('Plotting Persistence...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
 
-    for n in range(1, 9):
+    for n in range(1, 19):
         images_dec, out_embs = forward_pass(images, None if n == 1 else out_embs[-1, ...])
         save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'persist'), '%d' % n)
 
     print('Plotting Regeneration...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
     _, out_embs = forward_pass(images)
+    init_image = out_embs[-1, ...]
 
-    init_occ = out_embs[-1, ...].clone()
+    init_occ = init_image.clone()
     init_occ[:, :, image_size // 2:, :] = 0.0
-    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '0_occ')
+    for _ in range(4):
+        images_dec, out_embs = forward_pass(images, init_occ)
+        init_occ = out_embs[-1, ...]
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '0')
 
-    init_occ = out_embs[-1, ...].clone()
+    init_occ = init_image.clone()
     init_occ[:, :, :image_size // 2, :] = 0.0
-    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '1_occ')
+    for _ in range(4):
+        images_dec, out_embs = forward_pass(images, init_occ)
+        init_occ = out_embs[-1, ...]
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '1')
 
-    init_occ = out_embs[-1, ...].clone()
+    init_occ = init_image.clone()
     init_occ[:, :, :, image_size // 2:] = 0.0
-    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '2_occ')
+    for _ in range(4):
+        images_dec, out_embs = forward_pass(images, init_occ)
+        init_occ = out_embs[-1, ...]
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '2')
 
-    init_occ = out_embs[-1, ...].clone()
+    init_occ = init_image.clone()
     init_occ[:, :, :, :image_size // 2] = 0.0
-    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '3_occ')
+    for _ in range(4):
+        images_dec, out_embs = forward_pass(images, init_occ)
+        init_occ = out_embs[-1, ...]
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '3')
 
-    init_occ = out_embs[-1, ...].clone()
+    init_occ = init_image.clone()
     init_occ[:, :, image_size // 4:(image_size // 4) * 3, image_size // 4:(image_size // 4) * 3] = 0.0
-    images_dec, _ = forward_pass(images, init_occ)
     save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '4_occ')
+    for _ in range(4):
+        images_dec, out_embs = forward_pass(images, init_occ)
+        init_occ = out_embs[-1, ...]
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '4')
 
