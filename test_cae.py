@@ -92,8 +92,9 @@ def save_imgs(images, out_dir, tag, make_video=False):
         if images.size(1) == 4:
             alpha = images[:, 3:4, :, :].clamp(0.0, 1.0)
             images = images[:, :3, :, :] * alpha
-            images = ((1.0 - alpha) + images).clamp(0.0, 1.0)
+            images = (1.0 - alpha) + images
 
+        images = images.clamp(0.0, 1.0)
         images = images * 255
 
         h, w = images.size()[2:]
