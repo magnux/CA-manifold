@@ -129,7 +129,7 @@ with torch.no_grad():
     images_dec, out_embs = forward_pass(images)
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'best'), 'all')
     for i in range(batch_size):
-        save_imgs(out_embs[:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'best'), '%d' % i, True)
+        save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'best'), '%d' % i, True)
 
     print('Plotting Worst CAs...')
     images, labels = get_inputs(sorted_idxs[-batch_size:], device)
@@ -137,7 +137,7 @@ with torch.no_grad():
     images_dec, out_embs = forward_pass(images)
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'all')
     for i in range(batch_size):
-        save_imgs(out_embs[:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'worst'), '%d' % i, True)
+        save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'worst'), '%d' % i, True)
 
     print('Plotting Persistence...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
