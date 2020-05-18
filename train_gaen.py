@@ -99,7 +99,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
         for batch in t:
 
-            batch_mult = 8 if batch % (len(trainloader) // 4) == 0 else 1
+            batch_mult = 1
+            if it % 256 == 0:
+                batch_mult = 8
+            elif it % 128 == 0:
+                batch_mult = 4
+            elif it % 64 == 0:
+                batch_mult = 2
 
             with model_manager.on_batch():
 
