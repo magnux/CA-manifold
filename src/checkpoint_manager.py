@@ -32,6 +32,10 @@ class CheckpointManager(object):
             self.it = out_dict['it']
             for k, v in self.module_dict.items():
                 if k in out_dict:
+                    out_dict_mod = {}
+                    for old_k in out_dict[k]:
+                        out_dict_mod[old_k.replace('meta_k', 'dyna_k')] = out_dict[k][old_k]
+                    out_dict[k] = out_dict_mod
                     first_key = list(out_dict[k].keys())[0]
                     if first_key in v.state_dict().keys():
                         v.load_state_dict(out_dict[k])
