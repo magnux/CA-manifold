@@ -100,12 +100,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         for batch in t:
 
             batch_mult = 1
-            if it % 256 == 0:
-                batch_mult = 8
-            elif it % 128 == 0:
-                batch_mult = 4
-            elif it % 64 == 0:
-                batch_mult = 2
+            if it % 64 == 0:
+                batch_mult = np.log2(np.gcd(it, 2 ** 20))
 
             with model_manager.on_batch():
 
