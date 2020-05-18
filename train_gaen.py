@@ -101,7 +101,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             batch_mult = 1
             if it % 64 == 0:
-                batch_mult = np.log2(np.gcd(it, 2 ** 20))
+                batch_mult = int(np.log2(np.gcd(it, 2 ** 20)))
 
             with model_manager.on_batch():
 
