@@ -102,7 +102,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             with model_manager.on_batch():
 
                 loss_dis_enc_sum, loss_dis_dec_sum, reg_dis_enc_sum, reg_dis_dec_sum = 0, 0, 0, 0
-                loss_gen_enc_sum, loss_gen_dec_sum, loss_gen_recodec_sum = 0, 0, 0
+                loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
@@ -181,16 +181,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec.backward()
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-
-                        lat_labs = generator(torch.zeros_like(z_gen), labels)
-                        lat_enc, _, _ = encoder(images, lat_labs)
-                        _, _, images_dec_raw = decoder(lat_enc)
-
-                        loss_gen_recodec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
-                        loss_gen_recodec.backward()
-                        loss_gen_recodec_sum += loss_gen_recodec.item()
-
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
@@ -216,8 +206,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
-
-                model_manager.log_manager.add_scalar('losses', 'loss_gen_recodec', loss_gen_recodec_sum, it=it)
 
                 it += 1
 
