@@ -18,7 +18,7 @@ network:
     perception_noise: False
     fire_rate: 0.5
 training:
-  out_dir: save/emoji_ca_manifold_letenc_spool_dmg
+  out_dir: save/emoji_ca_manifold_letenc_persist_regen
   persistence: True
   regeneration: True
   batch_size: 64

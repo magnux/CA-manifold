@@ -70,7 +70,7 @@ def get_inputs(trainiter, batch_size, device):
 images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
 window_size = len(trainloader) // 10
-n_rounds_dec = 4 if persistence else 1
+n_rounds_dec = 2 if persistence else 1
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
@@ -107,16 +107,17 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             letters = rand_change_letters(letters)
                             lat_dec = letter_decoder(letters)
                         else:
-                            lat_dec = lat_enc + (1e-3 * torch.randn_like(lat_enc))
+                            lat_dec = lat_enc + (0.1 * torch.randn_like(lat_enc))
 
                         # Decoding
                         for n in range(n_rounds_dec):
                             if n > 0:
                                 lat_dec = lat_dec.detach_().requires_grad_()
                                 init_samples = out_embs[-1].detach_().requires_grad_()
+                                init_samples = init_samples + (0.1 * torch.randn_like(init_samples))
 
                                 if regeneration:
-                                    init_samples = rand_circle_masks(init_samples, batch_size // 16)
+                                    init_samples = rand_circle_masks(init_samples, batch_size // 8)
 
                             _, out_embs, images_redec_raw = decoder(lat_dec, init_samples)
 
