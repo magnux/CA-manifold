@@ -107,7 +107,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             letters = rand_change_letters(letters)
                             lat_dec = letter_decoder(letters)
                         else:
-                            lat_dec = lat_enc + (0.1 * torch.randn_like(lat_enc))
+                            lat_dec = lat_enc + (1e-3 * torch.randn_like(lat_enc))
 
                         # Decoding
                         for n in range(n_rounds_dec):
