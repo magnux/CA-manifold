@@ -16,10 +16,11 @@ network:
     shared_params: False
     letter_encoding: True
     perception_noise: False
+    fire_rate: 0.5
 training:
   out_dir: save/emoji_ca_manifold_letenc_spool_dmg
-  sample_pool: True
-  damage_init: True
+  persistence: True
+  regeneration: True
   batch_size: 64
   n_workers: 2
   optimizer: adam

@@ -32,8 +32,8 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
 letter_encoding = config['network']['kwargs']['letter_encoding']
-use_sample_pool = config['training']['sample_pool']
-damage_init = config['training']['damage_init']
+persistence = config['training']['persistence']
+regeneration = config['training']['regeneration']
 batch_size = config['training']['batch_size']
 n_workers = config['training']['n_workers']
 
@@ -160,7 +160,7 @@ with torch.no_grad():
 
     for n in range(1, 19):
         images_dec, out_embs = forward_pass(images, None if n == 1 else out_embs[-1, ...])
-        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'persist'), '%d' % n)
+        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'persistence'), '%d' % n)
 
     print('Plotting Regeneration...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)

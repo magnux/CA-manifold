@@ -14,7 +14,7 @@ from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -24,6 +24,7 @@ class Decoder(nn.Module):
         self.n_calls = n_calls * 16
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.perception_noise = perception_noise
+        self.fire_rate = fire_rate
 
         self.frac_sobel = Sobel(self.n_filter)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -50,6 +51,8 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
+            if self.fire_rate < 1.0:
+                out_new = out_new * (torch.rand([batch_size, 1, self.image_size, self.image_size], device=lat.device) <= self.fire_rate).to(torch.float32)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
 

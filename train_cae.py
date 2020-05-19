@@ -8,7 +8,6 @@ from tqdm import trange
 from src.config import load_config
 from src.inputs import get_dataset
 from src.utils.media_utils import save_images, rand_erase_images, rand_change_letters, rand_circle_masks
-from src.utils.model_utils import ca_seed, SamplePool
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -25,8 +24,8 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
 letter_encoding = config['network']['kwargs']['letter_encoding']
-use_sample_pool = config['training']['sample_pool']
-damage_init = config['training']['damage_init']
+persistence = config['training']['persistence']
+regeneration = config['training']['regeneration']
 batch_size = config['training']['batch_size']
 n_workers = config['training']['n_workers']
 
@@ -70,19 +69,8 @@ def get_inputs(trainiter, batch_size, device):
 
 images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
-if use_sample_pool:
-    n_slots = len(trainset) * 16
-    target = []
-    for _ in range((n_slots // batch_size) + 1):
-        images, _, trainiter = get_inputs(trainiter, batch_size, torch.device('cpu'))
-        target.append(images)
-    target = torch.cat(target, dim=0)[:n_slots, ...].numpy()
-    seed = ca_seed(n_slots, n_filter, image_size, torch.device('cpu')).numpy()
-    sample_pool = SamplePool(target=target, init=seed)
-    frac_size = batch_size // 8
-    frac_seed = ca_seed(frac_size, n_filter, image_size, torch.device('cpu')).numpy()
-
 window_size = len(trainloader) // 10
+n_rounds_dec = 4 if persistence else 1
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
@@ -105,28 +93,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     for _ in range(batch_mult):
 
-                        if use_sample_pool:
-                            pool_samples = sample_pool.sample(batch_size)
-                            images, init_samples = pool_samples.target, pool_samples.init
-                            loss_init = np.mean(np.square(images - init_samples[:, :images.shape[1], :, :]), axis=(1,2,3))
-                            loss_rank = loss_init.argsort()[::-1]
-                            images = images[loss_rank]
-                            pool_samples.target[:] = images
-                            init_samples = init_samples[loss_rank]
-                            # Static seeding
-                            init_samples[:frac_size, ...] = frac_seed
-                            # Dynamic seeding
-                            # bad_frac = (np.sum(loss_init > 1e-2) // frac_size)
-                            # bad_frac = min(max(1, bad_frac), (batch_size // frac_size) // 2)
-                            # for i in range(bad_frac):
-                            #     init_samples[frac_size * i:frac_size * (i + 1), ...] = frac_seed
-                            images = torch.tensor(images, device=device, requires_grad=True)
-                            init_samples = torch.tensor(init_samples, device=device, requires_grad=True)
-                            if damage_init:
-                                init_samples = rand_circle_masks(init_samples, batch_size // 16)
-                        else:
-                            images, _, trainiter = get_inputs(trainiter, batch_size, device)
-                            init_samples = None
+                        images, _, trainiter = get_inputs(trainiter, batch_size, device)
+                        init_samples = None
 
                         # Obscure the input
                         re_images = rand_erase_images(images)
@@ -142,15 +110,19 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_dec = lat_enc + (1e-3 * torch.randn_like(lat_enc))
 
                         # Decoding
-                        _, out_embs, images_redec_raw = decoder(lat_dec, init_samples)
+                        for n in range(n_rounds_dec):
+                            if n > 0:
+                                lat_dec = lat_dec.detach_().requires_grad_()
+                                init_samples = out_embs[-1].detach_().requires_grad_()
 
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, images)
-                        loss_dec.backward()
-                        loss_dec_sum += loss_dec.item()
+                                if regeneration:
+                                    init_samples = rand_circle_masks(init_samples, batch_size // 16)
 
-                        if use_sample_pool:
-                            pool_samples.init[:] = out_embs[-1].cpu().detach().numpy()
-                            pool_samples.commit()
+                            _, out_embs, images_redec_raw = decoder(lat_dec, init_samples)
+
+                            loss_dec = (1 / batch_mult) * (1 / n_rounds_dec) * F.mse_loss(images_redec_raw, images)
+                            loss_dec.backward()
+                            loss_dec_sum += loss_dec.item()
 
                 # Streaming Images
                 with torch.no_grad():
