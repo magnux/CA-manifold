@@ -29,7 +29,7 @@ training:
   batch_size: 32
   n_workers: 2
   optimizer: adam
-  lr: 0.0001
+  lr: 0.1
   equalize_lr: false
   n_epochs: 2048
   save_every: 1
