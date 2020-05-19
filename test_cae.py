@@ -15,6 +15,11 @@ from src.utils.web.webstreaming import stream_images
 import os
 from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 
+np.random.seed(42)
+torch.manual_seed(42)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 parser = argparse.ArgumentParser(description='Train a FractalNet')
 parser.add_argument('config', type=str, help='Path to config file.')
 args = parser.parse_args()
@@ -108,6 +113,15 @@ def save_imgs(images, out_dir, tag, make_video=False):
 
 
 with torch.no_grad():
+    print('Plotting Randdom CAs...')
+    images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
+    save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'random'), 'input')
+
+    images_dec, out_embs = forward_pass(images)
+    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'random'), 'dec')
+    for i in range(batch_size):
+        save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'random'), '%d' % i, True)
+
     print('Computing Error...')
     t = trange((len(trainset) // batch_size) + 1)
     losses = []
@@ -125,17 +139,19 @@ with torch.no_grad():
 
     print('Plotting Best CAs...')
     images, labels = get_inputs(sorted_idxs[:batch_size], device)
+    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'best'), 'input')
 
     images_dec, out_embs = forward_pass(images)
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'best'), 'all')
+    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'best'), 'dec')
     for i in range(batch_size):
         save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'best'), '%d' % i, True)
 
     print('Plotting Worst CAs...')
     images, labels = get_inputs(sorted_idxs[-batch_size:], device)
+    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'input')
 
     images_dec, out_embs = forward_pass(images)
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'all')
+    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'dec')
     for i in range(batch_size):
         save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'worst'), '%d' % i, True)
 
