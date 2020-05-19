@@ -139,7 +139,7 @@ with torch.no_grad():
 
     print('Plotting Best CAs...')
     images, labels = get_inputs(sorted_idxs[:batch_size], device)
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'best'), 'input')
+    save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'best'), 'input')
 
     images_dec, out_embs = forward_pass(images)
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'best'), 'dec')
@@ -148,7 +148,7 @@ with torch.no_grad():
 
     print('Plotting Worst CAs...')
     images, labels = get_inputs(sorted_idxs[-batch_size:], device)
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'input')
+    save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'input')
 
     images_dec, out_embs = forward_pass(images)
     save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'dec')
