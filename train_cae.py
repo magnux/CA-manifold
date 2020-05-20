@@ -114,7 +114,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             if n > 0:
                                 lat_dec = lat_dec.detach_().requires_grad_()
                                 init_samples = out_embs[-1].detach_().requires_grad_()
-                                init_samples = init_samples + (0.1 * torch.randn_like(init_samples))
+                                init_samples = init_samples + (0.1 * torch.randn_like(init_samples) * init_samples)
 
                                 if regeneration:
                                     init_samples = rand_circle_masks(init_samples, batch_size // 8)
