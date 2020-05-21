@@ -24,7 +24,8 @@ class ModelManager(object):
                 if torch.cuda.device_count() > 1:
                     self.networks_dict[net_name]['net'] = torch.nn.DataParallel(self.networks_dict[net_name]['net'])
 
-            self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], self.config)
+            lr = self.networks_dict[net_name]['lr'] if 'lr' in self.networks_dict[net_name] else config['training']['lr']
+            self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], lr, self.config)
 
         self.checkpoint_manager = CheckpointManager(self.config['training']['out_dir'])
         self.checkpoint_manager.register_modules(**{net_name: self.networks_dict[net_name]['net']
