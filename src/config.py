@@ -34,8 +34,9 @@ def build_network(config, class_name, subclass_name, init_scale=None):
     return network
 
 
-def build_optimizer(network, lr, config):
+def build_optimizer(network, config):
     optimizer = config['training']['optimizer']
+    lr = config['training']['lr']
     equalize_lr = config['training']['equalize_lr']
 
     if equalize_lr:
