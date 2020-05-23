@@ -10,7 +10,7 @@ network:
   class: ca_manifold
   kwargs:
     ds_size: 32
-    n_filter: 16
+    n_filter: 32
     embed_size: 256
     lat_size: 512
     n_calls: 4
@@ -27,12 +27,12 @@ training:
   out_dir: save/emoji_s_ca_manifold
   persistence: False
   regeneration: False
-  batch_size: 32
+  batch_size: 16
   n_workers: 2
   optimizer: adam
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 256
+  n_epochs: 2048
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0
