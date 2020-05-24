@@ -146,5 +146,7 @@ if __name__ == '__main__':
     imageio.mimsave('./sobel_waves.gif', [_canvas(i) for i in range(n_calls)], fps=5)
 
     sobel_waves_steps = torch.stack(canvas_l[1:], dim=0).view(n_calls, 1, c_size, c_size)
-    sobel_waves_steps = (sobel_waves_steps - sobel_waves_steps.min()) / (sobel_waves_steps.max() - sobel_waves_steps.min())
+    mi = sobel_waves_steps.min(dim=2, keepdim=True)[0].min(dim=3, keepdim=True)[0]
+    ma = sobel_waves_steps.max(dim=2, keepdim=True)[0].max(dim=3, keepdim=True)[0]
+    sobel_waves_steps = (sobel_waves_steps - mi) / (ma - mi)
     torchvision.utils.save_image(sobel_waves_steps, './sobel_waves_steps.png', nrow=8)
