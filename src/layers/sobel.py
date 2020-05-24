@@ -101,6 +101,7 @@ class SinSobel(nn.Module):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import imageio
+    import torchvision
 
 
     def close_event():
@@ -110,7 +111,8 @@ if __name__ == '__main__':
     timer = fig.canvas.new_timer(interval=500)
     timer.add_callback(close_event)
 
-    c_size = 128
+    c_size = 64
+    # c_size = 128
     n_calls = 64
 
     canvas = torch.zeros([1, 1, c_size, c_size])
@@ -142,3 +144,7 @@ if __name__ == '__main__':
         return canvas_l[idx]
 
     imageio.mimsave('./sobel_waves.gif', [_canvas(i) for i in range(n_calls)], fps=5)
+
+    sobel_waves_steps = torch.stack(canvas_l[1:], dim=0).view(n_calls, 1, c_size, c_size)
+    sobel_waves_steps = (sobel_waves_steps - sobel_waves_steps.min()) / (sobel_waves_steps.max() - sobel_waves_steps.min())
+    torchvision.utils.save_image(sobel_waves_steps, './sobel_waves_steps.png', nrow=8)
