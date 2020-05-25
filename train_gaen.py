@@ -66,6 +66,7 @@ def get_inputs(trainiter, batch_size, device):
         next_inputs = next(trainiter, None)
     images, labels = next_inputs
     images, labels = images[:batch_size, ...], labels[:batch_size, ...]
+    images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
     images, labels = images.to(device), labels.to(device)
     images = images.detach().requires_grad_()
     z_gen = zdist.sample((images.size(0),)).clamp_(-3, 3)
@@ -101,7 +102,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             with model_manager.on_batch():
 
-                loss_dis_enc_sum, loss_dis_dec_sum, reg_dis_enc_sum, reg_dis_dec_sum = 0, 0, 0, 0
+                loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
+                # reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
 
                 # Discriminator step
@@ -113,6 +115,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             lat_labs = generator(torch.zeros_like(z_gen), labels)
                             lat_enc, _, _ = encoder(images, lat_labs)
+                            lat_enc = (lat_enc + 1. / 128 * torch.randn_like(lat_enc))
 
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
@@ -120,13 +123,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         loss_dis_enc = (1/batch_mult) * compute_gan_loss(labs_enc, 1)
 
-                        reg_dis_enc = (1/batch_mult) * reg_param * compute_grad2(labs_enc, images).mean()
-                        reg_dis_enc.backward(retain_graph=True)
-                        reg_dis_enc_sum += reg_dis_enc.item()
-
-                        reg_dis_enc = (1 / batch_mult) * reg_param * compute_grad2(labs_enc, lat_enc).mean()
-                        reg_dis_enc.backward(retain_graph=True)
-                        reg_dis_enc_sum += reg_dis_enc.item()
+                        # reg_dis_enc = (1/batch_mult) * reg_param * compute_grad2(labs_enc, images).mean()
+                        # reg_dis_enc.backward(retain_graph=True)
+                        # reg_dis_enc_sum += reg_dis_enc.item()
+                        #
+                        # reg_dis_enc = (1 / batch_mult) * reg_param * compute_grad2(labs_enc, lat_enc).mean()
+                        # reg_dis_enc.backward(retain_graph=True)
+                        # reg_dis_enc_sum += reg_dis_enc.item()
 
                         loss_dis_enc.backward()
                         loss_dis_enc_sum += loss_dis_enc.item()
@@ -136,6 +139,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
+                            lat_gen = (lat_gen + 1. / 128 * torch.randn_like(lat_gen))
+                            images_dec = (images_dec + 1. / 128 * torch.randn_like(images_dec)).clamp_(-1.0, 1.0)
 
                         images_dec.requires_grad_()
                         lat_gen.requires_grad_()
@@ -144,13 +149,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         loss_dis_dec = (1/batch_mult) * compute_gan_loss(labs_dec, 0)
 
-                        reg_dis_dec = (1 / batch_mult) * reg_param * compute_grad2(labs_dec, images_dec).mean()
-                        reg_dis_dec.backward(retain_graph=True)
-                        reg_dis_dec_sum += reg_dis_dec.item()
-
-                        reg_dis_dec = (1 / batch_mult) * reg_param * compute_grad2(labs_dec, lat_gen).mean()
-                        reg_dis_dec.backward(retain_graph=True)
-                        reg_dis_dec_sum += reg_dis_dec.item()
+                        # reg_dis_dec = (1 / batch_mult) * reg_param * compute_grad2(labs_dec, images_dec).mean()
+                        # reg_dis_dec.backward(retain_graph=True)
+                        # reg_dis_dec_sum += reg_dis_dec.item()
+                        #
+                        # reg_dis_dec = (1 / batch_mult) * reg_param * compute_grad2(labs_dec, lat_gen).mean()
+                        # reg_dis_dec.backward(retain_graph=True)
+                        # reg_dis_dec_sum += reg_dis_dec.item()
                         
                         loss_dis_dec.backward()
                         loss_dis_dec_sum += loss_dis_dec.item()
@@ -201,8 +206,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
 
-                model_manager.log_manager.add_scalar('losses', 'reg_dis_enc', reg_dis_enc_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'reg_dis_dec', reg_dis_dec_sum, it=it)
+                # model_manager.log_manager.add_scalar('losses', 'reg_dis_enc', reg_dis_enc_sum, it=it)
+                # model_manager.log_manager.add_scalar('losses', 'reg_dis_dec', reg_dis_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)

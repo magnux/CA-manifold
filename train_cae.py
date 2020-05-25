@@ -63,6 +63,7 @@ def get_inputs(trainiter, batch_size, device):
         next_inputs = next(trainiter, None)
     images, labels = next_inputs
     images, labels = images[:batch_size, ...], labels[:batch_size, ...]
+    images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
     images, labels = images.to(device), labels.to(device)
     return images, labels, trainiter
 

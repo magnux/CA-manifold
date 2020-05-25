@@ -12,8 +12,8 @@ def get_dataset(name, type, data_dir, size=32):
         # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Lambda(lambda x: (x - 0.5) * 2.0),
-        transforms.Lambda(lambda x: x + 1./128 * torch.randn_like(x)),
-        transforms.Lambda(lambda x: x.clamp_(-1.0, 1.0)),
+        # transforms.Lambda(lambda x: x + 1./128 * torch.randn_like(x)),
+        # transforms.Lambda(lambda x: x.clamp_(-1.0, 1.0)),
     ])
     if type == 'image':
         if name == 'image':
