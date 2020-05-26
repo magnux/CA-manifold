@@ -66,7 +66,6 @@ def get_inputs(trainiter, batch_size, device):
         next_inputs = next(trainiter, None)
     images, labels = next_inputs
     images, labels = images[:batch_size, ...], labels[:batch_size, ...]
-    images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
     images, labels = images.to(device), labels.to(device)
     images = images.detach().requires_grad_()
     z_gen = zdist.sample((images.size(0),)).clamp_(-3, 3)
@@ -115,8 +114,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             lat_labs = generator(torch.zeros_like(z_gen), labels)
                             lat_enc, _, _ = encoder(images, lat_labs)
+                            images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
                             lat_enc = (lat_enc + 1. / 128 * torch.randn_like(lat_enc))
 
+                        images.requires_grad_()
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
@@ -142,8 +143,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_gen = (lat_gen + 1. / 128 * torch.randn_like(lat_gen))
                             images_dec = (images_dec + 1. / 128 * torch.randn_like(images_dec)).clamp_(-1.0, 1.0)
 
-                        images_dec.requires_grad_()
                         lat_gen.requires_grad_()
+                        images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
