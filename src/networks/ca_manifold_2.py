@@ -1,9 +1,13 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
-from src.layers.sobel import Sobel
-from src.layers.dynaconvblock import DynaConvBlock
+from src.layers.residualblock import ResidualBlock
+from src.layers.scale import DownScale, UpScale
+from src.layers.lambd import LambdaLayer
+from src.layers.sobel import SinSobel
+from src.layers.dynaresidualblock import DynaResidualBlock
 from src.utils.model_utils import ca_seed
 
 from src.networks.conv_ae import Encoder, InjectedEncoder
@@ -17,14 +21,21 @@ class Decoder(nn.Module):
         self.image_size = image_size
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls * 16
+        self.n_calls = n_calls * 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
 
-        self.frac_sobel = Sobel(self.n_filter)
+        self.frac_sobel = SinSobel(self.n_filter, 5, 2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
-        self.frac_dyna_conv = DynaConvBlock(self.lat_size, self.n_filter * 3, self.n_filter)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 3, self.n_filter)
+
+        self.conv_img = nn.Sequential(
+            ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
+            # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
+            *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
+            nn.Conv2d(self.n_filter, self.out_chan, 3, 1, 1),
+        )
 
     def forward(self, lat, ca_init=None):
         batch_size = lat.size(0)
@@ -52,7 +63,7 @@ class Decoder(nn.Module):
             out = out + (leak_factor * out_new)
             out_embs.append(out)
 
-        out = out[:, :self.out_chan, :, :]
+        out = self.conv_img(out)
         out_raw = out
         out = out.clamp(-1., 1.)
 
