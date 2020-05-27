@@ -24,6 +24,8 @@ z_dist:
 training:
   out_dir: save/cifar10_conv_ae
   batch_size: 16
+  batch_mult: 4
+  batch_mult_steps: 4
   n_workers: 2
   optimizer: adam
   lr: 0.0001

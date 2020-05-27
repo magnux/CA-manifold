@@ -25,7 +25,9 @@ z_dist:
   z_dim: 512
 training:
   out_dir: save/cifar10_ca_manifold_2
-  batch_size: 16
+  batch_size: 8
+  batch_mult: 8
+  batch_mult_steps: 4
   n_workers: 2
   optimizer: adam
   lr: 0.0001

@@ -26,6 +26,8 @@ training:
   persistence: False
   regeneration: False
   batch_size: 64
+  batch_mult: 1
+  batch_mult_steps: 4
   n_workers: 2
   optimizer: adam
   lr: 0.0001

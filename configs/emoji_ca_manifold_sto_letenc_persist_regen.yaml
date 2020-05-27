@@ -22,6 +22,8 @@ training:
   persistence: True
   regeneration: True
   batch_size: 32
+  batch_mult: 2
+  batch_mult_steps: 4
   n_workers: 2
   optimizer: adam
   lr: 0.0001
