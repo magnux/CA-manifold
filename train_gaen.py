@@ -230,7 +230,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, _, trainiter = get_inputs(trainiter, batch_size * config['training']['batch_mult'], device)
+            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size * config['training']['batch_mult'], device)
             lat_gen = generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
             lat_labs = generator(torch.zeros_like(z_gen), labels)
