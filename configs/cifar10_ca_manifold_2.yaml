@@ -10,7 +10,7 @@ network:
   class: ca_manifold_2
   kwargs:
     ds_size: 32
-    n_filter: 128
+    n_filter: 64
     embed_size: 256
     lat_size: 512
     n_calls: 4
@@ -25,7 +25,7 @@ z_dist:
   z_dim: 512
 training:
   out_dir: save/cifar10_ca_manifold_2
-  batch_size: 8
+  batch_size: 16
   n_workers: 2
   optimizer: adam
   lr: 0.0001
