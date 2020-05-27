@@ -93,9 +93,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * config['training']['batch_mult']
 
-        it = (epoch * len(trainloader))
+        it = (epoch * (len(trainloader) // config['training']['batch_mult']))
 
-        t = trange(len(trainloader))
+        t = trange(len(trainloader) // config['training']['batch_mult'])
         t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
         for batch in t:
 
