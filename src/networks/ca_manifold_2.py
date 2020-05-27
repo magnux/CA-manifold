@@ -14,11 +14,12 @@ from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
         self.image_size = image_size
+        self.ds_size = ds_size
         self.n_filter = n_filter
         self.lat_size = lat_size
         self.n_calls = n_calls * 8
