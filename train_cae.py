@@ -57,18 +57,27 @@ model_manager.print()
 
 
 def get_inputs(trainiter, batch_size, device):
-    next_inputs = next(trainiter, None)
-    if trainiter is None or next_inputs is None:
-        trainiter = iter(trainloader)
+    images, labels = [], []
+    n_batches = batch_size // config['training']['batch_size']
+    if batch_size % config['training']['batch_size'] > 0:
+        n_batches += 1
+    for _ in range(n_batches):
         next_inputs = next(trainiter, None)
-    images, labels = next_inputs
-    images, labels = images[:batch_size, ...], labels[:batch_size, ...]
+        if trainiter is None or next_inputs is None:
+            trainiter = iter(trainloader)
+            next_inputs = next(trainiter, None)
+        images.append(next_inputs[0])
+        labels.append(next_inputs[1])
+    images = torch.cat(images, 0)
+    labels = torch.cat(labels, 0)
+    if batch_size % config['training']['batch_size'] > 0:
+        images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
     images, labels = images.to(device), labels.to(device)
     return images, labels, trainiter
 
 
-images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
+images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size * config['training']['batch_mult'], device)
 
 window_size = len(trainloader) // 10
 
@@ -153,7 +162,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, trainiter = get_inputs(trainiter, config['training']['batch_size'], device)
+            images, labels, trainiter = get_inputs(trainiter, batch_size * config['training']['batch_mult'], device)
             lat_enc, _, _ = encoder(images)
             if letter_encoding:
                 letters = letter_encoder(lat_enc)

@@ -60,12 +60,21 @@ model_manager.print()
 
 
 def get_inputs(trainiter, batch_size, device):
-    next_inputs = next(trainiter, None)
-    if trainiter is None or next_inputs is None:
-        trainiter = iter(trainloader)
+    images, labels = [], []
+    n_batches = batch_size // config['training']['batch_size']
+    if batch_size % config['training']['batch_size'] > 0:
+        n_batches += 1
+    for _ in range(n_batches):
         next_inputs = next(trainiter, None)
-    images, labels = next_inputs
-    images, labels = images[:batch_size, ...], labels[:batch_size, ...]
+        if trainiter is None or next_inputs is None:
+            trainiter = iter(trainloader)
+            next_inputs = next(trainiter, None)
+        images.append(next_inputs[0])
+        labels.append(next_inputs[1])
+    images = torch.cat(images, 0)
+    labels = torch.cat(labels, 0)
+    if batch_size % config['training']['batch_size'] > 0:
+        images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
     images = images.detach().requires_grad_()
     z_gen = zdist.sample((images.size(0),)).clamp_(-3, 3)
@@ -73,7 +82,7 @@ def get_inputs(trainiter, batch_size, device):
     return images, labels, z_gen, trainiter
 
 
-images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
+images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size * config['training']['batch_mult'], device)
 
 if config['training']['inception_every'] > 0:
     fid_real_samples = []
@@ -221,7 +230,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, _, trainiter = get_inputs(trainiter, config['training']['batch_size'], device)
+            images, labels, _, trainiter = get_inputs(trainiter, batch_size * config['training']['batch_mult'], device)
             lat_gen = generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
             lat_labs = generator(torch.zeros_like(z_gen), labels)
@@ -231,7 +240,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
-                fixed_lab = torch.full((config['training']['batch_size'],), lab, device=device, dtype=torch.int64)
+                fixed_lab = torch.full((batch_size * config['training']['batch_mult'],), lab, device=device, dtype=torch.int64)
                 lat_gen = generator(z_test, fixed_lab)
                 images_gen, _, _ = decoder(lat_gen)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
