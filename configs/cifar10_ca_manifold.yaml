@@ -17,7 +17,7 @@ network:
     shared_params: False
     letter_encoding: False
     perception_noise: False
-    fire_rate: 0.5
+    fire_rate: 1.0
 z_dist:
   type: gauss
   z_dim: 512
