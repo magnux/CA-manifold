@@ -10,7 +10,7 @@ from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad2
 from src.utils.model_utils import compute_inception_score, toggle_grad, zero_grad, bkp_grad, copy_grad_bkp, del_grad_bkp, apply_grad_bkp
-from src.utils.media_utils import save_images
+from src.utils.media_utils import save_images, rand_erase_images
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -114,8 +114,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             lat_labs = generator(torch.zeros_like(z_gen), labels)
                             lat_enc, _, _ = encoder(images, lat_labs)
-                            images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
                             lat_enc = (lat_enc + 1. / 128 * torch.randn_like(lat_enc))
+                            images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
+                            images = rand_erase_images(images)
 
                         images.requires_grad_()
                         lat_enc.requires_grad_()
@@ -142,6 +143,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_gen)
                             lat_gen = (lat_gen + 1. / 128 * torch.randn_like(lat_gen))
                             images_dec = (images_dec + 1. / 128 * torch.randn_like(images_dec)).clamp_(-1.0, 1.0)
+                            images_dec = rand_erase_images(images_dec)
 
                         lat_gen.requires_grad_()
                         images_dec.requires_grad_()
