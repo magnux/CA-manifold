@@ -10,15 +10,15 @@ network:
   class: ca_manifold
   kwargs:
     ds_size: 64
-    n_filter: 16
-    lat_size: 256
+    n_filter: 32
+    lat_size: 512
     n_calls: 4
     shared_params: False
     letter_encoding: True
     perception_noise: False
-    fire_rate: 1.0
+    fire_rate: 0.5
 training:
-  out_dir: save/emoji_ca_manifold_letenc_lat256
+  out_dir: save/emoji_ca_manifold_sto_letenc_nf32
   persistence: False
   regeneration: False
   batch_size: 32
