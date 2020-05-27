@@ -15,11 +15,11 @@ network:
     n_calls: 4
     shared_params: False
     letter_encoding: True
-    perception_noise: True
-    fire_rate: 1.0
+    perception_noise: False
+    fire_rate: 0.5
 training:
-  out_dir: save/emoji_ca_manifold_letenc_pnoise
-  persistence: False
+  out_dir: save/emoji_ca_manifold_sto_letenc_persist
+  persistence: True
   regeneration: False
   batch_size: 32
   n_workers: 2

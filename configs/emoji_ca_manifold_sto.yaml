@@ -11,14 +11,18 @@ network:
   kwargs:
     ds_size: 64
     n_filter: 16
+    embed_size: 256
     lat_size: 512
     n_calls: 4
     shared_params: False
-    letter_encoding: True
-    perception_noise: True
-    fire_rate: 1.0
+    letter_encoding: False
+    perception_noise: False
+    fire_rate: 0.5
+z_dist:
+  type: gauss
+  z_dim: 512
 training:
-  out_dir: save/emoji_ca_manifold_letenc_pnoise
+  out_dir: save/emoji_ca_manifold_sto
   persistence: False
   regeneration: False
   batch_size: 32
@@ -33,3 +37,5 @@ training:
   monitoring: tensorboard
   sample_every: 1
   sample_labels: 9
+  reg_param: 10.
+  inception_every: 0
