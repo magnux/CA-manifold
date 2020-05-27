@@ -33,5 +33,5 @@ training:
   lr_anneal: 1.0
   lr_anneal_every: 0
   monitoring: tensorboard
-  sample_every: 1
+  sample_every: 16
   sample_labels: 9
