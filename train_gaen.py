@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from os import path
+import math
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -9,8 +9,8 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad2
-from src.utils.model_utils import compute_inception_score, toggle_grad, zero_grad, bkp_grad, copy_grad_bkp, del_grad_bkp, apply_grad_bkp
-from src.utils.media_utils import save_images, rand_erase_images
+from src.utils.model_utils import compute_inception_score
+from src.utils.media_utils import rand_erase_images
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -61,9 +61,7 @@ model_manager.print()
 
 def get_inputs(trainiter, batch_size, device):
     images, labels = [], []
-    n_batches = batch_size // config['training']['batch_size']
-    if batch_size % config['training']['batch_size'] > 0:
-        n_batches += 1
+    n_batches = math.ceil(batch_size / config['training']['batch_size'])
     for _ in range(n_batches):
         next_inputs = next(trainiter, None)
         if trainiter is None or next_inputs is None:
@@ -92,7 +90,7 @@ if config['training']['inception_every'] > 0:
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
 
-window_size = len(trainloader) // 10
+window_size = math.ceil(len(trainloader) / 10)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):

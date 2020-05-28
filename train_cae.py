@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time
+import math
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -7,7 +7,7 @@ import argparse
 from tqdm import trange
 from src.config import load_config
 from src.inputs import get_dataset
-from src.utils.media_utils import save_images, rand_erase_images, rand_change_letters, rand_circle_masks
+from src.utils.media_utils import rand_erase_images, rand_change_letters, rand_circle_masks
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -58,9 +58,7 @@ model_manager.print()
 
 def get_inputs(trainiter, batch_size, device):
     images, labels = [], []
-    n_batches = batch_size // config['training']['batch_size']
-    if batch_size % config['training']['batch_size'] > 0:
-        n_batches += 1
+    n_batches = math.ceil(batch_size / config['training']['batch_size'])
     for _ in range(n_batches):
         next_inputs = next(trainiter, None)
         if trainiter is None or next_inputs is None:
@@ -79,7 +77,7 @@ def get_inputs(trainiter, batch_size, device):
 
 images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size * config['training']['batch_mult'], device)
 
-window_size = len(trainloader) // 10
+window_size = math.ceil(len(trainloader) / 10)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
