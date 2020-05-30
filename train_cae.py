@@ -27,12 +27,14 @@ letter_encoding = config['network']['kwargs']['letter_encoding']
 persistence = config['training']['persistence']
 regeneration = config['training']['regeneration']
 batch_size = config['training']['batch_size']
+batch_split = config['training']['batch_split']
+batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
                        data_dir=config['data']['train_dir'], size=config['data']['image_size'])
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
                                           shuffle=True, num_workers=n_workers, drop_last=True)
 
 # Networks
@@ -58,7 +60,7 @@ model_manager.print()
 
 def get_inputs(trainiter, batch_size, device):
     images, labels = [], []
-    n_batches = math.ceil(batch_size / config['training']['batch_size'])
+    n_batches = math.ceil(batch_size / batch_split_size)
     for _ in range(n_batches):
         next_inputs = next(trainiter, None)
         if trainiter is None or next_inputs is None:
@@ -75,20 +77,20 @@ def get_inputs(trainiter, batch_size, device):
     return images, labels, trainiter
 
 
-images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size * config['training']['batch_mult'], device)
+images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
-window_size = math.ceil(len(trainloader) / 10)
+window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
 
         running_loss = np.zeros(window_size)
 
-        batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * config['training']['batch_mult']
+        batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
 
-        it = (epoch * (len(trainloader) // config['training']['batch_mult']))
+        it = (epoch * (len(trainloader) // batch_split))
 
-        t = trange(len(trainloader) // config['training']['batch_mult'])
+        t = trange(len(trainloader) // batch_split)
         t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
         for batch in t:
 
@@ -160,7 +162,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, trainiter = get_inputs(trainiter, batch_size * config['training']['batch_mult'], device)
+            images, labels, trainiter = get_inputs(trainiter, batch_size, device)
             lat_enc, _, _ = encoder(images)
             if letter_encoding:
                 letters = letter_encoder(lat_enc)

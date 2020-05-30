@@ -21,8 +21,8 @@ training:
   out_dir: save/emoji_ca_manifold_sto_letenc_lat256
   persistence: False
   regeneration: False
-  batch_size: 32
-  batch_mult: 2
+  batch_size: 64
+  batch_split: 2
   batch_mult_steps: 4
   n_workers: 2
   optimizer: adam
