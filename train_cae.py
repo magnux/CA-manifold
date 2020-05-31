@@ -102,7 +102,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     for _ in range(batch_mult):
 
-                        images, _, trainiter = get_inputs(trainiter, batch_size, device)
+                        images, _, trainiter = get_inputs(trainiter, batch_split_size, device)
                         init_samples = None
 
                         # Obscure the input

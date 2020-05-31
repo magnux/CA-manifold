@@ -66,14 +66,25 @@ if letter_encoding:
 model_manager.print()
 
 
-def forward_pass(images, init_seed=None):
+def enc(images):
     lat_enc, _, _ = encoder(images)
     if letter_encoding:
-        letters = letter_encoder(lat_enc)
-        lat_dec = letter_decoder(letters)
+        lat_enc = letter_encoder(lat_enc)
+    return lat_enc
+
+
+def dec(lat_enc, init_seed=None):
+    if letter_encoding:
+        lat_dec = letter_decoder(lat_enc)
     else:
         lat_dec = lat_enc
     images_dec, out_embs, _ = decoder(lat_dec, init_seed)
+    return images_dec, out_embs
+
+
+def forward_pass(images, init_seed=None):
+    lat_enc = enc(images)
+    images_dec, out_embs = dec(lat_enc, init_seed)
     out_embs = torch.stack(out_embs, 0)
     return images_dec, out_embs
 
@@ -89,13 +100,13 @@ def get_inputs(idxs, device):
     return images, labels
 
 
-def save_imgs(images, out_dir, tag, make_video=False):
+def save_imgs(images, out_dir, tag, make_video=False, nrow=8):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     images_file = os.path.join(out_dir, '%s.png' % tag)
 
     images = (images * 0.5) + 0.5
-    torchvision.utils.save_image(images, images_file, nrow=8)  # imgs.size(0))
+    torchvision.utils.save_image(images, images_file, nrow=nrow)  # imgs.size(0))
 
     if make_video:
         if images.size(1) == 4:
@@ -120,6 +131,7 @@ transform = torchvision.transforms.Compose([
     torchvision.transforms.Resize(image_size),
     torchvision.transforms.ToTensor(),
     torchvision.transforms.Lambda(lambda x: (x - 0.5) * 2.0),
+    torchvision.transforms.Lambda(lambda x: x.reshape(1, channels, image_size, image_size)),
 ])
 
 
@@ -130,7 +142,22 @@ def load_image(img_loc):
     elif channels == 4:
         image = image.convert("RGBA")
     image = transform(image)
+    image = image.to(device)
     return image
+
+
+
+normal_emos_ids = ["emoji_u1f610", "emoji_u1f615", "emoji_u1f617", "emoji_u1f626",
+                   "emoji_u1f636", "emoji_u1f641", "emoji_u1f642", "emoji_u2639" ]
+
+smily_emos_ids = ["emoji_u1f600", "emoji_u1f602", "emoji_u1f603", "emoji_u1f604",
+                  "emoji_u1f605", "emoji_u1f606", "emoji_u1f913", "emoji_u1f929"]
+
+tongue_emos_ids = ["emoji_u1f61b", "emoji_u1f61c", "emoji_u1f61d"]
+
+heartface_emos_ids = ["emoji_u1f60d", "emoji_u1f63b"]
+
+other_emos_ids = ["emoji_u1f60e", "emoji_u1f611", "emoji_u1f911"]
 
 
 with torch.no_grad():
@@ -142,9 +169,8 @@ with torch.no_grad():
         idxs = torch.arange(batch * batch_size, min((batch + 1) * batch_size, len(trainset)))
         images, labels = get_inputs(idxs, device)
         lat_labels.append(np.array(labels))
-        lat_enc, _, _ = encoder(images)
+        lat_enc = enc(images)
         if letter_encoding:
-            lat_enc = letter_encoder(lat_enc)
             lat_enc = lat_enc.reshape(lat_enc.size(0), -1)
         lat_encs.append(lat_enc)
     lat_labels = np.concatenate(lat_labels, 0)
@@ -169,6 +195,24 @@ with torch.no_grad():
     if not os.path.exists(pca_dir):
         os.makedirs(pca_dir)
     plt.savefig(os.path.join(pca_dir, 'plot.png'))
+
+    normal_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in normal_emos_ids])
+    normal_enc = enc(normal_emos)
+    smily_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in smily_emos_ids])
+    smily_enc = enc(smily_emos)
+    tongue_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in tongue_emos_ids])
+    tongue_enc = enc(tongue_emos)
+    other_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in other_emos_ids])
+    other_enc = enc(other_emos)
+
+    normal_enc_common = (normal_enc.mean(dim=0, keepdim=True) > 0.5).to(torch.float32)
+    normal_enc_common_mask = 1. - normal_enc_common.sum(dim=1, keepdim=True).clamp_max_(1.0)
+    lat_dec = normal_enc_common + normal_enc_common_mask * other_enc[1:2, ...]
+
+    images_dec = dec(lat_dec)
+    print(images_dec.size())
+    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'pca'), 'dec', nrow=4)
+
 
     print('Plotting Randdom CAs...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
