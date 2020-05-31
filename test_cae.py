@@ -8,12 +8,13 @@ import argparse
 from tqdm import trange
 from src.config import load_config
 from src.inputs import get_dataset
-from src.utils.media_utils import save_images, rand_erase_images, rand_change_letters, rand_circle_masks
-from src.utils.model_utils import ca_seed, SamplePool
 from src.model_manager import ModelManager
-from src.utils.web.webstreaming import stream_images
 import os
 from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+import matplotlib
+from PIL import Image
 
 np.random.seed(42)
 torch.manual_seed(42)
@@ -30,11 +31,14 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 image_size = config['data']['image_size']
+channels = config['data']['channels']
 n_filter = config['network']['kwargs']['n_filter']
 letter_encoding = config['network']['kwargs']['letter_encoding']
 persistence = config['training']['persistence']
 regeneration = config['training']['regeneration']
 batch_size = config['training']['batch_size']
+batch_split = config['training']['batch_split']
+batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 
 # Inputs
@@ -112,7 +116,55 @@ def save_imgs(images, out_dir, tag, make_video=False):
         video_writer.close()
 
 
+transform = torchvision.transforms.Compose([
+    torchvision.transforms.Resize(image_size),
+    torchvision.transforms.ToTensor(),
+    torchvision.transforms.Lambda(lambda x: (x - 0.5) * 2.0),
+])
+
+
+def load_image(img_loc):
+    image = Image.open(img_loc)
+    if channels == 3:
+        image = image.convert("RGB")
+    elif channels == 4:
+        image = image.convert("RGBA")
+    image = transform(image)
+    return image
+
+
 with torch.no_grad():
+    print('Performing PCA...')
+    t = trange((len(trainset) // batch_size) + 1)
+    lat_encs = []
+    lat_labels = []
+    for batch in t:
+        idxs = torch.arange(batch * batch_size, min((batch + 1) * batch_size, len(trainset)))
+        images, labels = get_inputs(idxs, device)
+        lat_labels(labels)
+        lat_enc, _, _ = encoder(images)
+        if letter_encoding:
+            lat_enc = letter_encoder(lat_enc)
+        lat_encs.append(lat_enc)
+    lat_labels = torch.cat(lat_labels, 0)
+    lat_encs = torch.cat(lat_encs, 0)
+    pca = PCA(n_components=2)
+    lat_enc_pca = pca.fit_transform(lat_encs)
+
+    label_names = [i for i in range(config['data']['n_labels'])]
+    colors = [matplotlib]
+
+    plt.figure(figsize=(8, 8))
+    for color, i, target_name in zip(colors, [i for i in range(config['data']['n_labels'])], label_names):
+        plt.scatter(lat_enc_pca[lat_labels == i, 0], lat_enc_pca[lat_labels == i, 1],
+                    color=color, lw=2, label=target_name)
+
+    plt.title("title")
+    plt.legend(loc="best", shadow=False, scatterpoints=1)
+    # plt.axis([-4, 4, -1.5, 1.5])
+
+    plt.show()
+
     print('Plotting Randdom CAs...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
     save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'random'), 'input')
