@@ -207,11 +207,21 @@ with torch.no_grad():
 
     normal_enc_common = (normal_enc.mean(dim=0, keepdim=True) > 0.5).to(torch.float32)
     normal_enc_common_mask = 1. - normal_enc_common.sum(dim=1, keepdim=True).clamp_max_(1.0)
-    lat_dec = normal_enc_common + normal_enc_common_mask * other_enc[1:2, ...]
+    lat_dec = other_enc.clone()
+    for i in range(len(other_emos_ids)):
+        lat_dec[i:i+1, ...] = normal_enc_common + normal_enc_common_mask * lat_dec[i:i+1, ...]
 
-    images_dec = dec(lat_dec)
-    print(images_dec.size())
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'pca'), 'dec', nrow=4)
+    images_dec, _ = dec(lat_dec)
+    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'normal_inj_dec', nrow=4)
+
+    smily_enc_common = (smily_enc.mean(dim=0, keepdim=True) > 0.5).to(torch.float32)
+    smily_enc_common_mask = 1. - smily_enc_common.sum(dim=1, keepdim=True).clamp_max_(1.0)
+    lat_dec = other_enc.clone()
+    for i in range(len(other_emos_ids)):
+        lat_dec[i:i + 1, ...] = smily_enc_common + smily_enc_common_mask * lat_dec[i:i + 1, ...]
+
+    images_dec, _ = dec(lat_dec)
+    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'smily_inj_dec', nrow=4)
 
 
     print('Plotting Randdom CAs...')
