@@ -141,18 +141,19 @@ with torch.no_grad():
     for batch in t:
         idxs = torch.arange(batch * batch_size, min((batch + 1) * batch_size, len(trainset)))
         images, labels = get_inputs(idxs, device)
-        lat_labels(labels)
+        lat_labels.append(np.array(labels))
         lat_enc, _, _ = encoder(images)
         if letter_encoding:
             lat_enc = letter_encoder(lat_enc)
+            lat_enc = lat_enc.reshape(lat_enc.size(0), -1)
         lat_encs.append(lat_enc)
-    lat_labels = torch.cat(lat_labels, 0)
-    lat_encs = torch.cat(lat_encs, 0)
+    lat_labels = np.concatenate(lat_labels, 0)
+    lat_encs = torch.cat(lat_encs, 0).cpu().numpy()
     pca = PCA(n_components=2)
     lat_enc_pca = pca.fit_transform(lat_encs)
 
     label_names = [i for i in range(config['data']['n_labels'])]
-    colors = [matplotlib]
+    colors = matplotlib.colors.TABLEAU_COLORS
 
     plt.figure(figsize=(8, 8))
     for color, i, target_name in zip(colors, [i for i in range(config['data']['n_labels'])], label_names):
@@ -163,7 +164,11 @@ with torch.no_grad():
     plt.legend(loc="best", shadow=False, scatterpoints=1)
     # plt.axis([-4, 4, -1.5, 1.5])
 
-    plt.show()
+    # plt.show()
+    pca_dir = os.path.join(config['training']['out_dir'], 'test', 'pca')
+    if not os.path.exists(pca_dir):
+        os.makedirs(pca_dir)
+    plt.savefig(os.path.join(pca_dir, 'plot.png'))
 
     print('Plotting Randdom CAs...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
