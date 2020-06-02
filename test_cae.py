@@ -313,20 +313,28 @@ with torch.no_grad():
         other_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in other_emos_ids])
         other_enc = enc(other_emos)
 
-        normal_enc_common = (normal_enc.mean(dim=0, keepdim=True) > 0.5).to(torch.float32)
-        normal_enc_common_mask = 1. - normal_enc_common.sum(dim=1, keepdim=True).clamp_max_(1.0)
+        save_imgs(normal_emos, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_normal', nrow=len(normal_emos_ids) // 2)
+        save_imgs(smily_emos, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_smily', nrow=len(smily_emos_ids) // 2)
+        save_imgs(other_emos, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_other', nrow=len(other_emos_ids))
+
+        normal_enc_common = torch.softmax(normal_enc.mean(dim=0, keepdim=True) * 100, dim=1)
+        normal_common_dec, _ = dec(normal_enc_common)
+        save_imgs(normal_common_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_normal_common_dec', nrow=1)
+        inj_mask = (torch.rand((1, 1, normal_enc_common.size(2)), device=device) > 0.35).to(torch.float32)
         lat_dec = other_enc.clone()
         for i in range(len(other_emos_ids)):
-            lat_dec[i:i + 1, ...] = normal_enc_common + normal_enc_common_mask * lat_dec[i:i + 1, ...]
+            lat_dec[i:i + 1, ...] = inj_mask * normal_enc_common + (1 - inj_mask) * lat_dec[i:i + 1, ...]
 
         images_dec, _ = dec(lat_dec)
-        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'normal_inj_dec', nrow=4)
+        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_normal_inj_dec', nrow=4)
 
-        smily_enc_common = (smily_enc.mean(dim=0, keepdim=True) > 0.5).to(torch.float32)
-        smily_enc_common_mask = 1. - smily_enc_common.sum(dim=1, keepdim=True).clamp_max_(1.0)
+        smily_enc_common = (torch.softmax(smily_enc.mean(dim=0, keepdim=True) * 100, dim=1) > 0.9).to(torch.float32)
+        smily_common_dec, _ = dec(smily_enc_common)
+        save_imgs(smily_common_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_smily_common_dec', nrow=1)
+        inj_mask = (torch.rand((1, 1, normal_enc_common.size(2)), device=device) > 0.35).to(torch.float32)
         lat_dec = other_enc.clone()
         for i in range(len(other_emos_ids)):
-            lat_dec[i:i + 1, ...] = smily_enc_common + smily_enc_common_mask * lat_dec[i:i + 1, ...]
+            lat_dec[i:i + 1, ...] = inj_mask * smily_enc_common + (1 - inj_mask) * lat_dec[i:i + 1, ...]
 
         images_dec, _ = dec(lat_dec)
-        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'smily_inj_dec', nrow=4)
+        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_smily_inj_dec', nrow=4)
