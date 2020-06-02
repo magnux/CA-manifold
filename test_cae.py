@@ -21,8 +21,13 @@ torch.manual_seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-parser = argparse.ArgumentParser(description='Train a FractalNet')
+parser = argparse.ArgumentParser(description='Test a CAE')
 parser.add_argument('config', type=str, help='Path to config file.')
+parser.add_argument('-mse', action="store_true", help='Mean squared error')
+parser.add_argument('-persist', action="store_true", help='Persistence tests')
+parser.add_argument('-regen', action="store_true", help='Regeneration tests')
+parser.add_argument('-pca', action="store_true", help='PCA of encoding')
+parser.add_argument('-arithmetic', action="store_true", help='Encoding arithmetic tests')
 args = parser.parse_args()
 config = load_config(args.config)
 config_name = os.path.splitext(os.path.basename(args.config))[0]
@@ -36,9 +41,7 @@ n_filter = config['network']['kwargs']['n_filter']
 letter_encoding = config['network']['kwargs']['letter_encoding']
 persistence = config['training']['persistence']
 regeneration = config['training']['regeneration']
-batch_size = config['training']['batch_size']
-batch_split = config['training']['batch_split']
-batch_split_size = batch_size // batch_split
+batch_size = 16
 n_workers = config['training']['n_workers']
 
 # Inputs
@@ -79,13 +82,13 @@ def dec(lat_enc, init_seed=None):
     else:
         lat_dec = lat_enc
     images_dec, out_embs, _ = decoder(lat_dec, init_seed)
+    out_embs = torch.stack(out_embs, 0)
     return images_dec, out_embs
 
 
 def forward_pass(images, init_seed=None):
     lat_enc = enc(images)
     images_dec, out_embs = dec(lat_enc, init_seed)
-    out_embs = torch.stack(out_embs, 0)
     return images_dec, out_embs
 
 
@@ -100,7 +103,7 @@ def get_inputs(idxs, device):
     return images, labels
 
 
-def save_imgs(images, out_dir, tag, make_video=False, nrow=8):
+def save_imgs(images, out_dir, tag, make_video=False, nrow=batch_size):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     images_file = os.path.join(out_dir, '%s.png' % tag)
@@ -159,71 +162,11 @@ heartface_emos_ids = ["emoji_u1f60d", "emoji_u1f63b"]
 
 other_emos_ids = ["emoji_u1f60e", "emoji_u1f611", "emoji_u1f911"]
 
+super_girl_id = "emoji_u1f9b8_1f3ff_200d_2640"
+
+unicorn_id = "emoji_u1f984"
 
 with torch.no_grad():
-    print('Performing PCA...')
-    t = trange((len(trainset) // batch_size) + 1)
-    lat_encs = []
-    lat_labels = []
-    for batch in t:
-        idxs = torch.arange(batch * batch_size, min((batch + 1) * batch_size, len(trainset)))
-        images, labels = get_inputs(idxs, device)
-        lat_labels.append(np.array(labels))
-        lat_enc = enc(images)
-        if letter_encoding:
-            lat_enc = lat_enc.reshape(lat_enc.size(0), -1)
-        lat_encs.append(lat_enc)
-    lat_labels = np.concatenate(lat_labels, 0)
-    lat_encs = torch.cat(lat_encs, 0).cpu().numpy()
-    pca = PCA(n_components=2)
-    lat_enc_pca = pca.fit_transform(lat_encs)
-
-    label_names = [i for i in range(config['data']['n_labels'])]
-    colors = matplotlib.colors.TABLEAU_COLORS
-
-    plt.figure(figsize=(8, 8))
-    for color, i, target_name in zip(colors, [i for i in range(config['data']['n_labels'])], label_names):
-        plt.scatter(lat_enc_pca[lat_labels == i, 0], lat_enc_pca[lat_labels == i, 1],
-                    color=color, lw=2, label=target_name)
-
-    plt.title("title")
-    plt.legend(loc="best", shadow=False, scatterpoints=1)
-    # plt.axis([-4, 4, -1.5, 1.5])
-
-    # plt.show()
-    pca_dir = os.path.join(config['training']['out_dir'], 'test', 'pca')
-    if not os.path.exists(pca_dir):
-        os.makedirs(pca_dir)
-    plt.savefig(os.path.join(pca_dir, 'plot.png'))
-
-    normal_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in normal_emos_ids])
-    normal_enc = enc(normal_emos)
-    smily_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in smily_emos_ids])
-    smily_enc = enc(smily_emos)
-    tongue_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in tongue_emos_ids])
-    tongue_enc = enc(tongue_emos)
-    other_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in other_emos_ids])
-    other_enc = enc(other_emos)
-
-    normal_enc_common = (normal_enc.mean(dim=0, keepdim=True) > 0.5).to(torch.float32)
-    normal_enc_common_mask = 1. - normal_enc_common.sum(dim=1, keepdim=True).clamp_max_(1.0)
-    lat_dec = other_enc.clone()
-    for i in range(len(other_emos_ids)):
-        lat_dec[i:i+1, ...] = normal_enc_common + normal_enc_common_mask * lat_dec[i:i+1, ...]
-
-    images_dec, _ = dec(lat_dec)
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'normal_inj_dec', nrow=4)
-
-    smily_enc_common = (smily_enc.mean(dim=0, keepdim=True) > 0.5).to(torch.float32)
-    smily_enc_common_mask = 1. - smily_enc_common.sum(dim=1, keepdim=True).clamp_max_(1.0)
-    lat_dec = other_enc.clone()
-    for i in range(len(other_emos_ids)):
-        lat_dec[i:i + 1, ...] = smily_enc_common + smily_enc_common_mask * lat_dec[i:i + 1, ...]
-
-    images_dec, _ = dec(lat_dec)
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'smily_inj_dec', nrow=4)
-
-
     print('Plotting Randdom CAs...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
     save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'random'), 'input')
@@ -233,88 +176,157 @@ with torch.no_grad():
     for i in range(batch_size):
         save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'random'), '%d' % i, True)
 
-    print('Computing Error...')
-    t = trange((len(trainset) // batch_size) + 1)
-    losses = []
-    for batch in t:
-        idxs = torch.arange(batch * batch_size, min((batch + 1) * batch_size, len(trainset)))
-        images, labels = get_inputs(idxs, device)
+    if args.persist:
+        print('Computing MSE...')
+        t = trange((len(trainset) // batch_size) + 1)
+        losses = []
+        for batch in t:
+            idxs = torch.arange(batch * batch_size, min((batch + 1) * batch_size, len(trainset)))
+            images, labels = get_inputs(idxs, device)
+            images_dec, out_embs = forward_pass(images)
+            loss = F.mse_loss(images_dec, images, reduction='none').mean(dim=(1, 2, 3))
+            losses.append(loss)
+        losses = torch.cat(losses, 0)
+        print('MSE: ', losses.mean().item())
+
+        l_sort = torch.argsort(losses)
+        sorted_idxs = torch.arange(len(trainset))[l_sort]
+
+        print('Plotting Best CAs...')
+        images, labels = get_inputs(sorted_idxs[:batch_size], device)
+        save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'best'), 'input')
+
         images_dec, out_embs = forward_pass(images)
-        loss = F.mse_loss(images_dec, images, reduction='none').mean(dim=(1, 2, 3))
-        losses.append(loss)
-    losses = torch.cat(losses, 0)
-    print('MSE: ', losses.mean().item())
+        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'best'), 'dec')
+        for i in range(batch_size):
+            save_imgs(out_embs[1:, i, :channels, :, :], os.path.join(config['training']['out_dir'], 'test', 'best'), '%d' % i, True)
 
-    l_sort = torch.argsort(losses)
-    sorted_idxs = torch.arange(len(trainset))[l_sort]
+        print('Plotting Worst CAs...')
+        images, labels = get_inputs(sorted_idxs[-batch_size:], device)
+        save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'input')
 
-    print('Plotting Best CAs...')
-    images, labels = get_inputs(sorted_idxs[:batch_size], device)
-    save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'best'), 'input')
+        images_dec, out_embs = forward_pass(images)
+        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'dec')
+        for i in range(batch_size):
+            save_imgs(out_embs[1:, i, :channels, :, :], os.path.join(config['training']['out_dir'], 'test', 'worst'), '%d' % i, True)
 
-    images_dec, out_embs = forward_pass(images)
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'best'), 'dec')
-    for i in range(batch_size):
-        save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'best'), '%d' % i, True)
+    if args.persist:
+        print('Plotting Persistence...')
+        unicorn = load_image(os.path.join(config['data']['train_dir'], 'animals_and_nature', '%s.png' % unicorn_id))
+        unicorn_enc = enc(unicorn)
 
-    print('Plotting Worst CAs...')
-    images, labels = get_inputs(sorted_idxs[-batch_size:], device)
-    save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'input')
+        num_passes = 8
+        images_out = []
+        for n in range(1, (2 ** num_passes) + 1):
+            images_dec, out_embs = dec(unicorn_enc, None if n == 1 else out_embs[-1, ...])
+            if n == 1:
+                images_out.append(out_embs[0, :, :channels, ...])
+            if np.log2(n) % 1. == 0:
+                images_out.append(images_dec)
+        images_out = torch.cat(images_out, 0)
+        save_imgs(images_out, os.path.join(config['training']['out_dir'], 'test', 'persistence'), 'dec', nrow=10)
 
-    images_dec, out_embs = forward_pass(images)
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'dec')
-    for i in range(batch_size):
-        save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'worst'), '%d' % i, True)
+    if args.regen:
+        print('Plotting Regeneration...')
+        super_girl = load_image(os.path.join(config['data']['train_dir'], 'people_and_body', '%s.png' % super_girl_id))
+        super_girl_enc = enc(super_girl)
+        _, out_embs = dec(super_girl_enc)
+        init_image = out_embs[-1, ...]
 
-    print('Plotting Persistence...')
-    images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
+        def regen_test(images_enc, init_image, occ_mask, save_prefix):
+            init_occ = init_image.clone()
+            init_occ *= occ_mask
+            num_passes = 7
+            images_out = [init_image[:, :channels, ...], init_occ[:, :channels, ...]]
+            for n in range(1, (2 ** num_passes) + 1):
+                images_dec, out_embs = dec(images_enc, init_occ)
+                init_occ = out_embs[-1, ...]
+                if np.log2(n) % 1. == 0:
+                    images_out.append(images_dec)
+            images_out = torch.cat(images_out, 0)
+            save_imgs(images_out, os.path.join(config['training']['out_dir'], 'test', 'regen'), save_prefix)
 
-    for n in range(1, 19):
-        images_dec, out_embs = forward_pass(images, None if n == 1 else out_embs[-1, ...])
-        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'persistence'), '%d' % n)
+        occ_mask = torch.ones_like(init_image)
+        occ_mask[:, :, image_size // 2:, :] = 0.0
+        regen_test(super_girl_enc, init_image, occ_mask, '0')
 
-    print('Plotting Regeneration...')
-    images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
-    _, out_embs = forward_pass(images)
-    init_image = out_embs[-1, ...]
+        occ_mask = torch.ones_like(init_image)
+        occ_mask[:, :, :image_size // 2, :] = 0.0
+        regen_test(super_girl_enc, init_image, occ_mask, '1')
 
-    init_occ = init_image.clone()
-    init_occ[:, :, image_size // 2:, :] = 0.0
-    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '0_occ')
-    for _ in range(4):
-        images_dec, out_embs = forward_pass(images, init_occ)
-        init_occ = out_embs[-1, ...]
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '0')
+        occ_mask = torch.ones_like(init_image)
+        occ_mask[:, :, :, image_size // 2:] = 0.0
+        regen_test(super_girl_enc, init_image, occ_mask, '2')
 
-    init_occ = init_image.clone()
-    init_occ[:, :, :image_size // 2, :] = 0.0
-    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '1_occ')
-    for _ in range(4):
-        images_dec, out_embs = forward_pass(images, init_occ)
-        init_occ = out_embs[-1, ...]
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '1')
+        occ_mask = torch.ones_like(init_image)
+        occ_mask[:, :, :, :image_size // 2] = 0.0
+        regen_test(super_girl_enc, init_image, occ_mask, '3')
 
-    init_occ = init_image.clone()
-    init_occ[:, :, :, image_size // 2:] = 0.0
-    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '2_occ')
-    for _ in range(4):
-        images_dec, out_embs = forward_pass(images, init_occ)
-        init_occ = out_embs[-1, ...]
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '2')
+        occ_mask = torch.ones_like(init_image)
+        occ_mask[:, :, image_size // 4:(image_size // 4) * 3, image_size // 4:(image_size // 4) * 3] = 0.0
+        regen_test(super_girl_enc, init_image, occ_mask, '4')
 
-    init_occ = init_image.clone()
-    init_occ[:, :, :, :image_size // 2] = 0.0
-    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '3_occ')
-    for _ in range(4):
-        images_dec, out_embs = forward_pass(images, init_occ)
-        init_occ = out_embs[-1, ...]
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '3')
+    if args.pca:
+        print('Performing PCA...')
+        t = trange((len(trainset) // batch_size) + 1)
+        lat_encs = []
+        lat_labels = []
+        for batch in t:
+            idxs = torch.arange(batch * batch_size, min((batch + 1) * batch_size, len(trainset)))
+            images, labels = get_inputs(idxs, device)
+            lat_labels.append(np.array(labels))
+            lat_enc = enc(images)
+            if letter_encoding:
+                lat_enc = lat_enc.reshape(lat_enc.size(0), -1)
+            lat_encs.append(lat_enc)
+        lat_labels = np.concatenate(lat_labels, 0)
+        lat_encs = torch.cat(lat_encs, 0).cpu().numpy()
+        pca = PCA(n_components=2)
+        lat_enc_pca = pca.fit_transform(lat_encs)
 
-    init_occ = init_image.clone()
-    init_occ[:, :, image_size // 4:(image_size // 4) * 3, image_size // 4:(image_size // 4) * 3] = 0.0
-    save_imgs(init_occ[:, :config['data']['channels'], ...], os.path.join(config['training']['out_dir'], 'test', 'regen'), '4_occ')
-    for _ in range(4):
-        images_dec, out_embs = forward_pass(images, init_occ)
-        init_occ = out_embs[-1, ...]
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'regen'), '4')
+        label_names = [i for i in range(config['data']['n_labels'])]
+        colors = matplotlib.colors.TABLEAU_COLORS
 
+        plt.figure(figsize=(8, 8))
+        for color, i, target_name in zip(colors, [i for i in range(config['data']['n_labels'])], label_names):
+            plt.scatter(lat_enc_pca[lat_labels == i, 0], lat_enc_pca[lat_labels == i, 1],
+                        color=color, lw=2, label=target_name)
+
+        plt.title("title")
+        plt.legend(loc="best", shadow=False, scatterpoints=1)
+        # plt.axis([-4, 4, -1.5, 1.5])
+
+        # plt.show()
+        pca_dir = os.path.join(config['training']['out_dir'], 'test', 'pca')
+        if not os.path.exists(pca_dir):
+            os.makedirs(pca_dir)
+        plt.savefig(os.path.join(pca_dir, 'plot.png'))
+
+    if args.arithmetic:
+        print('Performing arithmetic tests...')
+        normal_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in normal_emos_ids])
+        normal_enc = enc(normal_emos)
+        smily_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in smily_emos_ids])
+        smily_enc = enc(smily_emos)
+        tongue_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in tongue_emos_ids])
+        tongue_enc = enc(tongue_emos)
+        other_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in other_emos_ids])
+        other_enc = enc(other_emos)
+
+        normal_enc_common = (normal_enc.mean(dim=0, keepdim=True) > 0.5).to(torch.float32)
+        normal_enc_common_mask = 1. - normal_enc_common.sum(dim=1, keepdim=True).clamp_max_(1.0)
+        lat_dec = other_enc.clone()
+        for i in range(len(other_emos_ids)):
+            lat_dec[i:i + 1, ...] = normal_enc_common + normal_enc_common_mask * lat_dec[i:i + 1, ...]
+
+        images_dec, _ = dec(lat_dec)
+        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'normal_inj_dec', nrow=4)
+
+        smily_enc_common = (smily_enc.mean(dim=0, keepdim=True) > 0.5).to(torch.float32)
+        smily_enc_common_mask = 1. - smily_enc_common.sum(dim=1, keepdim=True).clamp_max_(1.0)
+        lat_dec = other_enc.clone()
+        for i in range(len(other_emos_ids)):
+            lat_dec[i:i + 1, ...] = smily_enc_common + smily_enc_common_mask * lat_dec[i:i + 1, ...]
+
+        images_dec, _ = dec(lat_dec)
+        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'smily_inj_dec', nrow=4)

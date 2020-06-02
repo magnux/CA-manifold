@@ -12,7 +12,7 @@ from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
 
-parser = argparse.ArgumentParser(description='Train a FractalNet')
+parser = argparse.ArgumentParser(description='Train a CAE')
 parser.add_argument('config', type=str, help='Path to config file.')
 args = parser.parse_args()
 config = load_config(args.config)
