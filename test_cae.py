@@ -182,7 +182,7 @@ with torch.no_grad():
     for i in range(batch_size):
         save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(test_dir, 'random'), '%d' % i, True)
 
-    if args.persist:
+    if args.mse:
         print('Computing MSE...')
         t = trange((len(trainset) // batch_size) + 1)
         losses = []
