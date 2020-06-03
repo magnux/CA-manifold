@@ -173,7 +173,13 @@ if args.clear:
         shutil.rmtree(test_dir)
 
 with torch.no_grad():
-    print('Plotting Randdom CAs...')
+    if config['data']['name'] == 'emoji':
+        print('Plotting Steps')
+        smiley = load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % smiley_emos_ids[1]))
+        images_dec, out_embs = forward_pass(smiley)
+        save_imgs(out_embs[1:, 0, :config['data']['channels'], :, :], test_dir, 'dec_steps', True)
+
+    print('Plotting Random CAs...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
     save_imgs(images, os.path.join(test_dir, 'random'), 'input')
 
