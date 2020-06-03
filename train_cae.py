@@ -122,8 +122,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         n_rounds_dec = 4 if persistence else 1
                         for n in range(n_rounds_dec):
                             if n > 0:
-                                lat_dec = lat_dec.detach_().requires_grad_()
-                                init_samples = out_embs[-1].detach_().requires_grad_()
+                                lat_dec = lat_dec.detach().requires_grad_()
+                                init_samples = out_embs[-1].detach().requires_grad_()
 
                                 if regeneration:
                                     init_samples = rand_circle_masks(init_samples, batch_size // 8)
@@ -131,7 +131,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             _, out_embs, images_redec_raw = decoder(lat_dec, init_samples)
 
                             loss_dec = (1 / batch_mult) * (1 / n_rounds_dec) * F.mse_loss(images_redec_raw, images)
-                            loss_dec.backward()
+                            loss_dec.backward(retain_graph=True if persistence else False)
                             loss_dec_sum += loss_dec.item()
 
                 # Streaming Images

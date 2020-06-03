@@ -230,7 +230,7 @@ with torch.no_grad():
             if np.log2(n) % 1. == 0:
                 images_out.append(images_dec)
         images_out = torch.cat(images_out, 0)
-        save_imgs(images_out, os.path.join(test_dir, 'persistence'), 'dec_%s' % config_name, nrow=10)
+        save_imgs(images_out, os.path.join(test_dir, 'persist'), 'dec_%s' % config_name, nrow=10)
 
     if args.regen:
         print('Plotting Regeneration...')
