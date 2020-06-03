@@ -12,7 +12,7 @@ def load_config(path):
     #     config = yaml.load(f)
     with open(path, 'r') as f:
         # config.update(yaml.load(f))
-        config = yaml.load(f)
+        config = yaml.load(f, Loader=yaml.FullLoader)
     return config
 
 
