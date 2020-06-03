@@ -16,7 +16,7 @@ class PNGADataset(Dataset):
             class_images = sorted([file for file in glob(class_dir + "/*.png")])
             self.images += class_images
             self.labels += [class_idx for _ in range(len(class_images))]
-        if preload:
+        if self.preload:
             self.images_buffer = []
             for idx in range(len(self.images)):
                 self.images_buffer.append(self._load_image(idx))
