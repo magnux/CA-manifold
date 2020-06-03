@@ -28,7 +28,7 @@ def get_dataset(name, type, data_dir, size=32):
                                        transform=transform)
             # n_labels = 10
         elif name == 'emoji':
-            dataset = PNGADataset(data_dir, transform)
+            dataset = PNGADataset(data_dir, transform, True)
         else:
             raise NotImplemented
     # elif type == 'caption':
