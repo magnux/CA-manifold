@@ -10,6 +10,7 @@ from src.config import load_config
 from src.inputs import get_dataset
 from src.model_manager import ModelManager
 import os
+import shutil
 from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
@@ -23,6 +24,7 @@ torch.backends.cudnn.benchmark = False
 
 parser = argparse.ArgumentParser(description='Test a CAE')
 parser.add_argument('config', type=str, help='Path to config file.')
+parser.add_argument('-clear', action="store_true", help='Clear previous tests')
 parser.add_argument('-mse', action="store_true", help='Mean squared error')
 parser.add_argument('-persist', action="store_true", help='Persistence tests')
 parser.add_argument('-regen', action="store_true", help='Regeneration tests')
@@ -149,12 +151,11 @@ def load_image(img_loc):
     return image
 
 
-
 normal_emos_ids = ["emoji_u1f610", "emoji_u1f615", "emoji_u1f617", "emoji_u1f626",
                    "emoji_u1f636", "emoji_u1f641", "emoji_u1f642", "emoji_u2639" ]
 
-smily_emos_ids = ["emoji_u1f600", "emoji_u1f602", "emoji_u1f603", "emoji_u1f604",
-                  "emoji_u1f605", "emoji_u1f606", "emoji_u1f913", "emoji_u1f929"]
+smiley_emos_ids = ["emoji_u1f600", "emoji_u1f602", "emoji_u1f603", "emoji_u1f604",
+                   "emoji_u1f605", "emoji_u1f606", "emoji_u1f913", "emoji_u1f929"]
 
 tongue_emos_ids = ["emoji_u1f61b", "emoji_u1f61c", "emoji_u1f61d"]
 
@@ -166,15 +167,20 @@ super_girl_id = "emoji_u1f9b8_1f3ff_200d_2640"
 
 unicorn_id = "emoji_u1f984"
 
+test_dir = os.path.join(config['training']['out_dir'], 'test')
+if args.clear:
+    if os.path.exists(test_dir):
+        shutil.rmtree(test_dir)
+
 with torch.no_grad():
     print('Plotting Randdom CAs...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
-    save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'random'), 'input')
+    save_imgs(images, os.path.join(test_dir, 'random'), 'input')
 
     images_dec, out_embs = forward_pass(images)
-    save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'random'), 'dec')
+    save_imgs(images_dec, os.path.join(test_dir, 'random'), 'dec_%s' % config_name)
     for i in range(batch_size):
-        save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(config['training']['out_dir'], 'test', 'random'), '%d' % i, True)
+        save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(test_dir, 'random'), '%d' % i, True)
 
     if args.persist:
         print('Computing MSE...')
@@ -194,21 +200,21 @@ with torch.no_grad():
 
         print('Plotting Best CAs...')
         images, labels = get_inputs(sorted_idxs[:batch_size], device)
-        save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'best'), 'input')
+        save_imgs(images, os.path.join(test_dir, 'best'), 'input')
 
         images_dec, out_embs = forward_pass(images)
-        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'best'), 'dec')
+        save_imgs(images_dec, os.path.join(test_dir, 'best'), 'dec_%s' % config_name)
         for i in range(batch_size):
-            save_imgs(out_embs[1:, i, :channels, :, :], os.path.join(config['training']['out_dir'], 'test', 'best'), '%d' % i, True)
+            save_imgs(out_embs[1:, i, :channels, :, :], os.path.join(test_dir, 'best'), '%d' % i, True)
 
         print('Plotting Worst CAs...')
         images, labels = get_inputs(sorted_idxs[-batch_size:], device)
-        save_imgs(images, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'input')
+        save_imgs(images, os.path.join(test_dir, 'worst'), 'input')
 
         images_dec, out_embs = forward_pass(images)
-        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'worst'), 'dec')
+        save_imgs(images_dec, os.path.join(test_dir, 'worst'), 'dec_%s' % config_name)
         for i in range(batch_size):
-            save_imgs(out_embs[1:, i, :channels, :, :], os.path.join(config['training']['out_dir'], 'test', 'worst'), '%d' % i, True)
+            save_imgs(out_embs[1:, i, :channels, :, :], os.path.join(test_dir, 'worst'), '%d' % i, True)
 
     if args.persist:
         print('Plotting Persistence...')
@@ -224,7 +230,7 @@ with torch.no_grad():
             if np.log2(n) % 1. == 0:
                 images_out.append(images_dec)
         images_out = torch.cat(images_out, 0)
-        save_imgs(images_out, os.path.join(config['training']['out_dir'], 'test', 'persistence'), 'dec', nrow=10)
+        save_imgs(images_out, os.path.join(test_dir, 'persistence'), 'dec_%s' % config_name, nrow=10)
 
     if args.regen:
         print('Plotting Regeneration...')
@@ -244,27 +250,27 @@ with torch.no_grad():
                 if np.log2(n) % 1. == 0:
                     images_out.append(images_dec)
             images_out = torch.cat(images_out, 0)
-            save_imgs(images_out, os.path.join(config['training']['out_dir'], 'test', 'regen'), save_prefix)
+            save_imgs(images_out, os.path.join(test_dir, 'regen'), save_prefix)
 
         occ_mask = torch.ones_like(init_image)
         occ_mask[:, :, image_size // 2:, :] = 0.0
-        regen_test(super_girl_enc, init_image, occ_mask, '0')
+        regen_test(super_girl_enc, init_image, occ_mask, '0_%s' % config_name)
 
         occ_mask = torch.ones_like(init_image)
         occ_mask[:, :, :image_size // 2, :] = 0.0
-        regen_test(super_girl_enc, init_image, occ_mask, '1')
+        regen_test(super_girl_enc, init_image, occ_mask, '1_%s' % config_name)
 
         occ_mask = torch.ones_like(init_image)
         occ_mask[:, :, :, image_size // 2:] = 0.0
-        regen_test(super_girl_enc, init_image, occ_mask, '2')
+        regen_test(super_girl_enc, init_image, occ_mask, '2_%s' % config_name)
 
         occ_mask = torch.ones_like(init_image)
         occ_mask[:, :, :, :image_size // 2] = 0.0
-        regen_test(super_girl_enc, init_image, occ_mask, '3')
+        regen_test(super_girl_enc, init_image, occ_mask, '3_%s' % config_name)
 
         occ_mask = torch.ones_like(init_image)
         occ_mask[:, :, image_size // 4:(image_size // 4) * 3, image_size // 4:(image_size // 4) * 3] = 0.0
-        regen_test(super_girl_enc, init_image, occ_mask, '4')
+        regen_test(super_girl_enc, init_image, occ_mask, '4_%s' % config_name)
 
     if args.pca:
         print('Performing PCA...')
@@ -297,44 +303,47 @@ with torch.no_grad():
         # plt.axis([-4, 4, -1.5, 1.5])
 
         # plt.show()
-        pca_dir = os.path.join(config['training']['out_dir'], 'test', 'pca')
+        pca_dir = os.path.join(test_dir, 'pca')
         if not os.path.exists(pca_dir):
             os.makedirs(pca_dir)
         plt.savefig(os.path.join(pca_dir, 'plot.png'))
 
     if args.arithmetic:
         print('Performing arithmetic tests...')
-        normal_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in normal_emos_ids])
+        smiley_dir = os.path.join(config['data']['train_dir'], 'smileys_and_emotion')
+        normal_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in normal_emos_ids])
         normal_enc = enc(normal_emos)
-        smily_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in smily_emos_ids])
-        smily_enc = enc(smily_emos)
-        tongue_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in tongue_emos_ids])
+        smiley_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in smiley_emos_ids])
+        smiley_enc = enc(smiley_emos)
+        tongue_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in tongue_emos_ids])
         tongue_enc = enc(tongue_emos)
-        other_emos = torch.cat([load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % id)) for id in other_emos_ids])
+        other_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in other_emos_ids])
         other_enc = enc(other_emos)
-
-        save_imgs(normal_emos, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_normal', nrow=len(normal_emos_ids) // 2)
-        save_imgs(smily_emos, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_smily', nrow=len(smily_emos_ids) // 2)
-        save_imgs(other_emos, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_other', nrow=len(other_emos_ids))
+        
+        ari_dir = os.path.join(test_dir, 'lat_ari')
+        
+        save_imgs(normal_emos, ari_dir, 'ari_normal', nrow=len(normal_emos_ids) // 2)
+        save_imgs(smiley_emos, ari_dir, 'ari_smiley', nrow=len(smiley_emos_ids) // 2)
+        save_imgs(other_emos, ari_dir, 'ari_other', nrow=len(other_emos_ids))
 
         normal_enc_common = torch.softmax(normal_enc.mean(dim=0, keepdim=True) * 100, dim=1)
         normal_common_dec, _ = dec(normal_enc_common)
-        save_imgs(normal_common_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_normal_common_dec', nrow=1)
+        save_imgs(normal_common_dec, ari_dir, 'ari_normal_common_dec_%s' % config_name, nrow=1)
         inj_mask = (torch.rand((1, 1, normal_enc_common.size(2)), device=device) > 0.35).to(torch.float32)
         lat_dec = other_enc.clone()
         for i in range(len(other_emos_ids)):
             lat_dec[i:i + 1, ...] = inj_mask * normal_enc_common + (1 - inj_mask) * lat_dec[i:i + 1, ...]
 
         images_dec, _ = dec(lat_dec)
-        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_normal_inj_dec', nrow=4)
+        save_imgs(images_dec, ari_dir, 'ari_normal_inj_dec_%s' % config_name, nrow=4)
 
-        smily_enc_common = (torch.softmax(smily_enc.mean(dim=0, keepdim=True) * 100, dim=1) > 0.9).to(torch.float32)
-        smily_common_dec, _ = dec(smily_enc_common)
-        save_imgs(smily_common_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_smily_common_dec', nrow=1)
+        smiley_enc_common = (torch.softmax(smiley_enc.mean(dim=0, keepdim=True) * 100, dim=1) > 0.9).to(torch.float32)
+        smiley_common_dec, _ = dec(smiley_enc_common)
+        save_imgs(smiley_common_dec, ari_dir, 'ari_smiley_common_dec_%s' % config_name, nrow=1)
         inj_mask = (torch.rand((1, 1, normal_enc_common.size(2)), device=device) > 0.35).to(torch.float32)
         lat_dec = other_enc.clone()
         for i in range(len(other_emos_ids)):
-            lat_dec[i:i + 1, ...] = inj_mask * smily_enc_common + (1 - inj_mask) * lat_dec[i:i + 1, ...]
+            lat_dec[i:i + 1, ...] = inj_mask * smiley_enc_common + (1 - inj_mask) * lat_dec[i:i + 1, ...]
 
         images_dec, _ = dec(lat_dec)
-        save_imgs(images_dec, os.path.join(config['training']['out_dir'], 'test', 'lat_ari'), 'ari_smily_inj_dec', nrow=4)
+        save_imgs(images_dec, ari_dir, 'ari_smiley_inj_dec_%s' % config_name, nrow=4)
