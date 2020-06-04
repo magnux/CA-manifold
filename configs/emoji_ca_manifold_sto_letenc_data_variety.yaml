@@ -1,0 +1,37 @@
+data:
+  name: emoji
+  type: image
+  train_dir: data/data_variety
+  test_dir: data/data_variety
+  image_size: 64
+  channels: 4
+  n_labels: 9
+network:
+  class: ca_manifold
+  kwargs:
+    ds_size: 64
+    n_filter: 16
+    lat_size: 512
+    n_calls: 4
+    shared_params: False
+    letter_encoding: True
+    perception_noise: False
+    fire_rate: 0.5
+training:
+  out_dir: save/data_variety
+  persistence: False
+  regeneration: False
+  batch_size: 32
+  batch_mult: 2
+  batch_mult_steps: 4
+  n_workers: 2
+  optimizer: adam
+  lr: 0.0001
+  equalize_lr: false
+  n_epochs: 2600
+  save_every: 1
+  lr_anneal: 1.0
+  lr_anneal_every: 0
+  monitoring: tensorboard
+  sample_every: 16
+  sample_labels: 9
