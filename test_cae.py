@@ -29,7 +29,7 @@ parser.add_argument('-mse', action="store_true", help='Mean squared error')
 parser.add_argument('-persist', action="store_true", help='Persistence tests')
 parser.add_argument('-regen', action="store_true", help='Regeneration tests')
 parser.add_argument('-pca', action="store_true", help='PCA of encoding')
-parser.add_argument('-arithmetic', action="store_true", help='Encoding arithmetic tests')
+parser.add_argument('-genetic', action="store_true", help='Genetic engineering tests')
 args = parser.parse_args()
 config = load_config(args.config)
 config_name = os.path.splitext(os.path.basename(args.config))[0]
@@ -317,8 +317,9 @@ with torch.no_grad():
             os.makedirs(pca_dir)
         plt.savefig(os.path.join(pca_dir, 'plot.png'))
 
-    if args.arithmetic:
-        print('Performing arithmetic tests...')
+    if args.genetic:
+        assert letter_encoding, "Genetic engineering tests can only be performed in with letenc models"
+        print('Performing genetic tests...')
         smiley_dir = os.path.join(config['data']['train_dir'], 'smileys_and_emotion')
         normal_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in normal_emos_ids])
         normal_enc = enc(normal_emos)
@@ -329,30 +330,31 @@ with torch.no_grad():
         other_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in other_emos_ids])
         other_enc = enc(other_emos)
         
-        ari_dir = os.path.join(test_dir, 'lat_ari')
+        gene_dir = os.path.join(test_dir, 'lat_gene')
         
-        save_imgs(normal_emos, ari_dir, 'ari_normal', nrow=len(normal_emos_ids) // 2)
-        save_imgs(smiley_emos, ari_dir, 'ari_smiley', nrow=len(smiley_emos_ids) // 2)
-        save_imgs(other_emos, ari_dir, 'ari_other', nrow=len(other_emos_ids))
+        save_imgs(normal_emos, gene_dir, 'gene_normal', nrow=len(normal_emos_ids) // 2)
+        save_imgs(smiley_emos, gene_dir, 'gene_smiley', nrow=len(smiley_emos_ids) // 2)
+        save_imgs(other_emos, gene_dir, 'gene_other', nrow=1)
 
-        normal_enc_common = torch.softmax(normal_enc.mean(dim=0, keepdim=True) * 100, dim=1)
-        normal_common_dec, _ = dec(normal_enc_common)
-        save_imgs(normal_common_dec, ari_dir, 'ari_normal_common_dec_%s' % config_name, nrow=1)
-        inj_mask = (torch.rand((1, 1, normal_enc_common.size(2)), device=device) > 0.35).to(torch.float32)
-        lat_dec = other_enc.clone()
-        for i in range(len(other_emos_ids)):
-            lat_dec[i:i + 1, ...] = inj_mask * normal_enc_common + (1 - inj_mask) * lat_dec[i:i + 1, ...]
+        for threshold in [.5, .7, .9]:
+            normal_enc_common = (normal_enc.mean(dim=0, keepdim=True) > threshold).to(torch.float32)
+            normal_common_dec, _ = dec(normal_enc_common)
+            save_imgs(normal_common_dec, gene_dir, 'gene_normal_common_%0.1f_dec' % threshold, nrow=1)
+            inj_mask = normal_enc_common.sum(dim=1, keepdim=True)
+            lat_dec = other_enc.clone()
+            for i in range(len(other_emos_ids)):
+                lat_dec[i:i + 1, ...] = normal_enc_common + (1 - inj_mask) * lat_dec[i:i + 1, ...]
 
-        images_dec, _ = dec(lat_dec)
-        save_imgs(images_dec, ari_dir, 'ari_normal_inj_dec_%s' % config_name, nrow=4)
+            images_dec, _ = dec(lat_dec)
+            save_imgs(images_dec, gene_dir, 'gene_normal_inj_%0.1f_dec' % threshold, nrow=1)
 
-        smiley_enc_common = (torch.softmax(smiley_enc.mean(dim=0, keepdim=True) * 100, dim=1) > 0.9).to(torch.float32)
-        smiley_common_dec, _ = dec(smiley_enc_common)
-        save_imgs(smiley_common_dec, ari_dir, 'ari_smiley_common_dec_%s' % config_name, nrow=1)
-        inj_mask = (torch.rand((1, 1, normal_enc_common.size(2)), device=device) > 0.35).to(torch.float32)
-        lat_dec = other_enc.clone()
-        for i in range(len(other_emos_ids)):
-            lat_dec[i:i + 1, ...] = inj_mask * smiley_enc_common + (1 - inj_mask) * lat_dec[i:i + 1, ...]
+            smiley_enc_common = (smiley_enc.mean(dim=0, keepdim=True) > threshold).to(torch.float32)
+            smiley_common_dec, _ = dec(smiley_enc_common)
+            save_imgs(smiley_common_dec, gene_dir, 'gene_smiley_common_%0.1f_dec' % threshold, nrow=1)
+            inj_mask = smiley_enc_common.sum(dim=1, keepdim=True)
+            lat_dec = other_enc.clone()
+            for i in range(len(other_emos_ids)):
+                lat_dec[i:i + 1, ...] = smiley_enc_common + (1 - inj_mask) * lat_dec[i:i + 1, ...]
 
-        images_dec, _ = dec(lat_dec)
-        save_imgs(images_dec, ari_dir, 'ari_smiley_inj_dec_%s' % config_name, nrow=4)
+            images_dec, _ = dec(lat_dec)
+            save_imgs(images_dec, gene_dir, 'gene_smiley_inj_%0.1f_dec' % threshold, nrow=1)
