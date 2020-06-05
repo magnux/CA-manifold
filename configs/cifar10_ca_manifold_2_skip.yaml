@@ -20,6 +20,7 @@ network:
     letter_encoding: False
     perception_noise: False
     fire_rate: 1.0
+    skip_fire: True
 z_dist:
   type: gauss
   z_dim: 512

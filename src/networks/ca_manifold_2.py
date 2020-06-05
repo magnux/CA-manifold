@@ -36,7 +36,7 @@ class Decoder(nn.Module):
 
         if self.skip_fire:
             self.skip_fire_even = torch.zeros(1, 1, self.ds_size, self.ds_size, requires_grad=False)
-            self.skip_fire_even[:, :, torch.arange(0, self.ds_size - 1, 2, dtype=torch.long), torch.arange(0, self.ds_size - 1, 2, dtype=torch.long)] = 1.0
+            self.skip_fire_even[:, :, torch.arange(0, self.ds_size, 2, dtype=torch.long), torch.arange(0, self.ds_size, 2, dtype=torch.long)] = 1.0
             self.skip_fire_odd = torch.zeros(1, 1, self.ds_size, self.ds_size, requires_grad=False)
             self.skip_fire_odd[:, :, torch.arange(1, self.ds_size, 2, dtype=torch.long), torch.arange(1, self.ds_size, 2, dtype=torch.long)] = 1.0
 
