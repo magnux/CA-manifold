@@ -175,7 +175,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             lat_enc, out_embs, _ = encoder(images)
             lat_codes = cb_encoder(lat_enc)
             lat_dec, _ = cb_decoder(lat_codes)
-            lat_labs = lab_embedder(torch.zeros((batch_split_size, z_dim), device=device), labels)
+            lat_labs = lab_embedder(torch.zeros((batch_size, z_dim), device=device), labels)
             images_dec, _, _ = decoder(lat_dec, inj_lat=lat_labs)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
