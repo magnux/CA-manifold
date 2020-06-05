@@ -49,7 +49,7 @@ class Centroids(nn.Module):
             quantize = quantize.view(x_flat_size)
             quantize = quantize.transpose(-1, 1).contiguous()
 
-        cent_loss = (quantize.detach() - x).pow(2).mean()
+        loss_cent = (quantize.detach() - x).pow(2).mean()
         x_quant = x + (quantize - x).detach()
 
-        return x_quant, cent_loss
+        return x_quant, loss_cent

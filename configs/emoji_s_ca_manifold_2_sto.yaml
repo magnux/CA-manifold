@@ -1,0 +1,45 @@
+data:
+  name: emoji
+  type: image
+  train_dir: data/emoji
+  test_dir: data/emoji
+  image_size: 32
+  channels: 4
+  n_labels: 9
+network:
+  class: ca_manifold_2
+  kwargs:
+    ds_size: 32
+    n_filter: 32
+    embed_size: 256
+    lat_size: 512
+    n_calls: 4
+    shared_params: True
+    adain: False
+    dyncin: True
+    letter_encoding: False
+    perception_noise: False
+    fire_rate: 0.5
+z_dist:
+  type: gauss
+  z_dim: 512
+training:
+  out_dir: save/emoji_s_ca_manifold_2_sto
+  persistence: False
+  regeneration: False
+  batch_size: 64
+  batch_split: 4
+  batch_mult_steps: 4
+  n_workers: 2
+  optimizer: adam
+  lr: 0.0001
+  equalize_lr: false
+  n_epochs: 2048
+  save_every: 1
+  lr_anneal: 1.0
+  lr_anneal_every: 0
+  monitoring: tensorboard
+  sample_every: 16
+  sample_labels: 9
+  reg_param: 10.
+  inception_every: 0

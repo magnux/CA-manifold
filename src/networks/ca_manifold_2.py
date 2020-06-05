@@ -14,7 +14,7 @@ from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, skip_fire=False, injected=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -26,10 +26,19 @@ class Decoder(nn.Module):
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
+        self.skip_fire = skip_fire
+        assert not self.fire_rate < 1.0 or not skip_fire, "fire_rate and skip_fire are mutually exclusive options"
+        self.injected = injected
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 3, self.n_filter, self.n_filter)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size * (2 if self.injected else 1), self.n_filter * 3, self.n_filter, self.n_filter)
+
+        if self.skip_fire:
+            self.skip_fire_even = torch.zeros(1, 1, self.ds_size, self.ds_size, requires_grad=False)
+            self.skip_fire_even[:, :, torch.arange(0, self.ds_size - 1, 2, dtype=torch.long), torch.arange(0, self.ds_size - 1, 2, dtype=torch.long)] = 1.0
+            self.skip_fire_odd = torch.zeros(1, 1, self.ds_size, self.ds_size, requires_grad=False)
+            self.skip_fire_odd[:, :, torch.arange(1, self.ds_size, 2, dtype=torch.long), torch.arange(1, self.ds_size, 2, dtype=torch.long)] = 1.0
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
@@ -38,13 +47,17 @@ class Decoder(nn.Module):
             nn.Conv2d(self.n_filter, self.out_chan, 3, 1, 1),
         )
 
-    def forward(self, lat, ca_init=None):
+    def forward(self, lat, ca_init=None, inj_lat=None):
+        assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected decoders'
         batch_size = lat.size(0)
 
         if ca_init is None:
             out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device)
         else:
             out = ca_init
+
+        if inj_lat is not None:
+            lat = torch.cat([lat, inj_lat], dim=1)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
@@ -61,6 +74,11 @@ class Decoder(nn.Module):
             out_new = self.frac_dyna_conv(out_new, lat)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, self.image_size, self.image_size], device=lat.device) <= self.fire_rate).to(torch.float32)
+            if self.skip_fire:
+                if c % 2 == 0:
+                    out_new = out_new * self.skip_fire_even.to(device=lat.device)
+                else:
+                    out_new = out_new * self.skip_fire_odd.to(device=lat.device)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
 
@@ -70,3 +88,8 @@ class Decoder(nn.Module):
 
         return out, out_embs, out_raw
 
+
+class InjectedDecoder(Decoder):
+    def __init__(self, **kwargs):
+        kwargs['injected'] = True
+        super().__init__(**kwargs)

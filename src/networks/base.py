@@ -136,22 +136,41 @@ class VarDecoder(nn.Module):
         return lat
 
 
-class CodeBook(nn.Module):
-    def __init__(self, lat_size, **kwargs):
+class CodeBookEncoder(nn.Module):
+    def __init__(self, lat_size, letter_channels=8, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.n_filter = 2 ** 5
-        self.n_cents = 2 ** 10
-        assert self.lat_size % self.n_filter == 0
-        self.centroids = Centroids(self.n_filter, self.n_cents)
-        self.leak_factor = nn.Parameter(torch.ones([]) * 1.0)
+        self.letter_channels = letter_channels
+        self.lat_to_codes = nn.Sequential(
+            ResidualBlock(1, letter_channels, None, 1, 1, 0, nn.Conv1d),
+            ResidualBlock(letter_channels, letter_channels, None, 1, 1, 0, nn.Conv1d),
+        )
 
     def forward(self, lat):
-        new_lat = lat.reshape(lat.size(0), self.lat_size // self.n_filter, self.n_filter)
-        new_lat, cent_loss = self.centroids(new_lat)
-        new_lat = lat.reshape(lat.size(0), self.lat_size)
-        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
-        return new_lat * leak_factor, cent_loss
+        lat = lat.view(lat.size(0), 1, self.lat_size)
+        codes = self.lat_to_codes(lat)
+        codes = codes.view(codes.size(0), self.letter_channels, self.lat_size)
+        return codes
+
+
+class CodeBookDecoder(nn.Module):
+    def __init__(self, lat_size, letter_channels=8, n_cents=1024, **kwargs):
+        super().__init__()
+        self.lat_size = lat_size
+        self.letter_channels = letter_channels
+        self.centroids = Centroids(letter_channels, n_cents)
+        self.codes_to_lat = nn.Sequential(
+            ResidualBlock(letter_channels, letter_channels, None, 1, 1, 0, nn.Conv1d),
+            ResidualBlock(letter_channels, 1, None, 1, 1, 0, nn.Conv1d),
+        )
+
+    def forward(self, codes):
+        codes, loss_cent = self.centroids(codes)
+        codes = codes.view(codes.size(0), self.letter_channels, self.lat_size)
+        lat = self.codes_to_lat(codes)
+        lat = lat.squeeze(dim=1)
+
+        return lat, loss_cent
 
 
 class LetterEncoder(nn.Module):
