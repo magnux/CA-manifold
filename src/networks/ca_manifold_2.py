@@ -9,13 +9,14 @@ from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.utils.model_utils import ca_seed
+from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
 
 from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, skip_fire=False, injected=False, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, skip_fire=False, injected=False, log_mix_out=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -30,6 +31,7 @@ class Decoder(nn.Module):
         self.skip_fire = skip_fire
         assert not self.fire_rate < 1.0 or not skip_fire, "fire_rate and skip_fire are mutually exclusive options"
         self.injected = injected
+        self.log_mix_out = log_mix_out
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -42,7 +44,7 @@ class Decoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
             *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
-            nn.Conv2d(self.n_filter, self.out_chan, 3, 1, 1),
+            nn.Conv2d(self.n_filter, 10 * ((self.out_chan * 3) + 1) if self.log_mix_out else self.out_chan, 3, 1, 1),
         )
 
     def forward(self, lat, ca_init=None, inj_lat=None):
@@ -82,7 +84,10 @@ class Decoder(nn.Module):
 
         out = self.conv_img(out)
         out_raw = out
-        out = out.clamp(-1., 1.)
+        if self.log_mix_out:
+            out = sample_from_discretized_mix_logistic(out, 10)
+        else:
+            out = out.clamp(-1., 1.)
 
         return out, out_embs, out_raw
 
