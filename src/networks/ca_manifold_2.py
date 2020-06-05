@@ -9,6 +9,7 @@ from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.utils.model_utils import ca_seed
+import numpy as np
 
 from src.networks.conv_ae import Encoder, InjectedEncoder
 
@@ -35,10 +36,7 @@ class Decoder(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size * (2 if self.injected else 1), self.n_filter * 3, self.n_filter, self.n_filter)
 
         if self.skip_fire:
-            self.skip_fire_even = torch.zeros(1, 1, self.ds_size, self.ds_size, requires_grad=False)
-            self.skip_fire_even[:, :, torch.arange(0, self.ds_size, 2, dtype=torch.long), torch.arange(0, self.ds_size, 2, dtype=torch.long)] = 1.0
-            self.skip_fire_odd = torch.zeros(1, 1, self.ds_size, self.ds_size, requires_grad=False)
-            self.skip_fire_odd[:, :, torch.arange(1, self.ds_size + 1, 2, dtype=torch.long), torch.arange(1, self.ds_size + 1, 2, dtype=torch.long)] = 1.0
+            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size, self.ds_size)).sum(axis=0) % 2, dtype=torch.float32, requires_grad=False)
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
@@ -76,9 +74,9 @@ class Decoder(nn.Module):
                 out_new = out_new * (torch.rand([batch_size, 1, self.image_size, self.image_size], device=lat.device) <= self.fire_rate).to(torch.float32)
             if self.skip_fire:
                 if c % 2 == 0:
-                    out_new = out_new * self.skip_fire_even.to(device=lat.device)
+                    out_new = out_new * self.skip_fire_mask.to(device=lat.device)
                 else:
-                    out_new = out_new * self.skip_fire_odd.to(device=lat.device)
+                    out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device))
             out = out + (leak_factor * out_new)
             out_embs.append(out)
 
