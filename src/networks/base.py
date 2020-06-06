@@ -182,10 +182,10 @@ class CodeBookDecoder(nn.Module):
     def forward(self, codes):
         codes, loss_cent = self.centroids(codes)
 
-        pe_codes = self.pos_enc(codes)
-        pred_codes = self.codes_predictor(F.pad(pe_codes[:, :, :-1], [0, 1]))
+        pred_codes = torch.cat([codes[:, :, 1:], codes[:, :, 0:1]], dim=2)
+        pred_codes = self.pos_enc(pred_codes)
+        pred_codes = self.codes_predictor(pred_codes)
 
-        pred_codes = torch.cat([pred_codes[:, :, 1:], pred_codes[:, :, 0:1]], dim=2)
         loss_pred = (self.lat_size ** -0.5) * F.mse_loss(pred_codes, codes)
         pred_codes = pred_codes + (codes - pred_codes).detach()
 
