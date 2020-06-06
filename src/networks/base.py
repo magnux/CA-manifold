@@ -166,12 +166,12 @@ class CodeBookDecoder(nn.Module):
         self.prior_chunk = 64
         self.codes_predictor = nn.Sequential(
             ResidualBlock(letter_channels + self.pos_enc.size(), letter_channels * 4, None, 1, 1, 0, nn.Conv1d),
-            LambdaLayer(lambda x: x.reshape(x.size(0), letter_channels * 4, 4, 4, 4)),
+            LambdaLayer(lambda x: x.reshape(x.size(0), letter_channels * 4, 8, 8, 8)),
             *([SinSobel(letter_channels * 4, 3, 1, 3),
-               ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, None, 1, 1, 0, nn.Conv3d)] * 2),
-            LambdaLayer(lambda x: x.mean(dim=(2, 3, 4))),
-            LinearResidualBlock(letter_channels * 4, letter_channels * 2, lat_size),
-            LinearResidualBlock(letter_channels * 2, letter_channels, lat_size),
+               ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, None, 1, 1, 0, nn.Conv3d)] * 4),
+            LambdaLayer(lambda x: x.reshape(x.size(0), letter_channels * 4, lat_size)),
+            ResidualBlock(letter_channels * 4, letter_channels * 2, None, 1, 1, 0, nn.Conv1d),
+            ResidualBlock(letter_channels * 2, letter_channels, None, 1, 1, 0, nn.Conv1d),
         )
 
         self.codes_to_lat = nn.Sequential(
@@ -183,15 +183,11 @@ class CodeBookDecoder(nn.Module):
         codes, loss_cent = self.centroids(codes)
 
         pe_codes = self.pos_enc(codes)
-        pred_codes = []
-        for i in range(self.prior_chunk, codes.size(2)):
-            pred_codes.append(self.codes_predictor(pe_codes[:, :, i - self.prior_chunk:i]))
+        pred_codes = self.codes_predictor(F.pad(pe_codes[:, :, :-1], [0, 1]))
 
-        pred_codes = torch.stack(pred_codes, dim=2)
-
-        loss_pred = F.mse_loss(pred_codes, codes[:, :, self.prior_chunk:])
-        pred_codes = pred_codes + (codes[:, :, self.prior_chunk:] - pred_codes).detach()
-        pred_codes = torch.cat([codes[:, :, :self.prior_chunk], pred_codes], dim=2)
+        pred_codes = torch.cat([pred_codes[:, :, 1:], pred_codes[:, :, 0:1]], dim=2)
+        loss_pred = F.mse_loss(pred_codes, codes)
+        pred_codes = pred_codes + (codes - pred_codes).detach()
 
         lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
