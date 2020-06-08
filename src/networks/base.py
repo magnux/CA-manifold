@@ -180,7 +180,8 @@ class CodeBookDecoder(nn.Module):
         pred_lat = self.lat_predictor(pred_lat)
 
         loss_pred = F.mse_loss(pred_lat, lat)
-        pred_lat = pred_lat + (lat - pred_lat).detach()
+        if self.training:
+            pred_lat = pred_lat + (lat - pred_lat).detach()
 
         return pred_lat, loss_cent + loss_pred
 
