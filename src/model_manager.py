@@ -6,6 +6,7 @@ from src.config import build_network, build_optimizer, build_lr_scheduler
 from src.utils.model_utils import toggle_grad, count_parameters, make_grad_safe
 from os import path
 from contextlib import contextmanager
+from glob import glob
 
 
 class ModelManager(object):
@@ -31,7 +32,7 @@ class ModelManager(object):
                                                     for net_name in self.networks_dict.keys()})
         self.checkpoint_manager.register_modules(**{'%s_optimizer' % net_name: self.networks_dict[net_name]['optimizer']
                                                     for net_name in self.networks_dict.keys()})
-        self.start_epoch = self.checkpoint_manager.load('%s.pt' % self.model_name)
+        self.start_epoch = self.checkpoint_manager.load(sorted(glob('%s(_)*.*.pt' % self.model_name), reverse=True)[0])
 
         if self.config['training']['lr_anneal_every'] > 0:
             for net_name in self.networks_dict.keys():
@@ -86,7 +87,7 @@ class ModelManager(object):
 
     def on_epoch_end(self):
         if self.config['training']['save_every'] > 0 and ((self.epoch + 1) % self.config['training']['save_every']) == 0:
-            self.checkpoint_manager.save(self.epoch + 1, '%s.pt' % self.model_name)
+            self.checkpoint_manager.save(self.epoch + 1, '%s_%06d.pt' % (self.model_name, self.epoch + 1))
             if self.logging:
                 self.log_manager.save_stats('%s_stats.p' % self.model_name)
                 self.log_manager.flush()
