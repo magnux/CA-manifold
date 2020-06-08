@@ -1,5 +1,7 @@
 import os
 import torch
+from os import path
+from glob import glob
 
 
 class CheckpointManager(object):
@@ -55,3 +57,10 @@ class CheckpointManager(object):
                     print('Warning: Could not find %s in checkpoint!' % k)
 
         return self.it
+
+    def load_last(self, prefix):
+        last_saves = sorted(glob(self.checkpoint_dir + '/%s*.pt' % self.model_name), reverse=True)
+        if len(last_saves) > 0:
+            return self.load(path.basename(last_saves[0]))
+        else:
+            return self.load(prefix + '.pt')

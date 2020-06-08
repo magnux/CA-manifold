@@ -32,7 +32,7 @@ class ModelManager(object):
                                                     for net_name in self.networks_dict.keys()})
         self.checkpoint_manager.register_modules(**{'%s_optimizer' % net_name: self.networks_dict[net_name]['optimizer']
                                                     for net_name in self.networks_dict.keys()})
-        self.start_epoch = self.checkpoint_manager.load(sorted(glob('%s(_)*.*.pt' % self.model_name), reverse=True)[0])
+        self.start_epoch = self.checkpoint_manager.load_last(self.model_name)
 
         if self.config['training']['lr_anneal_every'] > 0:
             for net_name in self.networks_dict.keys():
