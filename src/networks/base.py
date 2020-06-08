@@ -167,7 +167,7 @@ class CodeBookDecoder(nn.Module):
         self.codes_predictor = nn.Sequential(
             ResidualBlock(letter_channels + self.pos_enc.size(), letter_channels * 4, None, 1, 1, 0, nn.Conv1d),
             LambdaLayer(lambda x: x.reshape(x.size(0), letter_channels * 4, 8, 8, 8)),
-            *([LambdaLayer(lambda x: torch.pad(x, [0, 1, 0, 0, 0, 0])),
+            *([LambdaLayer(lambda x: F.pad(x, [0, 1, 0, 0, 0, 0])),
                SinSobel(letter_channels * 4, 3, 1, 3),
                ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, None, 1, 1, 0, nn.Conv3d)] * 8),
             LambdaLayer(lambda x: x[:, :, 8:, :, :]),
