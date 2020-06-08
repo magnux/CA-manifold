@@ -179,7 +179,7 @@ class CodeBookDecoder(nn.Module):
         pred_lat = torch.cat([lat[:, -1:], lat[:, :-1]], dim=1)
         pred_lat = self.lat_predictor(pred_lat)
 
-        loss_pred = (self.lat_size ** -0.5) * F.mse_loss(pred_lat, lat)
+        loss_pred = F.mse_loss(pred_lat, lat)
         pred_lat = pred_lat + (lat - pred_lat).detach()
 
         return pred_lat, loss_cent + loss_pred
