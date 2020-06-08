@@ -170,7 +170,7 @@ class CodeBookDecoder(nn.Module):
             *([nn.ConstantPad3d([0, 1, 0, 0, 0, 0], 0.),
                SinSobel(letter_channels * 4, 3, 1, 3),
                ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, None, 1, 1, 0, nn.Conv3d)] * 8),
-            LambdaLayer(lambda x: x[:, :, 8:, :, :]),
+            LambdaLayer(lambda x: x[:, :, :, :, 8:]),
             LambdaLayer(lambda x: x.reshape(x.size(0), letter_channels * 4, lat_size)),
             ResidualBlock(letter_channels * 4, letter_channels * 2, None, 1, 1, 0, nn.Conv1d),
             ResidualBlock(letter_channels * 2, letter_channels, None, 1, 1, 0, nn.Conv1d),
