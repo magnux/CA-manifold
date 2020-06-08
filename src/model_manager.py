@@ -130,6 +130,7 @@ class ModelManager(object):
                 make_grad_safe(self.networks_dict[net_name]['net'])
                 clip_grad_norm_(self.networks_dict[net_name]['net'].parameters(), 1., torch._six.inf)
                 self.networks_dict[net_name]['optimizer'].step()
+                toggle_grad(self.networks_dict[net_name]['net'], False)
 
     @contextmanager
     def on_step(self, nets_to_train):
