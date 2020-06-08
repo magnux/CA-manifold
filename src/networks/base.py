@@ -167,9 +167,11 @@ class CodeBookDecoder(nn.Module):
         self.codes_predictor = nn.Sequential(
             ResidualBlock(letter_channels + self.pos_enc.size(), letter_channels * 4, None, 1, 1, 0, nn.Conv1d),
             LambdaLayer(lambda x: x.reshape(x.size(0), letter_channels * 4, 8, 8, 8)),
-            *([SinSobel(letter_channels * 4, 3, 1, 3),
-               ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, None, 1, 1, 0, nn.Conv3d)] * 4),
+            *([LambdaLayer(lambda x: torch.pad(x, [0, 1])),
+               SinSobel(letter_channels * 4, 3, 1, 3),
+               ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, None, 1, 1, 0, nn.Conv3d)] * 8),
             LambdaLayer(lambda x: x.reshape(x.size(0), letter_channels * 4, lat_size)),
+            LambdaLayer(lambda x: x[:, :, 8:]),
             ResidualBlock(letter_channels * 4, letter_channels * 2, None, 1, 1, 0, nn.Conv1d),
             ResidualBlock(letter_channels * 2, letter_channels, None, 1, 1, 0, nn.Conv1d),
         )
@@ -182,18 +184,8 @@ class CodeBookDecoder(nn.Module):
     def forward(self, codes):
         codes, loss_cent = self.centroids(codes)
 
-        if self.training:
-            perm_codes = codes[:, :, torch.randperm(self.lat_size)]
-            rand_mask = torch.rand((codes.size(0), 1, self.lat_size), device=codes.device) > 0.5
-            pred_codes = torch.where(rand_mask, perm_codes, codes)
-        else:
-            pred_codes = codes
-        pred_codes = self.pos_enc(pred_codes)
+        pred_codes = self.pos_enc(codes)
         pred_codes = self.codes_predictor(pred_codes)
-
-        # loss_pred = (self.lat_size ** -0.5) * F.mse_loss(pred_codes, codes)
-        # if self.training:
-        #     pred_codes = pred_codes + (codes - pred_codes).detach()
 
         lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
