@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.centroids import Centroids
+from src.layers.sobel import SinSobel
+from src.layers.pos_encoding import PosEncoding
 from src.layers.lambd import LambdaLayer
 import numpy as np
 
@@ -159,31 +161,42 @@ class CodeBookDecoder(nn.Module):
         self.letter_channels = letter_channels
         self.centroids = Centroids(letter_channels, n_cents)
 
+        self.pos_enc = PosEncoding(self.lat_size)
+
+        self.prior_chunk = 64
+        self.codes_predictor = nn.Sequential(
+            ResidualBlock(letter_channels + self.pos_enc.size(), letter_channels * 4, None, 1, 1, 0, nn.Conv1d),
+            LambdaLayer(lambda x: x.reshape(x.size(0), letter_channels * 4, 8, 8, 8)),
+            *([SinSobel(letter_channels * 4, 3, 1, 3),
+               ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, None, 1, 1, 0, nn.Conv3d)] * 4),
+            LambdaLayer(lambda x: x.reshape(x.size(0), letter_channels * 4, lat_size)),
+            ResidualBlock(letter_channels * 4, letter_channels * 2, None, 1, 1, 0, nn.Conv1d),
+            ResidualBlock(letter_channels * 2, letter_channels, None, 1, 1, 0, nn.Conv1d),
+        )
+
         self.codes_to_lat = nn.Sequential(
             ResidualBlock(letter_channels, letter_channels, None, 1, 1, 0, nn.Conv1d),
             ResidualBlock(letter_channels, 1, None, 1, 1, 0, nn.Conv1d),
         )
 
-        self.lat_predictor = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
-
     def forward(self, codes):
         codes, loss_cent = self.centroids(codes)
-        lat = self.codes_to_lat(codes)
+
+        if self.training:
+            perm_codes = codes[:, :, torch.randperm(self.lat_size)]
+            rand_mask = torch.rand((codes.size(0), 1, self.lat_size), device=codes.device) > 0.5
+            pred_codes = torch.where(rand_mask, perm_codes, codes)
+        pred_codes = self.pos_enc(pred_codes)
+        pred_codes = self.codes_predictor(pred_codes)
+
+        loss_pred = (self.lat_size ** -0.5) * F.mse_loss(pred_codes, codes)
+        if self.training:
+            pred_codes = pred_codes + (codes - pred_codes).detach()
+
+        lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
 
-        pred_lat = torch.cat([lat[:, -1:], lat[:, :-1]], dim=1)
-        pred_lat = self.lat_predictor(pred_lat)
-
-        loss_pred = F.mse_loss(pred_lat, lat)
-        if self.training:
-            pred_lat = pred_lat + (lat - pred_lat).detach()
-
-        return pred_lat, loss_cent + loss_pred
+        return lat, loss_cent + loss_pred
 
 
 class LetterEncoder(nn.Module):
