@@ -191,14 +191,14 @@ class CodeBookDecoder(nn.Module):
         pred_codes = self.pos_enc(pred_codes)
         pred_codes = self.codes_predictor(pred_codes)
 
-        loss_pred = (self.lat_size ** -0.5) * F.mse_loss(pred_codes, codes)
-        if self.training:
-            pred_codes = pred_codes + (codes - pred_codes).detach()
+        # loss_pred = (self.lat_size ** -0.5) * F.mse_loss(pred_codes, codes)
+        # if self.training:
+        #     pred_codes = pred_codes + (codes - pred_codes).detach()
 
         lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
 
-        return lat, loss_cent + loss_pred
+        return lat, loss_cent
 
 
 class LetterEncoder(nn.Module):
