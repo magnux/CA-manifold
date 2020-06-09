@@ -59,7 +59,7 @@ class CheckpointManager(object):
         return self.it
 
     def load_last(self, prefix):
-        last_saves = sorted(glob(self.checkpoint_dir + '/%s*.pt' % self.model_name), reverse=True)
+        last_saves = sorted(glob(self.checkpoint_dir + '/%s*.pt' % prefix), reverse=True)
         if len(last_saves) > 0:
             return self.load(path.basename(last_saves[0]))
         else:

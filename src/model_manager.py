@@ -6,7 +6,6 @@ from src.config import build_network, build_optimizer, build_lr_scheduler
 from src.utils.model_utils import toggle_grad, count_parameters, make_grad_safe
 from os import path
 from contextlib import contextmanager
-from glob import glob
 
 
 class ModelManager(object):
