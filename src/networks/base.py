@@ -188,6 +188,7 @@ class CodeBookDecoder(nn.Module):
         if self.training:
             perm_codes = codes[:, :, torch.randperm(self.lat_size)]
             rand_mask = torch.rand((codes.size(0), 1, self.lat_size), device=codes.device) > 0.5
+            rand_mask[:codes.size(0)//2, ...] = 0
             pred_codes = torch.where(rand_mask, perm_codes, codes)
         else:
             pred_codes = codes
