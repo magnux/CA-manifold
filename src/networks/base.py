@@ -189,12 +189,12 @@ class CodeBookDecoder(nn.Module):
         pred_codes = self.codes_in(pred_codes)
         pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, 8, 8, 8)
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        pred_codes = F.pad(pred_codes, [0, self.n_calls, 0, 0, 0, 0])
         for _ in range(self.n_calls):
-            pred_codes_pad = F.pad(pred_codes, [0, 1, 0, 0, 0, 0])
-            pred_codes_new = self.codes_conv(pred_codes_pad)
-            pred_codes = pred_codes_pad + (leak_factor * pred_codes_new)
-            pred_codes = pred_codes[:, :, :, :, 1:]
+            pred_codes_new = self.codes_conv(pred_codes)
+            pred_codes = pred_codes + (leak_factor * pred_codes_new)
 
+        pred_codes = pred_codes[:, :, :, :, self.n_calls:]
         pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, self.lat_size)
         pred_codes = self.codes_out(pred_codes)
 
