@@ -16,7 +16,7 @@ from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, skip_fire=False, injected=False, log_mix_out=False, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, skip_fire=False, injected=False, log_mix_out=False, ext_canvas=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -32,6 +32,7 @@ class Decoder(nn.Module):
         assert not self.fire_rate < 1.0 or not skip_fire, "fire_rate and skip_fire are mutually exclusive options"
         self.injected = injected
         self.log_mix_out = log_mix_out
+        self.ext_canvas = ext_canvas
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -65,6 +66,8 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        if self.ext_canvas:
+            out = F.pad(out, [0, self.n_calls, 0, 0])
         for c in range(self.n_calls):
             out_new = out
             if self.perception_noise and self.training:
@@ -81,6 +84,9 @@ class Decoder(nn.Module):
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device))
             out = out + (leak_factor * out_new)
             out_embs.append(out)
+
+        if self.ext_canvas:
+            out = out[:, :, self.n_calls, :]
 
         out = self.conv_img(out)
         out_raw = out
