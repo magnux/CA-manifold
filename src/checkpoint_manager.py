@@ -69,5 +69,5 @@ class CheckpointManager(object):
         last_saves = sorted(glob(self.checkpoint_dir + '/%s*.pt' % prefix), reverse=True)
         if len(last_saves) > max_saves:
             for i, save in enumerate(last_saves):
-                if i % (len(last_saves) / max_saves) < 1.:
+                if i % (len(last_saves) / max_saves) >= 1.:
                     os.remove(save)
