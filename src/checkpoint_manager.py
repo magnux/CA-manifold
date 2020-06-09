@@ -64,3 +64,10 @@ class CheckpointManager(object):
             return self.load(path.basename(last_saves[0]))
         else:
             return self.load(prefix + '.pt')
+
+    def prune_saves(self, prefix, max_saves=10.):
+        last_saves = sorted(glob(self.checkpoint_dir + '/%s*.pt' % prefix), reverse=True)
+        if len(last_saves) > max_saves:
+            for i, save in enumerate(last_saves):
+                if i % (len(last_saves) / max_saves) < 1.:
+                    os.remove(save)

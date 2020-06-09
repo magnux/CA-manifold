@@ -87,6 +87,7 @@ class ModelManager(object):
     def on_epoch_end(self):
         if self.config['training']['save_every'] > 0 and ((self.epoch + 1) % self.config['training']['save_every']) == 0:
             self.checkpoint_manager.save(self.epoch + 1, '%s_%06d.pt' % (self.model_name, self.epoch + 1))
+            self.checkpoint_manager.prune_saves(self.model_name)
             if self.logging:
                 self.log_manager.save_stats('%s_stats.p' % self.model_name)
                 self.log_manager.flush()
