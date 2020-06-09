@@ -167,7 +167,7 @@ class CodeBookDecoder(nn.Module):
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.codes_conv = nn.Sequential(
-            nn.InstanceNorm1d(self.letter_channels * 4),
+            nn.InstanceNorm3d(self.letter_channels * 4),
             SinSobel(letter_channels * 4, 3, 1, 3),
             ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, letter_channels * 64, 1, 1, 0, nn.Conv3d),
         )
