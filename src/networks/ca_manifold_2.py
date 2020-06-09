@@ -86,7 +86,7 @@ class Decoder(nn.Module):
             out_embs.append(out)
 
         if self.ext_canvas:
-            out = out[:, :, self.n_calls, :]
+            out = out[:, :, :, self.n_calls:]
 
         out = self.conv_img(out)
         out_raw = out
