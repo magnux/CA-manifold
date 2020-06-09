@@ -65,7 +65,7 @@ class CheckpointManager(object):
         else:
             return self.load(prefix + '.pt')
 
-    def prune_saves(self, prefix, max_saves=10.):
+    def prune_saves(self, prefix, max_saves=10):
         last_saves = sorted(glob(self.checkpoint_dir + '/%s*.pt' % prefix), reverse=True)
         if len(last_saves) > max_saves:
             for i in range(max_saves, len(last_saves)):
