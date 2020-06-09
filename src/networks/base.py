@@ -190,6 +190,7 @@ class CodeBookDecoder(nn.Module):
             rand_mask = torch.rand((codes.size(0), 1, self.lat_size), device=codes.device) > 0.5
             # rand_mask[:codes.size(0)//2, ...] = 0
             pred_codes = torch.where(rand_mask, perm_codes, codes)
+            pred_codes = pred_codes.detach()
         else:
             pred_codes = codes
         pred_codes = self.pos_enc(pred_codes)
