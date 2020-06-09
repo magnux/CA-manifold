@@ -185,7 +185,13 @@ class CodeBookDecoder(nn.Module):
     def forward(self, codes):
         codes, loss_cent = self.centroids(codes)
 
-        pred_codes = self.pos_enc(codes)
+        if self.training:
+            perm_codes = codes[:, :, torch.randperm(self.lat_size)]
+            rand_mask = torch.rand((codes.size(0), 1, self.lat_size), device=codes.device) > 0.5
+            pred_codes = torch.where(rand_mask, perm_codes, codes)
+        else:
+            pred_codes = codes
+        pred_codes = self.pos_enc(pred_codes)
         pred_codes = self.codes_in(pred_codes)
         pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, 8, 8, 8)
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
@@ -198,10 +204,14 @@ class CodeBookDecoder(nn.Module):
         pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, self.lat_size)
         pred_codes = self.codes_out(pred_codes)
 
-        lat = self.codes_to_lat(codes)
+        loss_pred = F.mse_loss(pred_codes, codes)
+        if self.training:
+            pred_codes = pred_codes + (codes - pred_codes).detach()
+
+        lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
 
-        return lat, loss_cent
+        return lat, loss_cent + loss_pred
 
 
 class LetterEncoder(nn.Module):
