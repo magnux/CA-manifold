@@ -206,7 +206,7 @@ class CodeBookDecoder(nn.Module):
         pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, self.lat_size)
         pred_codes = self.codes_out(pred_codes)
 
-        loss_pred = F.mse_loss(pred_codes, codes)
+        loss_pred = F.mse_loss(pred_codes, codes.detach())
         if self.training:
             pred_codes = codes
 
