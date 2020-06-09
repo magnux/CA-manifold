@@ -161,21 +161,21 @@ class CodeBookDecoder(nn.Module):
         self.letter_channels = letter_channels
         self.centroids = Centroids(letter_channels, n_cents)
 
-        # self.pos_enc = PosEncoding(self.lat_size)
-        # self.codes_in = ResidualBlock(letter_channels + self.pos_enc.size(), letter_channels * 4, None, 1, 1, 0, nn.Conv1d)
-        #
-        # self.n_calls = 8
-        # self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        # self.codes_conv = nn.Sequential(
-        #     nn.InstanceNorm3d(self.letter_channels * 4),
-        #     SinSobel(letter_channels * 4, 3, 1, 3),
-        #     ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, letter_channels * 64, 1, 1, 0, nn.Conv3d),
-        # )
-        #
-        # self.codes_out = nn.Sequential(
-        #     ResidualBlock(letter_channels * 4, letter_channels * 2, None, 1, 1, 0, nn.Conv1d),
-        #     ResidualBlock(letter_channels * 2, letter_channels, None, 1, 1, 0, nn.Conv1d),
-        # )
+        self.pos_enc = PosEncoding(self.lat_size)
+        self.codes_in = ResidualBlock(letter_channels + self.pos_enc.size(), letter_channels * 4, None, 1, 1, 0, nn.Conv1d)
+
+        self.n_calls = 8
+        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.codes_conv = nn.Sequential(
+            nn.InstanceNorm3d(self.letter_channels * 4),
+            SinSobel(letter_channels * 4, 3, 1, 3),
+            ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, letter_channels * 64, 1, 1, 0, nn.Conv3d),
+        )
+
+        self.codes_out = nn.Sequential(
+            ResidualBlock(letter_channels * 4, letter_channels * 2, None, 1, 1, 0, nn.Conv1d),
+            ResidualBlock(letter_channels * 2, letter_channels, None, 1, 1, 0, nn.Conv1d),
+        )
 
         self.codes_to_lat = nn.Sequential(
             ResidualBlock(letter_channels, letter_channels, None, 1, 1, 0, nn.Conv1d),
@@ -185,18 +185,18 @@ class CodeBookDecoder(nn.Module):
     def forward(self, codes):
         codes, loss_cent = self.centroids(codes)
 
-        # pred_codes = self.pos_enc(codes)
-        # pred_codes = self.codes_in(pred_codes)
-        # pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, 8, 8, 8)
-        # leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
-        # pred_codes = F.pad(pred_codes, [0, self.n_calls, 0, 0, 0, 0])
-        # for _ in range(self.n_calls):
-        #     pred_codes_new = self.codes_conv(pred_codes)
-        #     pred_codes = pred_codes + (leak_factor * pred_codes_new)
-        #
-        # pred_codes = pred_codes[:, :, :, :, self.n_calls:]
-        # pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, self.lat_size)
-        # pred_codes = self.codes_out(pred_codes)
+        pred_codes = self.pos_enc(codes)
+        pred_codes = self.codes_in(pred_codes)
+        pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, 8, 8, 8)
+        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        pred_codes = F.pad(pred_codes, [0, self.n_calls, 0, 0, 0, 0])
+        for _ in range(self.n_calls):
+            pred_codes_new = self.codes_conv(pred_codes)
+            pred_codes = pred_codes + (leak_factor * pred_codes_new)
+
+        pred_codes = pred_codes[:, :, :, :, self.n_calls:]
+        pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, self.lat_size)
+        pred_codes = self.codes_out(pred_codes)
 
         lat = self.codes_to_lat(codes)
         lat = lat.squeeze(dim=1)
