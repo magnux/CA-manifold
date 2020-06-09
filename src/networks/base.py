@@ -196,6 +196,7 @@ class CodeBookDecoder(nn.Module):
             pred_codes = pred_codes[:, :, :, :, 1:]
 
         pred_codes = pred_codes.reshape(codes.size(0), self.letter_channels * 4, self.lat_size)
+        pred_codes = self.codes_out(pred_codes)
 
         lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
