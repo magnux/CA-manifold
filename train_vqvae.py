@@ -49,13 +49,13 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
 
 # Distributions
 ydist = get_ydist(config['data']['n_labels'], device=device)
-zdist = get_zdist(config['z_dist']['type'], (8, config['network']['kwargs']['lat_size']), device=device)
+zdist = get_zdist(config['z_dist']['type'], (channels, image_size, image_size), device=device)
 
 
 # Networks
 networks_dict = {
-    'encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
-    'decoder': {'class': config['network']['class'], 'sub_class': 'InjectedDecoder'},
+    'encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
+    'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'cb_encoder': {'class': 'base', 'sub_class': 'CodeBookEncoder'},
     'cb_decoder': {'class': 'base', 'sub_class': 'CodeBookDecoder'},
     'lab_embedder': {'class': 'base', 'sub_class': 'Generator'},
@@ -86,7 +86,7 @@ def get_inputs(trainiter, batch_size, device):
         images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
     images = images.detach().requires_grad_()
-    z_gen = zdist.sample((images.size(0),)).clamp_(-3, 3)
+    z_gen = zdist.sample((images.size(0),)).clamp_(-1, 1)
     z_gen.detach_().requires_grad_()
     return images, labels, z_gen, trainiter
 
@@ -96,8 +96,10 @@ images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batc
 
 def generator(z_gen, labels):
     lat_labs = lab_embedder(torch.zeros((batch_size, z_dim), device=device), labels)
-    lat_gen, _ = cb_decoder(z_gen)
-    return lat_gen, lat_labs
+    lat_enc, _, _ = encoder(z_gen, lat_labs)
+    lat_codes = cb_encoder(lat_enc)
+    lat_gen, _ = cb_decoder(lat_codes)
+    return lat_gen
 
 
 if config['training']['inception_every'] > 0:
@@ -134,13 +136,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         re_images = rand_erase_images(images)
-                        lat_enc, out_embs, _ = encoder(re_images)
+                        lat_labs = lab_embedder(torch.zeros((batch_split_size, z_dim), device=device), labels)
+                        lat_enc, out_embs, _ = encoder(re_images, lat_labs)
 
                         lat_codes = cb_encoder(lat_enc)
                         lat_dec, loss_cent = cb_decoder(lat_codes)
 
-                        lat_labs = lab_embedder(torch.zeros((batch_split_size, z_dim), device=device), labels)
-                        images_dec, _, images_dec_raw = decoder(lat_dec, inj_lat=lat_labs)
+                        images_dec, _, images_dec_raw = decoder(lat_dec)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
                         # loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
@@ -152,8 +154,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Streaming Images
                 with torch.no_grad():
-                    lat_gen, lat_labs = generator(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen, inj_lat=lat_labs)
+                    lat_gen = generator(z_test, labels_test)
+                    images_gen, _, _ = decoder(lat_gen)
 
                 stream_images(images_gen, config_name, config['training']['out_dir'])
 
@@ -178,12 +180,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen, lat_labs = generator(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen, inj_lat=lat_labs)
-            lat_enc, out_embs, _ = encoder(images)
+            images_gen, _, _ = decoder(lat_gen)
+            lat_labs = lab_embedder(torch.zeros((batch_size, z_dim), device=device), labels)
+            lat_enc, out_embs, _ = encoder(images, lat_labs)
             lat_codes = cb_encoder(lat_enc)
             lat_dec, _ = cb_decoder(lat_codes)
-            lat_labs = lab_embedder(torch.zeros((batch_size, z_dim), device=device), labels)
-            images_dec, _, _ = decoder(lat_dec, inj_lat=lat_labs)
+            images_dec, _, _ = decoder(lat_dec)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)

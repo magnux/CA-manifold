@@ -16,7 +16,7 @@ from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, skip_fire=False, injected=False, log_mix_out=False, ext_canvas=False, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, skip_fire=False, log_mix_out=False, ext_canvas=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -30,13 +30,12 @@ class Decoder(nn.Module):
         self.fire_rate = fire_rate
         self.skip_fire = skip_fire
         assert not self.fire_rate < 1.0 or not skip_fire, "fire_rate and skip_fire are mutually exclusive options"
-        self.injected = injected
         self.log_mix_out = log_mix_out
         self.ext_canvas = ext_canvas
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size * (2 if self.injected else 1), self.n_filter * 3, self.n_filter, self.n_filter)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 3, self.n_filter, self.n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size, self.ds_size + (self.n_calls if self.ext_canvas else 0))).sum(axis=0) % 2, dtype=torch.float32, requires_grad=False)
@@ -48,17 +47,13 @@ class Decoder(nn.Module):
             nn.Conv2d(self.n_filter, 10 * ((self.out_chan * 3) + 1) if self.log_mix_out else self.out_chan, 3, 1, 1),
         )
 
-    def forward(self, lat, ca_init=None, inj_lat=None):
-        assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected decoders'
+    def forward(self, lat, ca_init=None):
         batch_size = lat.size(0)
 
         if ca_init is None:
             out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device)
         else:
             out = ca_init
-
-        if inj_lat is not None:
-            lat = torch.cat([lat, inj_lat], dim=1)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
@@ -96,9 +91,3 @@ class Decoder(nn.Module):
             out = out.clamp(-1., 1.)
 
         return out, out_embs, out_raw
-
-
-class InjectedDecoder(Decoder):
-    def __init__(self, **kwargs):
-        kwargs['injected'] = True
-        super().__init__(**kwargs)
