@@ -9,6 +9,7 @@ from src.layers.scale import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.utils.model_utils import ca_seed
+from src.utils.loss_utils import sample_from_discretized_mix_logistic
 
 
 class Encoder(nn.Module):
@@ -110,7 +111,7 @@ class InjectedEncoder(Encoder):
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, adain=False, dyncin=False, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, adain=False, dyncin=False, log_mix_out=False, ext_canvas=False, **kwargs):
         super().__init__()
         self.n_labels = n_labels
         self.image_size = image_size
@@ -122,6 +123,8 @@ class Decoder(nn.Module):
         self.shared_params = shared_params
         self.adain = adain
         self.dyncin = dyncin
+        self.log_mix_out = log_mix_out
+        self.ext_canvas = ext_canvas
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
@@ -150,7 +153,7 @@ class Decoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
             *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
-            nn.Conv2d(self.n_filter, self.out_chan, 3, 1, 1),
+            nn.Conv2d(self.n_filter, 10 * ((self.out_chan * 3) + 1) if self.log_mix_out else self.out_chan, 3, 1, 1),
         )
 
     def forward(self, lat):
@@ -173,6 +176,8 @@ class Decoder(nn.Module):
             out = self.in_conv(out)
 
         out_embs = [out]
+        if self.ext_canvas:
+            out = F.pad(out, [0, self.n_calls, 0, 0])
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
             out_new = self.frac_norm[0 if self.shared_params else c](out)
@@ -187,9 +192,15 @@ class Decoder(nn.Module):
             out = out + (leak_factor * out_new)
             out_embs.append(out)
 
+        if self.ext_canvas:
+            out = out[:, :, :, self.n_calls:]
+
         out = self.conv_img(out)
         out_raw = out
-        out = out.clamp(-1., 1.)
+        if self.log_mix_out:
+            out = sample_from_discretized_mix_logistic(out, 10)
+        else:
+            out = out.clamp(-1., 1.)
 
         return out, out_embs, out_raw
 

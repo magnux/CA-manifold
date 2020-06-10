@@ -65,9 +65,9 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
 
         out_embs = [out]
-        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         if self.ext_canvas:
             out = F.pad(out, [0, self.n_calls, 0, 0])
+        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
             out_new = out
             if self.perception_noise and self.training:
