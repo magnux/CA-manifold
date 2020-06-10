@@ -188,6 +188,7 @@ class CodeBookDecoder(nn.Module):
             rand_mask = torch.rand((codes.size(0), 1, self.lat_size), device=codes.device) > 0.5
             # rand_mask[:codes.size(0)//2, ...] = 0
             pred_codes = torch.where(rand_mask, perm_codes, codes)
+            pred_codes.detach_().requires_grad_(True)
         else:
             pred_codes = codes
         pred_codes = self.pos_enc(pred_codes)
@@ -205,7 +206,7 @@ class CodeBookDecoder(nn.Module):
 
         loss_pred = F.mse_loss(pred_codes, codes.detach())
         if self.training:
-            pred_codes = pred_codes + (codes - pred_codes).detach()
+            pred_codes = codes
 
         pred_codes, loss_cent = self.centroids(pred_codes)
         lat = self.codes_to_lat(pred_codes)
