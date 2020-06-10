@@ -49,9 +49,11 @@ class Sobel(nn.Module):
         return torch.cat(s_input, dim=1)
 
 
-def get_sin_sobel_kernel_nd(channels, kernel_size, dim):
+def get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided=False):
     sin_space = np.linspace(-np.pi / 2, np.pi / 2, kernel_size)
     sin_sobel = np.sin(sin_space) * 2
+    if left_sided:
+        sin_sobel[np.ceil(kernel_size / 2):] = 0
     sin_sobel = torch.tensor(sin_sobel, dtype=torch.float32).view(*([1, 1, kernel_size] + [1 for _ in range(dim - 1)]))
     if dim > 1:
         cos_space = np.linspace(-np.pi / 3, np.pi / 3, kernel_size)
@@ -71,12 +73,11 @@ def get_sin_sobel_kernel_nd(channels, kernel_size, dim):
 
 
 class SinSobel(nn.Module):
-    def __init__(self, channels, kernel_size, padding, dim=2, n_pass=1):
+    def __init__(self, channels, kernel_size, padding, dim=2, left_sided=False):
         super(SinSobel, self).__init__()
 
-        self.register_buffer('weight', get_sin_sobel_kernel_nd(channels, kernel_size, dim))
+        self.register_buffer('weight', get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided))
         self.groups = channels
-        self.n_pass = n_pass
         self.padding = padding
         self.dim = dim
 
@@ -92,10 +93,8 @@ class SinSobel(nn.Module):
             )
 
     def forward(self, input):
-        s_input = [input]
-        for i in range(1, self.n_pass + 1):
-            s_input.append(self.conv(s_input[i-1], weight=self.weight, stride=1, padding=self.padding, groups=self.groups))
-        return torch.cat(s_input, dim=1)
+        s_out = self.conv(input, weight=self.weight, stride=1, padding=self.padding, groups=self.groups)
+        return torch.cat([input, s_out], dim=1)
 
 
 if __name__ == '__main__':
