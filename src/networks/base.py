@@ -183,8 +183,6 @@ class CodeBookDecoder(nn.Module):
         )
 
     def forward(self, codes):
-        codes, loss_cent = self.centroids(codes)
-
         if self.training:
             perm_codes = codes[:, :, torch.randperm(self.lat_size)]
             rand_mask = torch.rand((codes.size(0), 1, self.lat_size), device=codes.device) > 0.5
@@ -209,6 +207,7 @@ class CodeBookDecoder(nn.Module):
         if self.training:
             pred_codes = pred_codes + (codes - pred_codes).detach()
 
+        pred_codes, loss_cent = self.centroids(pred_codes)
         lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
 
