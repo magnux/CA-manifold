@@ -192,7 +192,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             for lab in range(config['training']['sample_labels']):
                 fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
                 lat_gen = generator(z_test, fixed_lab)
-                images_gen, _, _ = decoder(lat_gen, inj_lat=lat_labs)
+                images_gen, _, _ = decoder(lat_gen)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
