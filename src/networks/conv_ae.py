@@ -176,10 +176,10 @@ class Decoder(nn.Module):
             out = self.in_conv(out)
 
         out_embs = [out]
-        if self.ext_canvas:
-            out = F.pad(out, [0, self.n_calls, 0, 0])
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
+            if self.ext_canvas:
+                out = F.pad(out, [1, 0, 1, 0])
             out_new = self.frac_norm[0 if self.shared_params else c](out)
             if self.adain:
                 s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
@@ -190,10 +190,9 @@ class Decoder(nn.Module):
                 out_new = self.dyn_conv(out_new, lat)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
+            if self.ext_canvas:
+                out = out[:, :, :-1, :-1]
             out_embs.append(out)
-
-        if self.ext_canvas:
-            out = out[:, :, :, self.n_calls:]
 
         out = self.conv_img(out)
         out_raw = out
