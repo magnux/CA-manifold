@@ -38,7 +38,7 @@ class Decoder(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 3, self.n_filter, self.n_filter)
 
         if self.skip_fire:
-            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size, self.ds_size + (self.n_calls if self.ext_canvas else 0))).sum(axis=0) % 2, dtype=torch.float32, requires_grad=False)
+            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (1 if self.ext_canvas else 0), self.ds_size + (1 if self.ext_canvas else 0))).sum(axis=0) % 2, dtype=torch.float32, requires_grad=False)
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
