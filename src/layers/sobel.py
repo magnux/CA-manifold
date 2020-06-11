@@ -124,6 +124,8 @@ if __name__ == '__main__':
 
     sobel_f, pad_f = get_sobel_kernel_2d(1), 1
     # sobel_f, pad_f = get_sin_sobel_kernel_nd(1, 7, 2), 3
+    # plt.imshow(sobel_f[0, 0, ...].t())
+    # plt.show()
 
     for _ in range(n_calls):
         canvas_sob = F.conv2d(canvas, weight=sobel_f, stride=1, padding=pad_f)
