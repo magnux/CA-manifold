@@ -13,11 +13,12 @@ from src.utils.loss_utils import sample_from_discretized_mix_logistic
 
 
 class Encoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, injected=False, adain=False, dyncin=False, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, injected=False, adain=False, dyncin=False, multi_cut=True, **kwargs):
         super().__init__()
         self.injected = injected
         self.adain = adain
         self.dyncin = dyncin
+        self.multi_cut = multi_cut
         self.n_labels = n_labels
         self.image_size = image_size
         self.ds_size = ds_size
@@ -27,8 +28,8 @@ class Encoder(nn.Module):
         self.n_calls = n_calls
         self.shared_params = shared_params
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
-        self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
+        self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
+        self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2] if self.multi_cut else [self.n_filter]
 
         self.conv_img = nn.Sequential(
             nn.Conv2d(self.in_chan, self.n_filter, 3, 1, 1),
@@ -94,11 +95,14 @@ class Encoder(nn.Module):
             out_embs.append(out)
 
         out = self.out_conv(out)
-        conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
-        conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
-                                conv_state_fh.mean(dim=3).view(batch_size, -1),
-                                conv_state_fw.mean(dim=2).view(batch_size, -1),
-                                conv_state_hw.view(batch_size, -1)], dim=1)
+        if self.multi_cut:
+            conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
+            conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
+                                    conv_state_fh.mean(dim=3).view(batch_size, -1),
+                                    conv_state_fw.mean(dim=2).view(batch_size, -1),
+                                    conv_state_hw.view(batch_size, -1)], dim=1)
+        else:
+            conv_state = out.mean(dim=(2, 3))
         lat = self.out_to_lat(conv_state)
 
         return lat, out_embs, None
