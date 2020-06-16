@@ -144,8 +144,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_labs = lab_embedder(torch.zeros((batch_split_size, z_dim), device=device), labels)
                         images_dec, _, images_dec_raw = decoder(lat_dec, inj_lat=lat_labs)
 
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
-                        # loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
+                        # loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
+                        loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
