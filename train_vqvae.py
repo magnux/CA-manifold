@@ -143,7 +143,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         images_dec, _, images_dec_raw = decoder(lat_dec)
 
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
+                        loss_dec = (1 / batch_mult) * 10. * F.mse_loss(images_dec_raw, images)
                         # loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
