@@ -40,7 +40,8 @@ z_dim = config['z_dist']['z_dim']
 
 # config['network']['kwargs']['log_mix_out'] = True
 # config['network']['kwargs']['ext_canvas'] = True
-config['network']['kwargs']['multi_cut'] = False
+# config['network']['kwargs']['multi_cut'] = False
+config['network']['kwargs']['left_sided'] = True
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
