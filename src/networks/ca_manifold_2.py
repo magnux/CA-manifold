@@ -39,7 +39,7 @@ class Decoder(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size * (2 if self.injected else 1), self.n_filter * 3, self.n_filter, self.n_filter)
 
         if self.skip_fire:
-            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (1 if self.ext_canvas else 0), self.ds_size + (1 if self.ext_canvas else 0))).sum(axis=0) % 2, dtype=torch.float32, requires_grad=False)
+            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.ext_canvas else 0), self.ds_size + (2 if self.ext_canvas else 0))).sum(axis=0) % 2, dtype=torch.float32, requires_grad=False)
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
@@ -68,7 +68,7 @@ class Decoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
             if self.ext_canvas:
-                out = F.pad(out, [0, 1, 0, 1])
+                out = F.pad(out, [0, 2, 0, 2])
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
@@ -84,7 +84,7 @@ class Decoder(nn.Module):
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device))
             out = out + (leak_factor * out_new)
             if self.ext_canvas:
-                out = out[:, :, 1:, 1:]
+                out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
         out = self.conv_img(out)
