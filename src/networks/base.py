@@ -4,10 +4,6 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.centroids import Centroids
-from src.layers.sobel import SinSobel
-from src.layers.pos_encoding import PosEncoding
-from src.layers.lambd import LambdaLayer
-import numpy as np
 
 
 class Classifier(nn.Module):
@@ -96,6 +92,8 @@ class VarEncoder(nn.Module):
         self.embedding_fc = nn.Linear(n_labels, embed_size)
         self.lat_to_z = nn.Sequential(
             LinearResidualBlock(self.lat_size + embed_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, z_dim * 2),
         )
 
@@ -121,6 +119,8 @@ class VarDecoder(nn.Module):
         self.embedding_fc = nn.Linear(n_labels, embed_size)
         self.z_to_lat = nn.Sequential(
             LinearResidualBlock(z_dim + embed_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
         )
 

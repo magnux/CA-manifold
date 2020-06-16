@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import discretized_mix_logistic_loss
+from src.utils.loss_utils import discretized_mix_logistic_loss, sample_gaussian, gaussian_kl_loss
 from src.utils.model_utils import compute_inception_score
 from src.utils.media_utils import rand_erase_images
 from src.model_manager import ModelManager
@@ -38,10 +38,10 @@ batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 z_dim = config['z_dist']['z_dim']
 
-config['network']['kwargs']['log_mix_out'] = True
-config['network']['kwargs']['ext_canvas'] = True
+# config['network']['kwargs']['log_mix_out'] = True
+# config['network']['kwargs']['ext_canvas'] = True
 # config['network']['kwargs']['multi_cut'] = False
-config['network']['kwargs']['left_sided'] = True
+# config['network']['kwargs']['left_sided'] = True
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -51,23 +51,25 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
 
 # Distributions
 ydist = get_ydist(config['data']['n_labels'], device=device)
-zdist = get_zdist(config['z_dist']['type'], (8, config['network']['kwargs']['lat_size']), device=device)
+zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=device)
 
 
 # Networks
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
-    'decoder': {'class': config['network']['class'], 'sub_class': 'InjectedDecoder'},
+    'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'cb_encoder': {'class': 'base', 'sub_class': 'CodeBookEncoder'},
     'cb_decoder': {'class': 'base', 'sub_class': 'CodeBookDecoder'},
-    'lab_embedder': {'class': 'base', 'sub_class': 'Generator'},
+    'var_encoder': {'class': 'base', 'sub_class': 'VarEncoder'},
+    'var_decoder': {'class': 'base', 'sub_class': 'VarDecoder'},
 }
 model_manager = ModelManager('vqvae', networks_dict, config)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
 cb_encoder = model_manager.get_network('cb_encoder')
 cb_decoder = model_manager.get_network('cb_decoder')
-lab_embedder = model_manager.get_network('lab_embedder')
+var_encoder = model_manager.get_network('var_encoder')
+var_decoder = model_manager.get_network('var_decoder')
 
 model_manager.print()
 
@@ -96,12 +98,6 @@ def get_inputs(trainiter, batch_size, device):
 images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
 
-def generator(z_gen, labels):
-    lat_labs = lab_embedder(torch.zeros((batch_size, z_dim), device=device), labels)
-    lat_gen, _ = cb_decoder(z_gen)
-    return lat_gen, lat_labs
-
-
 if config['training']['inception_every'] > 0:
     fid_real_samples = []
     for _ in range(10000 // batch_size):
@@ -128,9 +124,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             with model_manager.on_batch():
 
-                loss_cent_sum, loss_dec_sum = 0, 0
+                loss_cent_sum, loss_dec_sum, loss_var_sum = 0, 0, 0
 
-                with model_manager.on_step(['encoder', 'decoder', 'cb_encoder', 'cb_decoder', 'lab_embedder']):
+                with model_manager.on_step(['encoder', 'decoder', 'cb_encoder', 'cb_decoder', 'var_encoder', 'var_decoder']):
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -138,24 +134,31 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         re_images = rand_erase_images(images)
                         lat_enc, out_embs, _ = encoder(re_images)
 
-                        lat_codes = cb_encoder(lat_enc)
-                        lat_dec, loss_cent = cb_decoder(lat_codes)
+                        lat_enc_cb = cb_encoder(lat_enc)
+                        lat_dec_cb, loss_cent = cb_decoder(lat_enc_cb)
 
-                        lat_labs = lab_embedder(torch.zeros((batch_split_size, z_dim), device=device), labels)
-                        images_dec, _, images_dec_raw = decoder(lat_dec, inj_lat=lat_labs)
+                        lat_z_mu, lat_z_std = var_encoder(lat_dec_cb, labels)
+                        lat_z = sample_gaussian(lat_z_mu, lat_z_std)
+                        lat_dec = var_decoder(lat_z, labels)
 
-                        # loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
-                        loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
+                        images_dec, _, images_dec_raw = decoder(lat_dec)
+
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
+                        # loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
+
+                        loss_var = (1 / batch_mult) * gaussian_kl_loss(lat_z_mu, lat_z_std)
+                        loss_var.backward(retain_graph=True)
+                        loss_var_sum += loss_var.item()
 
                         loss_cent.backward()
                         loss_cent_sum += loss_cent.item()
 
                 # Streaming Images
                 with torch.no_grad():
-                    lat_gen, lat_labs = generator(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen, inj_lat=lat_labs)
+                    lat_gen = var_decoder(z_test, labels_test)
+                    images_gen, _, _ = decoder(lat_gen)
 
                 stream_images(images_gen, config_name, config['training']['out_dir'])
 
@@ -171,6 +174,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('losses', 'loss_cent', loss_cent_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_var', loss_var_sum, it=it)
 
                 it += 1
 
@@ -179,13 +183,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen, lat_labs = generator(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen, inj_lat=lat_labs)
+            lat_gen = var_decoder(z_test, labels_test)
+            images_gen, _, _ = decoder(lat_gen)
             lat_enc, out_embs, _ = encoder(images)
-            lat_codes = cb_encoder(lat_enc)
-            lat_dec, _ = cb_decoder(lat_codes)
-            lat_labs = lab_embedder(torch.zeros((batch_size, z_dim), device=device), labels)
-            images_dec, _, _ = decoder(lat_dec, inj_lat=lat_labs)
+            lat_enc_cb = cb_encoder(lat_enc)
+            lat_dec_cb, _ = cb_decoder(lat_enc_cb)
+            lat_z_mu, lat_z_std = var_encoder(lat_dec_cb, labels)
+            lat_z = sample_gaussian(lat_z_mu, lat_z_std)
+            lat_dec = var_decoder(lat_z, labels)
+            images_dec, _, _ = decoder(lat_dec)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
@@ -198,7 +204,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
             t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
+            inception_mean, inception_std, fid = compute_inception_score(var_decoder, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
                                                                          zdist, ydist, fid_real_samples, device)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
