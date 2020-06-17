@@ -171,8 +171,8 @@ class CodeBookDecoder(nn.Module):
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.codes_norm = nn.InstanceNorm3d(self.letter_channels)
-        self.codes_sobel = SinSobel(letter_channels * 4, 3, 1, 3)
-        self.codes_cond = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels, dim=3)
+        self.codes_sobel = SinSobel(letter_channels, 3, 1, 3)
+        self.codes_cond = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels, self.letter_channels, dim=3)
 
         self.codes_out = ResidualBlock(letter_channels, letter_channels, None, 3, 1, 1, nn.Conv1d)
 
