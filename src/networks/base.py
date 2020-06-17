@@ -105,6 +105,7 @@ class VarEncoder(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
+        yembed = F.normalize(yembed)
         z = self.lat_to_z(torch.cat([lat, yembed], dim=1))
         z_mu, z_log_var = torch.split(z, self.z_dim, dim=1)
 
