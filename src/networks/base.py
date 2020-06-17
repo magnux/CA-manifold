@@ -205,7 +205,7 @@ class CodeBookDecoder(nn.Module):
             pred_codes = codes
         pred_codes = self.pos_enc(pred_codes)
         pred_codes = self.codes_in(pred_codes)
-        pred_codes = pred_codes.reshape(batch_size, self.letter_channels * 4, 8, 8, 8)
+        pred_codes = pred_codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for _ in range(self.n_calls):
             # pred_codes = F.pad(pred_codes, [0, 1, 0, 1, 0, 1])
@@ -215,7 +215,7 @@ class CodeBookDecoder(nn.Module):
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
             # pred_codes = pred_codes[:, :, 1:, 1:, 1:]
 
-        pred_codes = pred_codes.reshape(batch_size, self.letter_channels * 4, self.lat_size)
+        pred_codes = pred_codes.reshape(batch_size, self.letter_channels, self.lat_size)
         pred_codes = self.codes_out(pred_codes)
 
         code_idx = torch.argmax(codes, dim=1)
