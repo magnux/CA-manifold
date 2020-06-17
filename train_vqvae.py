@@ -58,16 +58,16 @@ zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=de
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
-    'cb_encoder': {'class': 'base', 'sub_class': 'CodeBookEncoder'},
-    'cb_decoder': {'class': 'base', 'sub_class': 'CodeBookDecoder'},
+    # 'cb_encoder': {'class': 'base', 'sub_class': 'CodeBookEncoder'},
+    # 'cb_decoder': {'class': 'base', 'sub_class': 'CodeBookDecoder'},
     'var_encoder': {'class': 'base', 'sub_class': 'VarEncoder'},
     'var_decoder': {'class': 'base', 'sub_class': 'VarDecoder'},
 }
 model_manager = ModelManager('vqvae', networks_dict, config)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
-cb_encoder = model_manager.get_network('cb_encoder')
-cb_decoder = model_manager.get_network('cb_decoder')
+# cb_encoder = model_manager.get_network('cb_encoder')
+# cb_decoder = model_manager.get_network('cb_decoder')
 var_encoder = model_manager.get_network('var_encoder')
 var_decoder = model_manager.get_network('var_decoder')
 
@@ -126,7 +126,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_cent_sum, loss_dec_sum, loss_var_sum = 0, 0, 0
 
-                with model_manager.on_step(['encoder', 'decoder', 'cb_encoder', 'cb_decoder', 'var_encoder', 'var_decoder']):
+                with model_manager.on_step(['encoder', 'decoder', 'var_encoder', 'var_decoder']):  #'cb_encoder', 'cb_decoder',
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -134,17 +134,17 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         re_images = rand_erase_images(images)
                         lat_enc, out_embs, _ = encoder(re_images)
 
-                        lat_enc_cb = cb_encoder(lat_enc)
-                        lat_dec_cb, loss_cent = cb_decoder(lat_enc_cb)
+                        # lat_enc_cb = cb_encoder(lat_enc)
+                        # lat_dec_cb, loss_cent = cb_decoder(lat_enc_cb)
 
-                        lat_z_mu, lat_z_std = var_encoder(lat_dec_cb, labels)
+                        lat_z_mu, lat_z_std = var_encoder(lat_enc, labels)
                         lat_z = sample_gaussian(lat_z_mu, lat_z_std)
                         lat_dec = var_decoder(lat_z, labels)
 
                         images_dec, _, images_dec_raw = decoder(lat_dec)
 
-                        # loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
-                        loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
+                        # loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
@@ -152,8 +152,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_var.backward(retain_graph=True)
                         loss_var_sum += loss_var.item()
 
-                        loss_cent.backward()
-                        loss_cent_sum += loss_cent.item()
+                        # loss_cent.backward()
+                        # loss_cent_sum += loss_cent.item()
 
                 # Streaming Images
                 with torch.no_grad():
@@ -186,9 +186,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             lat_gen = var_decoder(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
             lat_enc, out_embs, _ = encoder(images)
-            lat_enc_cb = cb_encoder(lat_enc)
-            lat_dec_cb, _ = cb_decoder(lat_enc_cb)
-            lat_z_mu, lat_z_std = var_encoder(lat_dec_cb, labels)
+            # lat_enc_cb = cb_encoder(lat_enc)
+            # lat_dec_cb, _ = cb_decoder(lat_enc_cb)
+            lat_z_mu, lat_z_std = var_encoder(lat_enc, labels)
             lat_z = sample_gaussian(lat_z_mu, lat_z_std)
             lat_dec = var_decoder(lat_z, labels)
             images_dec, _, _ = decoder(lat_dec)
