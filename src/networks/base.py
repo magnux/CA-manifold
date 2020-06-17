@@ -6,6 +6,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.centroids import Centroids
 from src.layers.pos_encoding import PosEncoding
 from src.layers.sobel import SinSobel
+from src.layers.dynaresidualblock import DynaResidualBlock
 
 
 class Classifier(nn.Module):
@@ -159,7 +160,7 @@ class CodeBookEncoder(nn.Module):
 
 
 class CodeBookDecoder(nn.Module):
-    def __init__(self, lat_size, letter_channels=64, n_cents=1024, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=64, n_cents=1024, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.letter_channels = letter_channels
@@ -169,8 +170,9 @@ class CodeBookDecoder(nn.Module):
 
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.codes_norm = nn.InstanceNorm3d(self.letter_channels * 4)
+        self.codes_cond = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels * 4, dim=3)
         self.codes_conv = nn.Sequential(
-            nn.InstanceNorm3d(self.letter_channels * 4),
             SinSobel(letter_channels * 4, 3, 1, 3),
             ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, letter_channels * 16, 1, 1, 0, nn.Conv3d),
         )
@@ -186,8 +188,19 @@ class CodeBookDecoder(nn.Module):
             ResidualBlock(letter_channels, 1, None, 1, 1, 0, nn.Conv1d),
         )
 
-    def forward(self, codes):
+        self.register_buffer('embedding_mat', torch.eye(n_labels))
+        self.embedding_fc = nn.Linear(n_labels, embed_size)
+
+    def forward(self, codes, y):
         batch_size = codes.size(0)
+
+        if y.dtype is torch.int64:
+            yembed = self.embedding_mat[y]
+        else:
+            yembed = y
+
+        yembed = self.embedding_fc(yembed)
+        yembed = F.normalize(yembed)
 
         if self.training:
             perm_codes = codes[:, :, torch.randperm(self.lat_size)]
@@ -202,7 +215,9 @@ class CodeBookDecoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for _ in range(self.n_calls):
             # pred_codes = F.pad(pred_codes, [0, 1, 0, 1, 0, 1])
-            pred_codes_new = self.codes_conv(pred_codes)
+            pred_codes_new = self.codes_norm(pred_codes)
+            pred_codes_new = self.codes_cond(pred_codes_new, yembed)
+            pred_codes_new = self.codes_conv(pred_codes_new)
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
             # pred_codes = pred_codes[:, :, 1:, 1:, 1:]
 
