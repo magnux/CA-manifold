@@ -146,7 +146,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Streaming Images
                 with torch.no_grad():
-                    lat_gen = cb_decoder(z_test, labels_test)
+                    lat_gen, _ = cb_decoder(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
 
                 stream_images(images_gen, config_name, config['training']['out_dir'])
@@ -171,7 +171,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen = cb_decoder(z_test, labels_test)
+            lat_gen, _ = cb_decoder(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
             lat_enc, out_embs, _ = encoder(images)
             lat_enc_cb = cb_encoder(lat_enc)
@@ -182,7 +182,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
                 fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
-                lat_gen = cb_decoder(z_test, fixed_lab)
+                lat_gen, _ = cb_decoder(z_test, fixed_lab)
                 images_gen, _, _ = decoder(lat_gen)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
