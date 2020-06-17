@@ -197,10 +197,9 @@ class CodeBookDecoder(nn.Module):
         yembed = F.normalize(yembed)
 
         if self.training:
-            perm_codes = codes[:, :, torch.randperm(self.lat_size)]
-            rand_mask = torch.rand((batch_size, 1, self.lat_size), device=codes.device) > 0.5
-            rand_mask[:batch_size//2, ...] = 0
-            pred_codes = torch.where(rand_mask, perm_codes, codes)
+            rand_mask = torch.rand((batch_size, 1, self.lat_size), device=codes.device) > 0.9
+            # rand_mask[:batch_size//2, ...] = 0
+            pred_codes = torch.where(rand_mask, F.softmax(10. * torch.randn_like(codes).clamp_(-3, 3), dim=1), codes)
         else:
             pred_codes = codes
         pred_codes = self.pos_enc(pred_codes)
@@ -223,6 +222,8 @@ class CodeBookDecoder(nn.Module):
         pred_codes_idx = pred_codes.permute(0, 2, 1).reshape(batch_size * self.lat_size, self.letter_channels)
         loss_cent = F.cross_entropy(pred_codes_idx, code_idx)
 
+        if self.training:
+            pred_codes = codes
         # pred_codes, loss_cent = self.centroids(pred_codes)
         lat = self.codes_to_lat(F.softmax(pred_codes, dim=1))
         lat = lat.squeeze(dim=1)
