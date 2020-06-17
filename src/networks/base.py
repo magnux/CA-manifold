@@ -166,21 +166,15 @@ class CodeBookDecoder(nn.Module):
         self.letter_channels = letter_channels
 
         self.pos_enc = PosEncoding(self.lat_size)
-        self.codes_in = ResidualBlock(letter_channels + self.pos_enc.size(), letter_channels * 4, None, 1, 1, 0, nn.Conv1d)
+        self.codes_in = ResidualBlock(letter_channels + self.pos_enc.size(), letter_channels, None, 3, 1, 1, nn.Conv1d)
 
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        self.codes_norm = nn.InstanceNorm3d(self.letter_channels * 4)
-        self.codes_cond = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels * 4, dim=3)
-        self.codes_conv = nn.Sequential(
-            SinSobel(letter_channels * 4, 3, 1, 3),
-            ResidualBlock(letter_channels * 4 * 4, letter_channels * 4, letter_channels * 16, 1, 1, 0, nn.Conv3d),
-        )
+        self.codes_norm = nn.InstanceNorm3d(self.letter_channels)
+        self.codes_sobel = SinSobel(letter_channels * 4, 3, 1, 3)
+        self.codes_cond = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels, dim=3)
 
-        self.codes_out = nn.Sequential(
-            ResidualBlock(letter_channels * 4, letter_channels * 2, None, 1, 1, 0, nn.Conv1d),
-            ResidualBlock(letter_channels * 2, letter_channels, None, 1, 1, 0, nn.Conv1d),
-        )
+        self.codes_out = ResidualBlock(letter_channels, letter_channels, None, 3, 1, 1, nn.Conv1d)
 
         # self.centroids = Centroids(letter_channels, n_cents)
         self.codes_to_lat = nn.Sequential(
@@ -216,8 +210,8 @@ class CodeBookDecoder(nn.Module):
         for _ in range(self.n_calls):
             # pred_codes = F.pad(pred_codes, [0, 1, 0, 1, 0, 1])
             pred_codes_new = self.codes_norm(pred_codes)
-            pred_codes_new = self.codes_cond(pred_codes_new, yembed)
-            pred_codes_new = self.codes_conv(pred_codes_new)
+            pred_codes_new = self.codes_sobel(pred_codes_new)
+            pred_codes_new = self.codes_conv(pred_codes_new, yembed)
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
             # pred_codes = pred_codes[:, :, 1:, 1:, 1:]
 
