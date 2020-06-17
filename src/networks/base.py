@@ -224,7 +224,7 @@ class CodeBookDecoder(nn.Module):
         loss_cent = F.cross_entropy(pred_codes_idx, code_idx)
 
         # pred_codes, loss_cent = self.centroids(pred_codes)
-        lat = self.codes_to_lat(pred_codes)
+        lat = self.codes_to_lat(F.softmax(pred_codes, dim=1))
         lat = lat.squeeze(dim=1)
 
         return lat, loss_cent
