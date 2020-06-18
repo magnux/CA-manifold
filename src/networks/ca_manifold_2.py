@@ -60,10 +60,10 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
 
         out_embs = [out]
+        if self.ext_canvas:
+            out = F.pad(out, [0, 2, 0, 2])
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
-            if self.ext_canvas:
-                out = F.pad(out, [0, 2, 0, 2])
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
@@ -78,9 +78,10 @@ class Decoder(nn.Module):
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device))
             out = out + (leak_factor * out_new)
-            if self.ext_canvas:
-                out = out[:, :, 2:, 2:]
             out_embs.append(out)
+
+        if self.ext_canvas:
+            out = out[:, :, 2:, 2:]
 
         out = self.conv_img(out)
         out_raw = out
