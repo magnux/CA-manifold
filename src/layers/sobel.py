@@ -53,7 +53,7 @@ def get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided=False):
     sin_space = np.linspace(-np.pi / 2, np.pi / 2, kernel_size)
     sin_sobel = np.sin(sin_space) * 2
     if left_sided:
-        sin_sobel[int(np.ceil(kernel_size / 2)):] = 0
+        sin_sobel[int(kernel_size / 2):] = 0
     sin_sobel = torch.tensor(sin_sobel, dtype=torch.float32).view(*([1, 1, kernel_size] + [1 for _ in range(dim - 1)]))
     if dim > 1:
         cos_space = np.linspace(-np.pi / 3, np.pi / 3, kernel_size)

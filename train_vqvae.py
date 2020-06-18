@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import discretized_mix_logistic_loss
+from src.utils.loss_utils import discretized_mix_logistic_loss, sample_gaussian, gaussian_kl_loss
 from src.utils.model_utils import compute_inception_score
 from src.utils.media_utils import rand_erase_images
 from src.model_manager import ModelManager
@@ -51,7 +51,7 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
 
 # Distributions
 ydist = get_ydist(config['data']['n_labels'], device=device)
-zdist = get_zdist(config['z_dist']['type'], (64, config['network']['kwargs']['lat_size']), device=device)
+zdist = get_zdist(config['z_dist']['type'], (16, config['network']['kwargs']['lat_size']), device=device)
 
 
 # Networks
@@ -103,6 +103,10 @@ if config['training']['inception_every'] > 0:
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
 
+def generator(z, labels):
+    return cb_decoder(z, labels)[0]
+
+
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
@@ -123,7 +127,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_cent_sum, loss_dec_sum = 0, 0
 
-                with model_manager.on_step(['encoder', 'decoder', 'cb_encoder', 'cb_decoder', 'var_encoder', 'var_decoder']):
+                with model_manager.on_step(['encoder', 'decoder', 'cb_encoder', 'cb_decoder']):
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -132,6 +136,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc, out_embs, _ = encoder(re_images)
 
                         lat_enc_cb = cb_encoder(lat_enc)
+                        rand_mask = torch.rand((batch_split_size, 1, lat_enc_cb.size(2)), device=device) > 0.5
+                        pred_codes = torch.where(rand_mask, F.softmax(10. * torch.randn_like(lat_enc_cb).clamp_(-3, 3), dim=1), lat_enc_cb)
                         lat_dec, loss_cent = cb_decoder(lat_enc_cb, labels)
 
                         images_dec, _, images_dec_raw = decoder(lat_dec)
@@ -141,6 +147,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
+                        loss_cent = (1 / batch_mult) * loss_cent
                         loss_cent.backward()
                         loss_cent_sum += loss_cent.item()
 
@@ -189,7 +196,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
             t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(cb_decoder, decoder,
+            inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
                                                                          zdist, ydist, fid_real_samples, device)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
