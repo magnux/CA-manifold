@@ -163,11 +163,12 @@ class CodeBookDecoder(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.letter_channels = letter_channels
+        self.n_labels = n_labels
 
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.codes_norm = nn.InstanceNorm3d(self.letter_channels)
-        self.codes_sobel = SinSobel(letter_channels, 5, 2, 3, left_sided=True)
+        self.codes_sobel = SinSobel(self.letter_channels, 5, 2, 3)
         self.codes_conv = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels, dim=3)
 
         # self.centroids = Centroids(letter_channels, n_cents)
@@ -178,6 +179,7 @@ class CodeBookDecoder(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
+        self.labs = nn.Linear(self.lat_size, n_labels)
 
     def forward(self, codes, y):
         batch_size = codes.size(0)
@@ -192,27 +194,83 @@ class CodeBookDecoder(nn.Module):
 
         pred_codes = codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
 
-        pred_codes = F.pad(pred_codes, [0, 2, 0, 2, 0, 2])
+        # pred_codes = F.pad(pred_codes, [0, 2, 0, 2, 0, 2])
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for _ in range(self.n_calls):
             pred_codes_new = self.codes_norm(pred_codes)
             pred_codes_new = self.codes_sobel(pred_codes_new)
             pred_codes_new = self.codes_conv(pred_codes_new, yembed)
+            # pred_codes_new, pred_codes_new_gate = torch.split(pred_codes_new, self.letter_channels, dim=1)
+            # pred_codes_new = torch.sigmoid(pred_codes_new_gate) * pred_codes_new
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
 
-        pred_codes = pred_codes[:, :, 2:, 2:, 2:]
+        # pred_codes = pred_codes[:, :, 2:, 2:, 2:]
         pred_codes = pred_codes.reshape(batch_size, self.letter_channels, self.lat_size)
 
-        code_idx = torch.argmax(codes, dim=1)
-        code_idx = code_idx.reshape(batch_size * self.lat_size)
-        pred_codes_idx = pred_codes.permute(0, 2, 1).reshape(batch_size * self.lat_size, self.letter_channels)
-        loss_cent = F.cross_entropy(pred_codes_idx, code_idx)
+        # code_idx = torch.argmax(codes, dim=1)
+        # code_idx = code_idx.reshape(batch_size * self.lat_size)
+        # pred_codes_idx = pred_codes.permute(0, 2, 1).reshape(batch_size * self.lat_size, self.letter_channels)
+        # loss_cent = F.cross_entropy(pred_codes_idx, code_idx)
 
         # pred_codes, loss_cent = self.centroids(pred_codes)
         lat = self.codes_to_lat(F.softmax(pred_codes, dim=1))
         lat = lat.squeeze(dim=1)
 
+        pred_labs = self.labs(lat)
+        loss_cent = F.cross_entropy(pred_labs, y)
+
         return lat, loss_cent
+
+
+class LetterGenerator(nn.Module):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=4, letter_bits=16, n_cents=1024, **kwargs):
+        super().__init__()
+        self.lat_size = lat_size
+        self.letter_channels = letter_channels
+        self.letter_bits = letter_bits
+        self.letter_size = letter_channels * letter_bits
+        self.n_labels = n_labels
+
+        self.register_buffer('embedding_mat', torch.eye(n_labels))
+        self.embedding_fc = nn.Linear(n_labels, embed_size)
+
+        self.n_calls = 8
+        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.letter_norm = nn.InstanceNorm3d(self.letter_size)
+        self.letter_sobel = SinSobel(self.letter_size, 5, 2, 3)
+        self.letter_conv = DynaResidualBlock(embed_size, self.letter_size * 4, self.letter_size, self.letter_size, dim=3)
+
+    def forward(self, letters, y):
+        batch_size = letters.size(0)
+
+        if y.dtype is torch.int64:
+            yembed = self.embedding_mat[y]
+        else:
+            yembed = y
+
+        yembed = self.embedding_fc(yembed)
+        yembed = F.normalize(yembed)
+
+        lat_size_cr = int(round(self.lat_size ** (1/3)))
+        lat_pad = int(lat_size_cr ** 3) - self.lat_size
+        pred_letters = letters.reshape(batch_size, self.letter_size, self.lat_size)
+        if lat_pad > 0:
+            pred_letters = F.pad(pred_letters, [0, lat_pad])
+        pred_letters = pred_letters.reshape(batch_size, self.letter_size, lat_size_cr, lat_size_cr, lat_size_cr)
+
+        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        for _ in range(self.n_calls):
+            pred_letters_new = self.letter_norm(pred_letters)
+            pred_letters_new = self.letter_sobel(pred_letters_new)
+            pred_letters_new = self.letter_conv(pred_letters_new, yembed)
+            pred_letters = pred_letters + (leak_factor * pred_letters_new)
+
+        pred_letters = pred_letters.reshape(batch_size, self.letter_size, self.lat_size + lat_pad)
+        if lat_pad > 0:
+            pred_letters = pred_letters[:, :, :self.lat_size]
+        pred_letters = pred_letters.reshape(batch_size, self.letter_channels, self.letter_bits * self.lat_size)
+
+        return pred_letters
 
 
 class LetterEncoder(nn.Module):

@@ -42,6 +42,7 @@ z_dim = config['z_dist']['z_dim']
 # config['network']['kwargs']['ext_canvas'] = True
 # config['network']['kwargs']['multi_cut'] = False
 # config['network']['kwargs']['left_sided'] = True
+config['z_dist']['type'] = 'uniform'
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -86,8 +87,8 @@ def get_inputs(trainiter, batch_size, device):
         images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
     images = images.detach().requires_grad_()
-    z_gen = zdist.sample((images.size(0),)).clamp_(-3, 3)
-    z_gen = F.softmax(10. * z_gen, dim=1)
+    z_gen = zdist.sample((images.size(0),))
+    z_gen = F.softmax(100. * z_gen, dim=1)
     z_gen.detach_().requires_grad_()
     return images, labels, z_gen, trainiter
 
@@ -137,7 +138,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_enc_cb = cb_encoder(lat_enc)
                         rand_mask = torch.rand((batch_split_size, 1, lat_enc_cb.size(2)), device=device) > 0.5
-                        pred_codes = torch.where(rand_mask, F.softmax(10. * torch.randn_like(lat_enc_cb).clamp_(-3, 3), dim=1), lat_enc_cb)
+                        pred_codes = torch.where(rand_mask, F.softmax(100. * torch.rand_like(lat_enc_cb), dim=1), lat_enc_cb)
                         lat_dec, loss_cent = cb_decoder(lat_enc_cb, labels)
 
                         images_dec, _, images_dec_raw = decoder(lat_dec)
@@ -147,7 +148,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
-                        loss_cent = (1 / batch_mult) * 1e-3 * loss_cent
+                        loss_cent = (1 / batch_mult) * loss_cent
                         loss_cent.backward()
                         loss_cent_sum += loss_cent.item()
 
@@ -156,7 +157,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     lat_gen, _ = cb_decoder(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
 
-                stream_images(images_gen, config_name, config['training']['out_dir'])
+                stream_images(images_gen, config_name + '/vqvae', config['training']['out_dir'])
 
                 # Print progress
                 running_loss_cent[batch % window_size] = loss_cent_sum
