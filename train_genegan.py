@@ -206,7 +206,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     lat_gen = generator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
 
-                stream_images(images_gen, config_name + '/genegan', config['training']['out_dir'])
+                stream_images(images_gen, config_name + '/genegan', config['training']['out_dir'] + '/genegan')
 
                 # Print progress
                 running_loss_dis[batch % window_size] = loss_dis_enc_sum + loss_dis_dec_sum

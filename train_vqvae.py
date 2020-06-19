@@ -157,7 +157,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     lat_gen, _ = cb_decoder(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
 
-                stream_images(images_gen, config_name + '/vqvae', config['training']['out_dir'])
+                stream_images(images_gen, config_name + '/vqvae', config['training']['out_dir'] + '/vqvae')
 
                 # Print progress
                 running_loss_cent[batch % window_size] = loss_cent_sum
