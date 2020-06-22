@@ -128,9 +128,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             lat_labs = generator(torch.zeros_like(z_gen), labels)
                             lat_enc, _, _ = encoder(images, lat_labs)
-                            # lat_enc = (lat_enc + 1. / 128 * torch.randn_like(lat_enc))
-                            # images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
-                            # images = rand_erase_images(images)
+                            lat_enc = (lat_enc + 1. / 128 * torch.randn_like(lat_enc))
+                            images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
+                            images = rand_erase_images(images)
 
                         images.requires_grad_()
                         lat_enc.requires_grad_()
@@ -139,9 +139,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         loss_dis_enc = (1/batch_mult) * compute_gan_loss(labs_enc, 1)
 
-                        # reg_dis_enc = (1/batch_mult) * reg_param * compute_grad2(labs_enc, images).mean()
-                        # reg_dis_enc.backward(retain_graph=True)
-                        # reg_dis_enc_sum += reg_dis_enc.item()
+                        reg_dis_enc = (1/batch_mult) * reg_param * compute_grad2(labs_enc, images).mean()
+                        reg_dis_enc.backward(retain_graph=True)
+                        reg_dis_enc_sum += reg_dis_enc.item()
 
                         reg_dis_enc = (1 / batch_mult) * reg_param * compute_grad2(labs_enc, lat_enc).mean()
                         reg_dis_enc.backward(retain_graph=True)
@@ -155,9 +155,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
-                            # lat_gen = (lat_gen + 1. / 128 * torch.randn_like(lat_gen))
-                            # images_dec = (images_dec + 1. / 128 * torch.randn_like(images_dec)).clamp_(-1.0, 1.0)
-                            # images_dec = rand_erase_images(images_dec)
+                            lat_gen = (lat_gen + 1. / 128 * torch.randn_like(lat_gen))
+                            images_dec = (images_dec + 1. / 128 * torch.randn_like(images_dec)).clamp_(-1.0, 1.0)
+                            images_dec = rand_erase_images(images_dec)
 
                         lat_gen.requires_grad_()
                         images_dec.requires_grad_()
@@ -166,9 +166,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         loss_dis_dec = (1/batch_mult) * compute_gan_loss(labs_dec, 0)
 
-                        # reg_dis_dec = (1 / batch_mult) * reg_param * compute_grad2(labs_dec, images_dec).mean()
-                        # reg_dis_dec.backward(retain_graph=True)
-                        # reg_dis_dec_sum += reg_dis_dec.item()
+                        reg_dis_dec = (1 / batch_mult) * reg_param * compute_grad2(labs_dec, images_dec).mean()
+                        reg_dis_dec.backward(retain_graph=True)
+                        reg_dis_dec_sum += reg_dis_dec.item()
 
                         reg_dis_dec = (1 / batch_mult) * reg_param * compute_grad2(labs_dec, lat_gen).mean()
                         reg_dis_dec.backward(retain_graph=True)
