@@ -143,7 +143,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         reg_dis_enc.backward(retain_graph=True)
                         reg_dis_enc_sum += reg_dis_enc.item()
 
-                        reg_dis_enc = (1 / batch_mult) * reg_param * compute_grad2(labs_enc, lat_enc).mean()
+                        reg_dis_enc = (1 / batch_mult) * 1e2 * reg_param * compute_grad2(labs_enc, lat_enc).mean()
                         reg_dis_enc.backward(retain_graph=True)
                         reg_dis_enc_sum += reg_dis_enc.item()
 
@@ -170,7 +170,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         reg_dis_dec.backward(retain_graph=True)
                         reg_dis_dec_sum += reg_dis_dec.item()
 
-                        reg_dis_dec = (1 / batch_mult) * reg_param * compute_grad2(labs_dec, lat_gen).mean()
+                        reg_dis_dec = (1 / batch_mult) * 1e2 * reg_param * compute_grad2(labs_dec, lat_gen).mean()
                         reg_dis_dec.backward(retain_graph=True)
                         reg_dis_dec_sum += reg_dis_dec.item()
                         

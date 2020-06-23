@@ -159,11 +159,12 @@ class CodeBookEncoder(nn.Module):
 
 
 class CodeBookDecoder(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=16, n_cents=1024, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=16, n_cents=4, n_mix=16, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.letter_channels = letter_channels
         self.n_labels = n_labels
+        self.n_mix = n_mix
 
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
@@ -171,7 +172,7 @@ class CodeBookDecoder(nn.Module):
         self.codes_sobel = SinSobel(self.letter_channels, 5, 2, 3)
         self.codes_conv = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels, dim=3)
 
-        # self.centroids = Centroids(letter_channels, n_cents)
+        self.centroids = nn.ModuleList([Centroids(letter_channels * lat_size, n_cents) for _ in range(self.n_mix)])
         self.codes_to_lat = nn.Sequential(
             ResidualBlock(letter_channels, letter_channels, None, 1, 1, 0, nn.Conv1d),
             ResidualBlock(letter_channels, 1, None, 1, 1, 0, nn.Conv1d),
@@ -179,7 +180,6 @@ class CodeBookDecoder(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        self.labs = nn.Linear(self.lat_size, n_labels)
 
     def forward(self, codes, y):
         batch_size = codes.size(0)
@@ -194,12 +194,17 @@ class CodeBookDecoder(nn.Module):
 
         pred_codes = codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
 
+        loss_cent = 0.
         # pred_codes = F.pad(pred_codes, [0, 2, 0, 2, 0, 2])
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
-        for _ in range(self.n_calls):
+        for m in range(self.n_calls):
             pred_codes_new = self.codes_norm(pred_codes)
             pred_codes_new = self.codes_sobel(pred_codes_new)
             pred_codes_new = self.codes_conv(pred_codes_new, yembed)
+            pred_codes_new = pred_codes.reshape((batch_size, self.letter_channels * self.lat_size))
+            pred_codes_new, loss_cent_new = self.centroids[m](pred_codes_new)
+            pred_codes_new = pred_codes_new.reshape((batch_size, self.letter_channels, 8, 8, 8))
+            loss_cent = loss_cent + loss_cent_new
             # pred_codes_new, pred_codes_new_gate = torch.split(pred_codes_new, self.letter_channels, dim=1)
             # pred_codes_new = torch.sigmoid(pred_codes_new_gate) * pred_codes_new
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
@@ -212,12 +217,9 @@ class CodeBookDecoder(nn.Module):
         # pred_codes_idx = pred_codes.permute(0, 2, 1).reshape(batch_size * self.lat_size, self.letter_channels)
         # loss_cent = F.cross_entropy(pred_codes_idx, code_idx)
 
-        # pred_codes, loss_cent = self.centroids(pred_codes)
-        lat = self.codes_to_lat(F.softmax(pred_codes, dim=1))
+        pred_codes = F.softmax(pred_codes, dim=1)
+        lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
-
-        pred_labs = self.labs(lat)
-        loss_cent = F.cross_entropy(pred_labs, y)
 
         return lat, loss_cent
 
