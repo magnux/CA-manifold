@@ -40,5 +40,5 @@ training:
   monitoring: tensorboard
   sample_every: 1
   sample_labels: 10
-  reg_param: 10.
+  reg_param: 1.
   inception_every: 0
