@@ -138,8 +138,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc, out_embs, _ = encoder(re_images)
 
                         lat_enc_cb = cb_encoder(lat_enc)
-                        rand_mask = torch.rand((batch_split_size, 1, lat_enc_cb.size(2)), device=device) > 0.5
-                        pred_codes = torch.where(rand_mask, F.softmax(100. * torch.rand_like(lat_enc_cb), dim=1), lat_enc_cb)
                         lat_dec, loss_cent = cb_decoder(lat_enc_cb, labels)
 
                         images_dec, _, images_dec_raw = decoder(lat_dec)
@@ -149,7 +147,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
-                        loss_cent = (1 / batch_mult) * loss_cent
+                        loss_cent = (1 / batch_mult) * 1e-2 * loss_cent
                         loss_cent.backward()
                         loss_cent_sum += loss_cent.item()
 

@@ -191,7 +191,10 @@ class CodeBookDecoder(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
 
-        pred_codes = codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
+        if self.training:
+            rand_mask = torch.rand((batch_size, 1, codes.size(2)), device=codes.device) > 0.5
+            pred_codes = torch.where(rand_mask, F.softmax(100. * torch.rand_like(codes), dim=1), codes)
+        pred_codes = pred_codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
 
         # loss_cent = 0.
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
