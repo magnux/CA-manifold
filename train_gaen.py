@@ -206,7 +206,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
-                            reg_gen_dec, pl_mean = compute_pl_reg(images_dec, [z_gen, labels.requires_grad_()], pl_mean)
+                            reg_gen_dec, pl_mean = compute_pl_reg(images_dec, lat_gen, pl_mean)
                             reg_gen_dec = (1 / batch_mult) * reg_gen_dec
                             reg_gen_dec.backward(retain_graph=True)
                             reg_gen_dec_sum += reg_dis_dec.item()
