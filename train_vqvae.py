@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import discretized_mix_logistic_loss, sample_gaussian, gaussian_kl_loss
+from src.utils.loss_utils import discretized_mix_logistic_loss, sample_gaussian, gaussian_kl_loss, compute_gan_loss
 from src.utils.model_utils import compute_inception_score
 from src.utils.media_utils import rand_erase_images
 from src.model_manager import ModelManager
@@ -31,7 +31,6 @@ image_size = config['data']['image_size']
 channels = config['data']['channels']
 n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
-reg_param = config['training']['reg_param']
 batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
@@ -148,9 +147,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
-                        loss_cent = (1 / batch_mult) * loss_cent
-                        loss_cent.backward()
-                        loss_cent_sum += loss_cent.item()
+                        # loss_cent = (1 / batch_mult) * loss_cent
+                        # loss_cent.backward()
+                        # loss_cent_sum += loss_cent.item()
 
                 # Streaming Images
                 with torch.no_grad():

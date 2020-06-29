@@ -21,7 +21,7 @@ def compute_gan_loss(d_out, target, gan_type='standard'):
     return loss
 
 
-def compute_grad2(d_out, x_in):
+def compute_grad_reg(d_out, x_in):
     batch_size = x_in.size(0)
     grad_dout = torch.autograd.grad(outputs=d_out.sum(), inputs=x_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
@@ -29,6 +29,24 @@ def compute_grad2(d_out, x_in):
     assert(grad_dout2.size() == x_in.size())
     reg = grad_dout2.view(batch_size, -1).sum(1)
     return reg
+
+
+def compute_pl_reg(g_out, z_in, pl_mean, beta=0.99):
+    space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
+    pl_noise = torch.randn_like(g_out) / space_sqrt
+    outputs = (g_out * pl_noise).sum()
+
+    pl_grads = torch.autograd.grad(outputs=outputs, inputs=z_in,
+                                   grad_outputs=torch.ones(outputs.shape).cuda(),
+                                   create_graph=True, retain_graph=True, only_inputs=True)[0]
+
+    pl_lengths = (pl_grads ** 2).sum(dim=2).mean(dim=1).sqrt()
+    pl_reg = ((pl_lengths - pl_mean) ** 2).mean()
+
+    avg_pl_length = np.mean(pl_lengths.detach().cpu().numpy())
+    new_pl_mean = pl_mean * beta + (1 - beta) * avg_pl_length
+
+    return pl_reg, new_pl_mean
 
 
 def gram_matrix_1d(x):

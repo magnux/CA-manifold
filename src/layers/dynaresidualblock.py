@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, padding=0):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, padding=0, norm_weights=True):
         super(DynaResidualBlock, self).__init__()
         # Attributes
         self.lat_size = lat_size
@@ -45,6 +45,7 @@ class DynaResidualBlock(nn.Module):
         self.b_in, self.b_mid, self.b_out, self.b_short = None, None, None, None
         self.kernel_size = [kernel_size for _ in range(self.dim)]
         self.padding = padding
+        self.norm_weights = norm_weights
 
     def forward(self, x, lat):
         batch_size = x.size(0)
@@ -55,10 +56,22 @@ class DynaResidualBlock(nn.Module):
                                                                                         self.k_out_size, self.k_short_size,
                                                                                         self.b_in_size, self.b_mid_size,
                                                                                         self.b_out_size, self.b_short_size], dim=1)
-            self.k_in = k_in.view([batch_size, self.fhidden, self.fin] + self.kernel_size).reshape([batch_size * self.fhidden, self.fin] + self.kernel_size)
-            self.k_mid = k_mid.view([batch_size, self.fhidden, self.fhidden] + self.kernel_size).reshape([batch_size * self.fhidden, self.fhidden] + self.kernel_size)
-            self.k_out = k_out.view([batch_size, self.fout, self.fhidden] + self.kernel_size).reshape([batch_size * self.fout, self.fhidden] + self.kernel_size)
-            self.k_short = k_short.view([batch_size, self.fout, self.fin] + self.kernel_size).reshape([batch_size * self.fout, self.fin] + self.kernel_size)
+            self.k_in = k_in.view([batch_size, self.fhidden, self.fin] + self.kernel_size)
+            self.k_mid = k_mid.view([batch_size, self.fhidden, self.fhidden] + self.kernel_size)
+            self.k_out = k_out.view([batch_size, self.fout, self.fhidden] + self.kernel_size)
+            self.k_short = k_short.view([batch_size, self.fout, self.fin] + self.kernel_size)
+
+            if self.norm_weights:
+                self.k_in = self.k_in / torch.sqrt(self.k_in.norm(dim=1, keepdim=True) + 1.)
+                self.k_mid = self.k_mid / torch.sqrt(self.k_mid.norm(dim=1, keepdim=True) + 1.)
+                self.k_out = self.k_out / torch.sqrt(self.k_out.norm(dim=1, keepdim=True) + 1.)
+                self.k_short = self.k_short / torch.sqrt(self.k_short.norm(dim=1, keepdim=True) + 1.)
+
+            self.k_in = self.k_in.reshape([batch_size * self.fhidden, self.fin] + self.kernel_size)
+            self.k_mid = self.k_mid.reshape([batch_size * self.fhidden, self.fhidden] + self.kernel_size)
+            self.k_out = self.k_out.reshape([batch_size * self.fout, self.fhidden] + self.kernel_size)
+            self.k_short = self.k_short.reshape([batch_size * self.fout, self.fin] + self.kernel_size)
+
             self.b_in = b_in.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
             self.b_mid = b_mid.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
             self.b_out = b_out.view([batch_size, self.fout]).reshape([1, batch_size * self.fout] + [1 for _ in range(self.dim)])

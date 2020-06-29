@@ -159,12 +159,11 @@ class CodeBookEncoder(nn.Module):
 
 
 class CodeBookDecoder(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=16, n_cents=4, n_mix=16, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=16, n_cents=4, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.letter_channels = letter_channels
         self.n_labels = n_labels
-        self.n_mix = n_mix
 
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
@@ -172,7 +171,7 @@ class CodeBookDecoder(nn.Module):
         self.codes_sobel = SinSobel(self.letter_channels, 5, 2, 3)
         self.codes_conv = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels, dim=3)
 
-        self.centroids = nn.ModuleList([Centroids(letter_channels * lat_size, n_cents) for _ in range(self.n_mix)])
+        # self.centroids = nn.ModuleList([Centroids(letter_channels * lat_size, n_cents) for _ in range(self.n_calls)])
         self.codes_to_lat = nn.Sequential(
             ResidualBlock(letter_channels, letter_channels, None, 1, 1, 0, nn.Conv1d),
             ResidualBlock(letter_channels, 1, None, 1, 1, 0, nn.Conv1d),
@@ -201,10 +200,12 @@ class CodeBookDecoder(nn.Module):
             pred_codes_new = self.codes_norm(pred_codes)
             pred_codes_new = self.codes_sobel(pred_codes_new)
             pred_codes_new = self.codes_conv(pred_codes_new, yembed)
-            pred_codes_new = pred_codes.reshape((batch_size, self.letter_channels * self.lat_size))
-            pred_codes_new, loss_cent_new = self.centroids[m](pred_codes_new)
-            pred_codes_new = pred_codes_new.reshape((batch_size, self.letter_channels, 8, 8, 8))
-            loss_cent = loss_cent + loss_cent_new
+
+            # pred_codes_new = pred_codes_new.reshape((batch_size, self.letter_channels * self.lat_size))
+            # pred_codes_new, loss_cent_new = self.centroids[m](pred_codes_new)
+            # pred_codes_new = pred_codes_new.reshape((batch_size, self.letter_channels, 8, 8, 8))
+            # loss_cent = loss_cent + loss_cent_new
+
             # pred_codes_new, pred_codes_new_gate = torch.split(pred_codes_new, self.letter_channels, dim=1)
             # pred_codes_new = torch.sigmoid(pred_codes_new_gate) * pred_codes_new
             pred_codes = pred_codes + (leak_factor * pred_codes_new)

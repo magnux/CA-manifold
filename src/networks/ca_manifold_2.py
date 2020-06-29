@@ -34,7 +34,7 @@ class Decoder(nn.Module):
         self.ext_canvas = ext_canvas
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=left_sided)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        # self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 3, self.n_filter, self.n_filter)
 
         if self.skip_fire:
@@ -68,7 +68,7 @@ class Decoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            out_new = self.frac_norm(out_new)
+            # out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(torch.float32)
