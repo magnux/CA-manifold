@@ -191,6 +191,7 @@ class CodeBookDecoder(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
 
+        pred_codes = codes
         if self.training:
             rand_mask = torch.rand((batch_size, 1, codes.size(2)), device=codes.device) > 0.5
             pred_codes = torch.where(rand_mask, F.softmax(100. * torch.rand_like(codes), dim=1), codes)
