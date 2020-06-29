@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, padding=0, norm_weights=True):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, padding=0, norm_weights=False):
         super(DynaResidualBlock, self).__init__()
         # Attributes
         self.lat_size = lat_size
