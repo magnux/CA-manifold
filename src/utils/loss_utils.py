@@ -31,16 +31,16 @@ def compute_grad_reg(d_out, x_in):
     return reg
 
 
-def compute_pl_reg(g_out, z_in, pl_mean, beta=0.99):
+def compute_pl_reg(g_out, lat_in, pl_mean, beta=0.99):
     space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
     pl_noise = torch.randn_like(g_out) / space_sqrt
     outputs = (g_out * pl_noise).sum()
 
-    pl_grads = torch.autograd.grad(outputs=outputs, inputs=z_in,
-                                   grad_outputs=torch.ones(outputs.shape).cuda(),
+    pl_grads = torch.autograd.grad(outputs=outputs, inputs=lat_in,
+                                   grad_outputs=torch.ones_like(outputs),
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
 
-    pl_lengths = (pl_grads ** 2).sum(dim=2).mean(dim=1).sqrt()
+    pl_lengths = (pl_grads ** 2).mean(dim=1).sqrt()
     pl_reg = ((pl_lengths - pl_mean) ** 2).mean()
 
     avg_pl_length = np.mean(pl_lengths.detach().cpu().numpy())
