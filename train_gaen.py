@@ -119,9 +119,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             with model_manager.on_batch():
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
-                reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
-                reg_gen_dec_sum = 0
+
+                reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
+                reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
+                reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
@@ -235,12 +237,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
 
-                model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
-                model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
-
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
+                model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_gen_dec', reg_gen_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'pl_mean', pl_mean, it=it)
 
