@@ -168,7 +168,7 @@ class CodeBookDecoder(nn.Module):
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.codes_norm = nn.InstanceNorm3d(self.letter_channels)
-        self.codes_sobel = SinSobel(self.letter_channels, 5, 2, 3)
+        self.codes_sobel = SinSobel(self.letter_channels, 5, 2, 3, True)
         self.codes_conv = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels, dim=3)
 
         # self.centroids = nn.ModuleList([Centroids(letter_channels * lat_size, n_cents) for _ in range(self.n_calls)])
@@ -193,10 +193,11 @@ class CodeBookDecoder(nn.Module):
 
         pred_codes = codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
 
-        loss_cent = 0.
-        # pred_codes = F.pad(pred_codes, [0, 2, 0, 2, 0, 2])
+        # loss_cent = 0.
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for m in range(self.n_calls):
+            pred_codes = F.pad(pred_codes, [0, 2, 0, 2, 0, 2])
+
             pred_codes_new = self.codes_norm(pred_codes)
             pred_codes_new = self.codes_sobel(pred_codes_new)
             pred_codes_new = self.codes_conv(pred_codes_new, yembed)
@@ -209,14 +210,14 @@ class CodeBookDecoder(nn.Module):
             # pred_codes_new, pred_codes_new_gate = torch.split(pred_codes_new, self.letter_channels, dim=1)
             # pred_codes_new = torch.sigmoid(pred_codes_new_gate) * pred_codes_new
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
+            pred_codes = pred_codes[:, :, 2:, 2:, 2:]
 
-        # pred_codes = pred_codes[:, :, 2:, 2:, 2:]
         pred_codes = pred_codes.reshape(batch_size, self.letter_channels, self.lat_size)
 
-        # code_idx = torch.argmax(codes, dim=1)
-        # code_idx = code_idx.reshape(batch_size * self.lat_size)
-        # pred_codes_idx = pred_codes.permute(0, 2, 1).reshape(batch_size * self.lat_size, self.letter_channels)
-        # loss_cent = F.cross_entropy(pred_codes_idx, code_idx)
+        code_idx = torch.argmax(codes, dim=1)
+        code_idx = code_idx.reshape(batch_size * self.lat_size)
+        pred_codes_idx = pred_codes.permute(0, 2, 1).reshape(batch_size * self.lat_size, self.letter_channels)
+        loss_cent = F.cross_entropy(pred_codes_idx, code_idx)
 
         pred_codes = F.softmax(pred_codes, dim=1)
         lat = self.codes_to_lat(pred_codes)

@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import discretized_mix_logistic_loss, sample_gaussian, gaussian_kl_loss, compute_gan_loss
-from src.utils.model_utils import compute_inception_score
+from src.utils.model_utils import compute_inception_score, ca_seed
 from src.utils.media_utils import rand_erase_images
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -38,9 +38,9 @@ n_workers = config['training']['n_workers']
 z_dim = config['z_dist']['z_dim']
 
 # config['network']['kwargs']['log_mix_out'] = True
-# config['network']['kwargs']['ext_canvas'] = True
+config['network']['kwargs']['ext_canvas'] = True
 # config['network']['kwargs']['multi_cut'] = False
-# config['network']['kwargs']['left_sided'] = True
+config['network']['kwargs']['left_sided'] = True
 config['z_dist']['type'] = 'uniform'
 
 # Inputs
@@ -104,7 +104,9 @@ if config['training']['inception_every'] > 0:
 
 
 def generator(z, labels):
-    return cb_decoder(z, labels)[0]
+    lat_gen, _ = cb_decoder(z, labels)
+    images_gen, _, _ = decoder(lat_gen)
+    return images_gen, None, None
 
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
@@ -147,14 +149,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
-                        # loss_cent = (1 / batch_mult) * loss_cent
-                        # loss_cent.backward()
-                        # loss_cent_sum += loss_cent.item()
+                        loss_cent = (1 / batch_mult) * loss_cent
+                        loss_cent.backward()
+                        loss_cent_sum += loss_cent.item()
 
                 # Streaming Images
                 with torch.no_grad():
-                    lat_gen, _ = cb_decoder(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen)
+                    images_gen, _, _ = generator(z_test, labels_test)
 
                 stream_images(images_gen, config_name + '/vqvae', config['training']['out_dir'] + '/vqvae')
 
@@ -178,8 +179,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen, _ = cb_decoder(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen)
+            images_gen, _, _ = generator(z_test, labels_test)
             lat_enc, out_embs, _ = encoder(images)
             lat_enc_cb = cb_encoder(lat_enc)
             lat_dec, _ = cb_decoder(lat_enc_cb, labels)
@@ -189,8 +189,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
                 fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
-                lat_gen, _ = cb_decoder(z_test, fixed_lab)
-                images_gen, _, _ = decoder(lat_gen)
+                images_gen, _, _ = generator(lat_gen, fixed_lab)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
