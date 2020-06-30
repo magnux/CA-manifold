@@ -40,6 +40,6 @@ training:
   sample_every: 1
   sample_labels: 10
   d_reg_param: 10.
-  d_reg_every: 16
-  g_reg_every: 4
+  d_reg_every: 4
+  g_reg_every: 16
   inception_every: 16
