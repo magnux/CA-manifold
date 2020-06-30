@@ -202,8 +202,8 @@ class CodeBookDecoder(nn.Module):
         for m in range(self.n_calls):
             pred_codes = F.pad(pred_codes, [0, 2, 0, 2, 0, 2])
 
-            # pred_codes_new = self.codes_norm(pred_codes)
-            pred_codes_new = self.codes_sobel(pred_codes_new)
+            pred_codes_new = self.codes_sobel(pred_codes)
+            # pred_codes_new = self.codes_norm(pred_codes_new)
             pred_codes_new = self.codes_conv(pred_codes_new, yembed)
 
             # pred_codes_new = pred_codes_new.reshape((batch_size, self.letter_channels * self.lat_size))
