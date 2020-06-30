@@ -45,7 +45,7 @@ class Encoder(nn.Module):
                     LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls)),
                 )
             elif self.dyncin:
-                self.inj_cond = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter, norm_weights=False)
+                self.inj_cond = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter)
             else:
                 self.inj_cond = ResidualBlock(self.n_filter + self.lat_size, self.n_filter, None, 1, 1, 0)
 
@@ -145,7 +145,7 @@ class Decoder(nn.Module):
                 LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
             )
         elif self.dyncin:
-            self.dyn_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter, norm_weights=False)
+            self.dyn_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter)
         else:
             self.lat_to_out = nn.Sequential(
                 LinearResidualBlock(self.lat_size, self.lat_size),

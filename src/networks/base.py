@@ -167,8 +167,8 @@ class CodeBookDecoder(nn.Module):
 
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        # self.codes_norm = nn.InstanceNorm3d(self.letter_channels)
         self.codes_sobel = SinSobel(self.letter_channels, 5, 2, 3, True)
+        self.codes_norm = nn.InstanceNorm3d(self.letter_channels * 4)
         self.codes_conv = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels, dim=3)
 
         # self.centroids = nn.ModuleList([Centroids(letter_channels * lat_size, n_cents) for _ in range(self.n_calls)])
@@ -203,7 +203,7 @@ class CodeBookDecoder(nn.Module):
             pred_codes = F.pad(pred_codes, [0, 2, 0, 2, 0, 2])
 
             pred_codes_new = self.codes_sobel(pred_codes)
-            # pred_codes_new = self.codes_norm(pred_codes_new)
+            pred_codes_new = self.codes_norm(pred_codes_new)
             pred_codes_new = self.codes_conv(pred_codes_new, yembed)
 
             # pred_codes_new = pred_codes_new.reshape((batch_size, self.letter_channels * self.lat_size))
