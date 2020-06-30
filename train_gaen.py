@@ -31,6 +31,8 @@ image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
 d_reg_param = config['training']['d_reg_param']
+d_reg_every = config['training']['d_reg_every']
+g_reg_every = config['training']['g_reg_every']
 batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
@@ -101,9 +103,6 @@ pl_mean = model_manager.log_manager.get_last('regs', 'pl_mean')
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
 
-        d_reg_every = config['training']['d_reg_every'] if epoch > 0 else 1
-        g_reg_every = config['training']['g_reg_every'] if epoch > 0 else 0
-
         running_loss_dis = np.zeros(window_size)
         running_loss_gen = np.zeros(window_size)
 
@@ -120,9 +119,16 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
 
-                reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
-                reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
-                reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
+                if d_reg_every > 0 and it % d_reg_every == 0:
+                    reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
+                    reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
+                else:
+                    reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
+
+                if g_reg_every > 0 and it % g_reg_every == 0:
+                    reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
+                else:
+                    reg_gen_dec_sum = 0
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
