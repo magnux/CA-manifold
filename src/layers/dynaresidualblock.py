@@ -27,10 +27,10 @@ class DynaResidualBlock(nn.Module):
         self.k_out_size = self.fout * self.fhidden * (kernel_size ** dim)
         self.k_short_size = self.fout * self.fin * (kernel_size ** dim)
         
-        self.b_in_size = self.fhidden
-        self.b_mid_size = self.fhidden
-        self.b_out_size = self.fout
-        self.b_short_size = self.fout
+        self.b_in_size = self.fhidden if not norm_weights else 0
+        self.b_mid_size = self.fhidden if not norm_weights else 0
+        self.b_out_size = self.fout if not norm_weights else 0
+        self.b_short_size = self.fout if not norm_weights else 0
 
         self.dyna_k = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -42,7 +42,7 @@ class DynaResidualBlock(nn.Module):
 
         self.prev_lat = None
         self.k_in, self.k_mid, self.k_out, self.k_short = None, None, None, None
-        self.b_in, self.b_mid, self.b_out, self.b_short = None, None, None, None
+        self.b_in, self.b_mid, self.b_out, self.b_short = 0, 0, 0, 0
         self.kernel_size = [kernel_size for _ in range(self.dim)]
         self.padding = padding
         self.norm_weights = norm_weights
@@ -72,10 +72,11 @@ class DynaResidualBlock(nn.Module):
             self.k_out = self.k_out.reshape([batch_size * self.fout, self.fhidden] + self.kernel_size)
             self.k_short = self.k_short.reshape([batch_size * self.fout, self.fin] + self.kernel_size)
 
-            self.b_in = b_in.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
-            self.b_mid = b_mid.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
-            self.b_out = b_out.view([batch_size, self.fout]).reshape([1, batch_size * self.fout] + [1 for _ in range(self.dim)])
-            self.b_short = b_short.view([batch_size, self.fout]).reshape([1, batch_size * self.fout] + [1 for _ in range(self.dim)])
+            if not self.norm_weights:
+                self.b_in = b_in.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
+                self.b_mid = b_mid.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
+                self.b_out = b_out.view([batch_size, self.fout]).reshape([1, batch_size * self.fout] + [1 for _ in range(self.dim)])
+                self.b_short = b_short.view([batch_size, self.fout]).reshape([1, batch_size * self.fout] + [1 for _ in range(self.dim)])
             
             self.prev_lat = lat
 
