@@ -128,7 +128,7 @@ class ModelManager(object):
     def on_step_end(self, nets_to_train):
         for net_name in self.networks_dict.keys():
             if net_name in nets_to_train:
-                make_grad_safe(self.networks_dict[net_name]['net'])
+                # make_grad_safe(self.networks_dict[net_name]['net'])
                 # clip_grad_norm_(self.networks_dict[net_name]['net'].parameters(), 1., torch._six.inf)
                 self.networks_dict[net_name]['optimizer'].step()
                 toggle_grad(self.networks_dict[net_name]['net'], False)

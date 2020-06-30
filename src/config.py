@@ -2,6 +2,7 @@ import yaml
 from os import path
 from torch import optim
 from torch.nn import init
+from src.optimizers.adamp import AdamP, SGDP
 
 
 # DEFAULT_CONFIG = path.join(path.dirname(__file__), 'configs/default.yaml')
@@ -50,8 +51,12 @@ def build_optimizer(network, config):
         optimizer = optim.RMSprop(params, lr=lr, alpha=0.99, eps=1e-8)
     elif optimizer == 'adam':
         optimizer = optim.Adam(params, lr=lr, betas=(0., 0.99), eps=1e-8, amsgrad=True)
+    elif optimizer == 'adamp':
+        optimizer = AdamP(params, lr=lr, betas=(0.5, 0.9), eps=1e-8)
     elif optimizer == 'sgd':
         optimizer = optim.SGD(params, lr=lr, momentum=0.)
+    elif optimizer == 'sgdp':
+        optimizer = SGDP(params, lr=lr, momentum=0.)
 
     return optimizer
 
