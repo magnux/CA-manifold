@@ -37,7 +37,6 @@ def compute_pl_reg(g_out, lat_in, pl_mean, beta=0.99):
     outputs = (g_out * pl_noise).sum()
 
     pl_grads = torch.autograd.grad(outputs=outputs, inputs=lat_in,
-                                   grad_outputs=torch.ones_like(outputs),
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
 
     pl_lengths = (pl_grads ** 2).mean(dim=1).sqrt()
