@@ -41,6 +41,7 @@ z_dim = config['z_dist']['z_dim']
 config['network']['kwargs']['ext_canvas'] = True
 # config['network']['kwargs']['multi_cut'] = False
 config['network']['kwargs']['left_sided'] = True
+config['network']['kwargs']['gated'] = True
 config['z_dist']['type'] = 'uniform'
 
 # Inputs
