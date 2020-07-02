@@ -27,6 +27,12 @@ config_name = splitext(basename(args.config))[0]
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
+# config['network']['kwargs']['multi_cut'] = False
+config['network']['kwargs']['log_mix_out'] = True
+config['network']['kwargs']['causal'] = True
+config['network']['kwargs']['gated'] = True
+config['z_dist']['type'] = 'uniform'
+
 image_size = config['data']['image_size']
 channels = config['data']['channels']
 n_filter = config['network']['kwargs']['n_filter']
@@ -36,12 +42,7 @@ batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 z_dim = config['z_dist']['z_dim']
-
-# config['network']['kwargs']['log_mix_out'] = True
-# config['network']['kwargs']['multi_cut'] = False
-# config['network']['kwargs']['causal'] = True
-# config['network']['kwargs']['gated'] = True
-config['z_dist']['type'] = 'uniform'
+log_mix_out = config['network']['kwargs']['log_mix_out']
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -140,9 +141,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_dec, loss_cent = cb_decoder(lat_enc_cb, labels)
 
                         images_dec, _, images_dec_raw = decoder(lat_dec)
-
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
-                        # loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
+                        if log_mix_out:
+                            loss_dec = (1 / batch_mult) * discretized_mix_logistic_loss(images_dec_raw, images)
+                        else:
+                            loss_dec = (1 / batch_mult) * F.mse_loss(images_dec_raw, images)
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
