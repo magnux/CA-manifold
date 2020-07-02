@@ -159,7 +159,7 @@ class CodeBookEncoder(nn.Module):
 
 
 class CodeBookDecoder(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=16, n_cents=4, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=16, n_cents=1024, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.letter_channels = letter_channels
@@ -170,8 +170,8 @@ class CodeBookDecoder(nn.Module):
         self.codes_sobel = SinSobel(self.letter_channels, 5, 2, 3, True)
         self.codes_norm = nn.InstanceNorm3d(self.letter_channels * 4)
         self.codes_conv = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels * 2, dim=3)
+        self.centroids = Centroids(letter_channels, n_cents)
 
-        # self.centroids = nn.ModuleList([Centroids(letter_channels * lat_size, n_cents) for _ in range(self.n_calls)])
         self.codes_to_lat = nn.Sequential(
             ResidualBlock(letter_channels, letter_channels, None, 1, 1, 0, nn.Conv1d),
             ResidualBlock(letter_channels, 1, None, 1, 1, 0, nn.Conv1d),
@@ -191,13 +191,9 @@ class CodeBookDecoder(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
 
-        pred_codes = codes
-        if self.training:
-            rand_mask = torch.rand((batch_size, 1, codes.size(2)), device=codes.device) > 0.5
-            pred_codes = torch.where(rand_mask, F.softmax(100. * torch.rand_like(codes), dim=1), codes)
-        pred_codes = pred_codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
+        pred_codes = codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
 
-        # loss_cent = 0.
+        loss_cent = 0.
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for m in range(self.n_calls):
             pred_codes = F.pad(pred_codes, [0, 2, 0, 2, 0, 2])
@@ -205,25 +201,18 @@ class CodeBookDecoder(nn.Module):
             pred_codes_new = self.codes_sobel(pred_codes)
             pred_codes_new = self.codes_norm(pred_codes_new)
             pred_codes_new = self.codes_conv(pred_codes_new, yembed)
+
             pred_codes_new, pred_codes_new_gate = torch.split(pred_codes_new, self.letter_channels, dim=1)
             pred_codes_new = pred_codes_new * torch.sigmoid(pred_codes_new_gate)
 
-            # pred_codes_new = pred_codes_new.reshape((batch_size, self.letter_channels * self.lat_size))
-            # pred_codes_new, loss_cent_new = self.centroids[m](pred_codes_new)
-            # pred_codes_new = pred_codes_new.reshape((batch_size, self.letter_channels, 8, 8, 8))
-            # loss_cent = loss_cent + loss_cent_new
+            pred_codes_new, loss_cent_new = self.centroids(pred_codes_new)
+            loss_cent = loss_cent + loss_cent_new
 
-            # pred_codes_new, pred_codes_new_gate = torch.split(pred_codes_new, self.letter_channels, dim=1)
-            # pred_codes_new = torch.sigmoid(pred_codes_new_gate) * pred_codes_new
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
+
             pred_codes = pred_codes[:, :, 2:, 2:, 2:]
 
         pred_codes = pred_codes.reshape(batch_size, self.letter_channels, self.lat_size)
-
-        code_idx = torch.argmax(codes, dim=1)
-        code_idx = code_idx.reshape(batch_size * self.lat_size)
-        pred_codes_idx = pred_codes.permute(0, 2, 1).reshape(batch_size * self.lat_size, self.letter_channels)
-        loss_cent = F.cross_entropy(pred_codes_idx, code_idx)
 
         pred_codes = F.softmax(pred_codes, dim=1)
         lat = self.codes_to_lat(pred_codes)

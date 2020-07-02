@@ -115,7 +115,7 @@ class InjectedEncoder(Encoder):
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, adain=False, dyncin=False, log_mix_out=False, ext_canvas=False, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, adain=False, dyncin=False, log_mix_out=False, **kwargs):
         super().__init__()
         self.n_labels = n_labels
         self.image_size = image_size
@@ -128,7 +128,6 @@ class Decoder(nn.Module):
         self.adain = adain
         self.dyncin = dyncin
         self.log_mix_out = log_mix_out
-        self.ext_canvas = ext_canvas
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
@@ -182,8 +181,6 @@ class Decoder(nn.Module):
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
-            if self.ext_canvas:
-                out = F.pad(out, [0, 1, 0, 1])
             out_new = self.frac_norm[0 if self.shared_params else c](out)
             if self.adain:
                 s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
@@ -194,8 +191,6 @@ class Decoder(nn.Module):
                 out_new = self.dyn_conv(out_new, lat)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
-            if self.ext_canvas:
-                out = out[:, :, 1:, 1:]
             out_embs.append(out)
 
         out = self.conv_img(out)
