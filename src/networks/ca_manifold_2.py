@@ -35,8 +35,8 @@ class Decoder(nn.Module):
         self.gated = gated
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        # self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter, norm_weights=True)
+        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, dtype=torch.float32, requires_grad=False)
@@ -69,7 +69,7 @@ class Decoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            # out_new = self.frac_norm(out_new)
+            out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
