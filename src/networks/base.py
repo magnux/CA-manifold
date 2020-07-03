@@ -192,7 +192,6 @@ class CodeBookDecoder(nn.Module):
 
         pred_codes = codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
 
-        loss_cent = 0.
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for m in range(self.n_calls):
             pred_codes = F.pad(pred_codes, [0, 2, 0, 2, 0, 2])
@@ -204,15 +203,13 @@ class CodeBookDecoder(nn.Module):
             pred_codes_new, pred_codes_new_gate = torch.split(pred_codes_new, self.letter_channels, dim=1)
             pred_codes_new = pred_codes_new * torch.sigmoid(pred_codes_new_gate)
 
-            pred_codes_new, loss_cent_new = self.centroids(pred_codes_new)
-            loss_cent = loss_cent + loss_cent_new
-
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
 
             pred_codes = pred_codes[:, :, 2:, 2:, 2:]
 
         pred_codes = pred_codes.reshape(batch_size, self.letter_channels, self.lat_size)
 
+        pred_codes, loss_cent = self.centroids(pred_codes)
         lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
 
