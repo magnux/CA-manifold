@@ -31,7 +31,6 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 config['network']['kwargs']['log_mix_out'] = True
 config['network']['kwargs']['causal'] = True
 config['network']['kwargs']['gated'] = True
-config['z_dist']['type'] = 'uniform'
 
 image_size = config['data']['image_size']
 channels = config['data']['channels']
