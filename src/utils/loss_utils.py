@@ -21,22 +21,24 @@ def compute_gan_loss(d_out, target, gan_type='standard'):
     return loss
 
 
-def compute_grad_reg(d_out, x_in):
-    batch_size = x_in.size(0)
-    grad_dout = torch.autograd.grad(outputs=d_out.sum(), inputs=x_in,
+def compute_grad_reg(d_out, d_in):
+    batch_size = d_in.size(0)
+    grad_dout = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
     grad_dout2 = grad_dout.pow(2)
-    assert(grad_dout2.size() == x_in.size())
+    assert(grad_dout2.size() == d_in.size())
     reg = grad_dout2.view(batch_size, -1).sum(1)
     return reg
 
 
-def compute_pl_reg(g_out, lat_in, pl_mean, beta=0.99):
+def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99):
+    if g_out.dim() == 2:
+        g_out = g_out.unsqueeze(1)
     space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
     pl_noise = torch.randn_like(g_out) / space_sqrt
     outputs = (g_out * pl_noise).sum()
 
-    pl_grads = torch.autograd.grad(outputs=outputs, inputs=lat_in,
+    pl_grads = torch.autograd.grad(outputs=outputs, inputs=g_in,
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
 
     pl_lengths = (pl_grads ** 2).mean(dim=1).sqrt()

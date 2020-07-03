@@ -98,7 +98,8 @@ if config['training']['inception_every'] > 0:
 
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
-pl_mean = model_manager.log_manager.get_last('regs', 'pl_mean')
+pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc')
+pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec')
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
@@ -126,9 +127,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
 
                 if g_reg_every > 0 and it % g_reg_every == 0:
+                    reg_gen_enc_sum = model_manager.log_manager.get_last('regs', 'reg_gen_enc')
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
                 else:
-                    reg_gen_dec_sum = 0
+                    reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']):
@@ -200,6 +202,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc, out_embs, _ = encoder(images, lat_labs)
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
+                        
+                        if g_reg_every > 0 and it % g_reg_every == 0:
+                            reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
+                            reg_gen_enc = (1 / batch_mult) * g_reg_every * reg_gen_enc
+                            reg_gen_enc.backward(retain_graph=True)
+                            reg_gen_enc_sum += reg_gen_enc.item()
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         loss_gen_enc.backward()
@@ -213,7 +221,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
-                            reg_gen_dec, pl_mean = compute_pl_reg(images_dec, lat_gen, pl_mean)
+                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
                             reg_gen_dec.backward(retain_graph=True)
                             reg_gen_dec_sum += reg_dis_dec.item()
@@ -241,14 +249,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
-
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('regs', 'reg_gen_enc', reg_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_gen_dec', reg_gen_dec_sum, it=it)
-                model_manager.log_manager.add_scalar('regs', 'pl_mean', pl_mean, it=it)
+                model_manager.log_manager.add_scalar('regs', 'pl_mean_enc', pl_mean_enc, it=it)
+                model_manager.log_manager.add_scalar('regs', 'pl_mean_dec', pl_mean_dec, it=it)
 
                 it += 1
 

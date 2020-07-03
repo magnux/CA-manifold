@@ -28,7 +28,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 # config['network']['kwargs']['multi_cut'] = False
-config['network']['kwargs']['log_mix_out'] = True
+# config['network']['kwargs']['log_mix_out'] = True
 config['network']['kwargs']['causal'] = True
 config['network']['kwargs']['gated'] = True
 
