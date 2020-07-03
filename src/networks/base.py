@@ -190,7 +190,8 @@ class CodeBookDecoder(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
 
-        pred_codes = codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
+        pred_codes, loss_cent = self.centroids(codes)
+        pred_codes = pred_codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
 
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for m in range(self.n_calls):
@@ -209,7 +210,6 @@ class CodeBookDecoder(nn.Module):
 
         pred_codes = pred_codes.reshape(batch_size, self.letter_channels, self.lat_size)
 
-        pred_codes, loss_cent = self.centroids(pred_codes)
         lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
 
