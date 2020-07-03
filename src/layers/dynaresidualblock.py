@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.linearresidualblock import LinearResidualBlock
+import numpy as np
 
 
 class DynaResidualBlock(nn.Module):
@@ -62,10 +63,10 @@ class DynaResidualBlock(nn.Module):
             self.k_short = k_short.view([batch_size, self.fout, self.fin] + self.kernel_size)
 
             if self.norm_weights:
-                self.k_in = self.k_in / ((self.k_in + 1e-4).norm(dim=2, keepdim=True) * torch.sqrt(self.fhidden))
-                self.k_mid = self.k_mid / ((self.k_mid + 1e-4).norm(dim=2, keepdim=True) * torch.sqrt(self.fhidden))
-                self.k_out = self.k_out / ((self.k_out + 1e-4).norm(dim=2, keepdim=True) * torch.sqrt(self.fout))
-                self.k_short = self.k_short / ((self.k_short + 1e-4).norm(dim=2, keepdim=True) * torch.sqrt(self.fout))
+                self.k_in = self.k_in / ((self.k_in + 1e-4).norm(dim=2, keepdim=True) * np.sqrt(self.fhidden))
+                self.k_mid = self.k_mid / ((self.k_mid + 1e-4).norm(dim=2, keepdim=True) * np.sqrt(self.fhidden))
+                self.k_out = self.k_out / ((self.k_out + 1e-4).norm(dim=2, keepdim=True) * np.sqrt(self.fout))
+                self.k_short = self.k_short / ((self.k_short + 1e-4).norm(dim=2, keepdim=True) * np.sqrt(self.fout))
 
             self.k_in = self.k_in.reshape([batch_size * self.fhidden, self.fin] + self.kernel_size)
             self.k_mid = self.k_mid.reshape([batch_size * self.fhidden, self.fhidden] + self.kernel_size)
