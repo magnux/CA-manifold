@@ -15,6 +15,9 @@ from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
 
+torch.backends.cudnn.deterministic = False
+torch.backends.cudnn.benchmark = True
+
 np.random.seed(42)
 torch.manual_seed(42)
 

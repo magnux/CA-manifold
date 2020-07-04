@@ -17,10 +17,11 @@ import matplotlib.pyplot as plt
 import matplotlib
 from PIL import Image
 
-np.random.seed(42)
-torch.manual_seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
+
+np.random.seed(42)
+torch.manual_seed(42)
 
 parser = argparse.ArgumentParser(description='Test a CAE')
 parser.add_argument('config', type=str, help='Path to config file.')
