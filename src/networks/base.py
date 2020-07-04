@@ -158,17 +158,21 @@ class CodeBookEncoder(nn.Module):
 
 
 class CodeBookDecoder(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=16, n_cents=1024, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, letter_channels=16, n_cents=1024, fire_rate=1.0, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.letter_channels = letter_channels
         self.n_labels = n_labels
+        self.fire_rate = fire_rate
+
+        self.lat_size_cr = int(round(self.lat_size ** (1 / 3)))
+        self.lat_pad = int(self.lat_size_cr ** 3) - self.lat_size
 
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.codes_sobel = SinSobel(self.letter_channels, 5, 2, 3, True)
         self.codes_norm = nn.InstanceNorm3d(self.letter_channels * 4)
-        self.codes_conv = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels * 2, dim=3)
+        self.codes_conv = DynaResidualBlock(embed_size, self.letter_channels * 4, self.letter_channels, dim=3)
         self.centroids = Centroids(letter_channels, n_cents)
 
         self.codes_to_lat = nn.Sequential(
@@ -191,7 +195,9 @@ class CodeBookDecoder(nn.Module):
         yembed = F.normalize(yembed)
 
         pred_codes, loss_cent = self.centroids(codes)
-        pred_codes = pred_codes.reshape(batch_size, self.letter_channels, 8, 8, 8)
+        if self.lat_pad > 0:
+            pred_codes = F.pad(pred_codes, [0, self.lat_pad])
+        pred_codes = pred_codes.reshape(batch_size, self.letter_channels, self.lat_size_cr, self.lat_size_cr, self.lat_size_cr)
 
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for m in range(self.n_calls):
@@ -201,14 +207,16 @@ class CodeBookDecoder(nn.Module):
             pred_codes_new = self.codes_norm(pred_codes_new)
             pred_codes_new = self.codes_conv(pred_codes_new, yembed)
 
-            pred_codes_new, pred_codes_new_gate = torch.split(pred_codes_new, self.letter_channels, dim=1)
-            pred_codes_new = pred_codes_new * torch.sigmoid(pred_codes_new_gate)
+            if self.fire_rate < 1.0:
+                pred_codes_new = pred_codes_new * (torch.rand([batch_size, 1, self.lat_size_cr + 2, self.lat_size_cr + 2, self.lat_size_cr + 2], device=codes.device) <= self.fire_rate).to(torch.float32)
 
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
 
             pred_codes = pred_codes[:, :, 2:, 2:, 2:]
 
-        pred_codes = pred_codes.reshape(batch_size, self.letter_channels, self.lat_size)
+        pred_codes = pred_codes.reshape(batch_size, self.letter_channels, self.lat_size + self.lat_pad)
+        if self.lat_pad > 0:
+            pred_codes = pred_codes[:, :, :self.lat_size]
 
         lat = self.codes_to_lat(pred_codes)
         lat = lat.squeeze(dim=1)
