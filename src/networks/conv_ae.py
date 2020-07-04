@@ -13,7 +13,8 @@ from src.utils.loss_utils import sample_from_discretized_mix_logistic
 
 
 class Encoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, injected=False, adain=False, dyncin=False, multi_cut=True, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params,
+                 injected=False, adain=False, dyncin=False, multi_cut=True, **kwargs):
         super().__init__()
         self.injected = injected
         self.adain = adain
@@ -115,7 +116,8 @@ class InjectedEncoder(Encoder):
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params, adain=False, dyncin=False, log_mix_out=False, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params,
+                 adain=False, dyncin=False, log_mix_out=False, **kwargs):
         super().__init__()
         self.n_labels = n_labels
         self.image_size = image_size

@@ -31,6 +31,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 config['network']['kwargs']['log_mix_out'] = True
 config['network']['kwargs']['causal'] = True
 config['network']['kwargs']['gated'] = True
+config['network']['kwargs']['env_feedback'] = True
 
 image_size = config['data']['image_size']
 channels = config['data']['channels']
@@ -134,8 +135,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc, out_embs, _ = encoder(re_images)
 
                         lat_enc_cb = cb_encoder(lat_enc)
-                        rand_mask = torch.rand((batch_split_size, 1, lat_enc_cb.size(2)), device=lat_enc_cb.device) > 0.5
-                        lat_enc_cb = torch.where(rand_mask, torch.randn_like(lat_enc_cb), lat_enc_cb)
+                        # rand_mask = torch.rand((batch_split_size, 1, lat_enc_cb.size(2)), device=lat_enc_cb.device) > 0.5
+                        # lat_enc_cb = torch.where(rand_mask, torch.randn_like(lat_enc_cb), lat_enc_cb)
                         lat_dec, loss_cent = cb_decoder(lat_enc_cb, labels)
 
                         images_dec, _, images_dec_raw = decoder(lat_dec)
