@@ -148,6 +148,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
+                        loss_cent = loss_cent.mean()
                         loss_cent = (1 / batch_mult) * 1e-1 * loss_cent
                         loss_cent.backward()
                         loss_cent_sum += loss_cent.item()
