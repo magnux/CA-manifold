@@ -6,6 +6,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.centroids import Centroids
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+import math
 
 
 class Classifier(nn.Module):
@@ -165,7 +166,7 @@ class CodeBookDecoder(nn.Module):
         self.n_labels = n_labels
         self.fire_rate = fire_rate
 
-        self.lat_size_cr = int(round(self.lat_size ** (1 / 3)))
+        self.lat_size_cr = int(math.ceil(self.lat_size ** (1 / 3)))
         self.lat_pad = int(self.lat_size_cr ** 3) - self.lat_size
 
         self.n_calls = 8
