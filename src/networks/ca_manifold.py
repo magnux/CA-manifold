@@ -28,9 +28,10 @@ class Decoder(nn.Module):
 
     def forward(self, lat, ca_init=None):
         batch_size = lat.size(0)
+        float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device)
+            out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
         else:
             out = ca_init
 
@@ -48,7 +49,7 @@ class Decoder(nn.Module):
             out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
             if self.fire_rate < 1.0:
-                out_new = out_new * (torch.rand([batch_size, 1, self.image_size, self.image_size], device=lat.device) <= self.fire_rate).to(torch.float32)
+                out_new = out_new * (torch.rand([batch_size, 1, self.image_size, self.image_size], device=lat.device) <= self.fire_rate).to(float_type)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
 

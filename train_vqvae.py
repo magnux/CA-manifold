@@ -132,12 +132,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        re_images = rand_erase_images(images)
-                        lat_enc, out_embs, _ = encoder(re_images)
+                        # re_images = rand_erase_images(images)
+                        lat_enc, out_embs, _ = encoder(images)
 
                         lat_enc_cb = cb_encoder(lat_enc)
-                        rand_mask = torch.rand((batch_split_size, 1, lat_enc_cb.size(2)), device=lat_enc_cb.device) > 0.5
-                        lat_enc_cb = torch.where(rand_mask, torch.randn_like(lat_enc_cb), lat_enc_cb)
+                        # rand_mask = torch.rand((batch_split_size, 1, lat_enc_cb.size(2)), device=lat_enc_cb.device) > 0.5
+                        # lat_enc_cb = torch.where(rand_mask, torch.randn_like(lat_enc_cb), lat_enc_cb)
                         lat_dec, loss_cent = cb_decoder(lat_enc_cb, labels)
 
                         images_dec, _, images_dec_raw = decoder(lat_dec)

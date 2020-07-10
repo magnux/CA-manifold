@@ -186,6 +186,7 @@ class CodeBookDecoder(nn.Module):
 
     def forward(self, codes, y):
         batch_size = codes.size(0)
+        float_type = torch.float16 if isinstance(codes, torch.cuda.HalfTensor) else torch.float32
 
         if y.dtype is torch.int64:
             yembed = self.embedding_mat[y]
@@ -209,7 +210,7 @@ class CodeBookDecoder(nn.Module):
             pred_codes_new = self.codes_conv(pred_codes_new, yembed)
 
             if self.fire_rate < 1.0:
-                pred_codes_new = pred_codes_new * (torch.rand([batch_size, 1, self.lat_size_cr + 2, self.lat_size_cr + 2, self.lat_size_cr + 2], device=codes.device) <= self.fire_rate).to(torch.float32)
+                pred_codes_new = pred_codes_new * (torch.rand([batch_size, 1, self.lat_size_cr + 2, self.lat_size_cr + 2, self.lat_size_cr + 2], device=codes.device) <= self.fire_rate).to(float_type)
 
             pred_codes = pred_codes + (leak_factor * pred_codes_new)
 

@@ -41,7 +41,7 @@ class Decoder(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
-            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, dtype=torch.float32, requires_grad=False)
+            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
@@ -52,9 +52,10 @@ class Decoder(nn.Module):
 
     def forward(self, lat, ca_init=None):
         batch_size = lat.size(0)
+        float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device)
+            out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
         else:
             out = ca_init
 
@@ -77,12 +78,12 @@ class Decoder(nn.Module):
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
-                out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(torch.float32)
+                out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(float_type)
             if self.skip_fire:
                 if c % 2 == 0:
-                    out_new = out_new * self.skip_fire_mask.to(device=lat.device)
+                    out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
                 else:
-                    out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device))
+                    out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 2:, 2:]

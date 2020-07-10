@@ -12,7 +12,7 @@ network:
     ds_size: 32
     n_filter: 64
     embed_size: 256
-    lat_size: 1024
+    lat_size: 512
     n_calls: 4
     shared_params: True
     adain: False
@@ -24,7 +24,7 @@ z_dist:
   type: gauss
   z_dim: 512
 training:
-  out_dir: save/cifar10_ca_manifold_2_sto_lat1024
+  out_dir: save/cifar10_ca_manifold_2_sto_alt
   batch_size: 64
   batch_split: 8
   batch_mult_steps: 4
@@ -42,4 +42,5 @@ training:
   d_reg_param: 10.
   d_reg_every: 4
   g_reg_every: 16
+  alt_reg: True
   inception_every: 0

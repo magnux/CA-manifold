@@ -7,6 +7,12 @@ from src.utils.model_utils import toggle_grad, count_parameters, make_grad_safe
 from os import path
 from contextlib import contextmanager
 
+try:
+    from apex import amp
+    APEX_AVAILABLE = True
+except:
+    APEX_AVAILABLE = False
+
 
 class ModelManager(object):
     def __init__(self, model_name, networks_dict, config, logging=True):
@@ -14,6 +20,8 @@ class ModelManager(object):
         self.networks_dict = networks_dict
         self.config = config
         self.logging = logging
+        self.fp16 = config['training']['fp16'] if 'fp16' in config['training'] else False
+        assert not self.fp16 or self.fp16 and APEX_AVAILABLE, 'Apex is not available for fp16 training'
 
         for net_name in self.networks_dict.keys():
 
@@ -25,6 +33,10 @@ class ModelManager(object):
                     self.networks_dict[net_name]['net'] = torch.nn.DataParallel(self.networks_dict[net_name]['net'])
 
             self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], self.config)
+
+            if self.fp16:
+                self.networks_dict[net_name]['net'], self.networks_dict[net_name]['optimizer'] = amp.initialize(
+                    self.networks_dict[net_name]['net'], self.networks_dict[net_name]['optimizer'], opt_level='O2')
 
         self.checkpoint_manager = CheckpointManager(self.config['training']['out_dir'])
         self.checkpoint_manager.register_modules(**{net_name: self.networks_dict[net_name]['net']
@@ -128,8 +140,9 @@ class ModelManager(object):
     def on_step_end(self, nets_to_train):
         for net_name in self.networks_dict.keys():
             if net_name in nets_to_train:
-                # make_grad_safe(self.networks_dict[net_name]['net'])
-                clip_grad_norm_(self.networks_dict[net_name]['net'].parameters(), 1., torch._six.inf)
+                if not self.fp16:
+                    # make_grad_safe(self.networks_dict[net_name]['net'])
+                    clip_grad_norm_(self.networks_dict[net_name]['net'].parameters(), 1., torch._six.inf)
                 self.networks_dict[net_name]['optimizer'].step()
                 toggle_grad(self.networks_dict[net_name]['net'], False)
 
@@ -138,3 +151,14 @@ class ModelManager(object):
         self.on_step_start(nets_to_train)
         yield nets_to_train
         self.on_step_end(nets_to_train)
+
+    def loss_backwards(self, loss, nets_to_train, **kwargs):
+        if self.fp16:
+            optimizers = []
+            for net_name in self.networks_dict.keys():
+                if net_name in nets_to_train:
+                    optimizers.append(self.networks_dict[net_name]['optimizer'])
+            with amp.scale_loss(loss, optimizers) as scaled_loss:
+                scaled_loss.backward(**kwargs)
+        else:
+            loss.backward(**kwargs)
