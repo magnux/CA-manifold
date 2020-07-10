@@ -136,7 +136,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
                 # Discriminator step
-                with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
+                with model_manager.on_step(['dis_encoder', 'discriminator']):
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -157,14 +157,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if d_reg_every > 0 and it % d_reg_every == 0:
                             reg_dis_enc = (1/batch_mult) * d_reg_every * d_reg_param * compute_grad_reg(labs_enc, images).mean()
-                            model_manager.loss_backwards(reg_dis_enc, nets_to_train, retain_graph=True)
+                            reg_dis_enc.backward(retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item()
 
                             reg_dis_enc = (1 / batch_mult) * d_reg_every * d_reg_param * compute_grad_reg(labs_enc, lat_enc).mean()
-                            model_manager.loss_backwards(reg_dis_enc, nets_to_train, retain_graph=True)
+                            reg_dis_enc.backward(retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item()
 
-                        model_manager.loss_backwards(loss_dis_enc, nets_to_train)
+                        loss_dis_enc.backward()
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -185,18 +185,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if d_reg_every > 0 and it % d_reg_every == 0:
                             reg_dis_dec = (1 / batch_mult) * d_reg_every * d_reg_param * compute_grad_reg(labs_dec, images_dec).mean()
-                            model_manager.loss_backwards(reg_dis_dec, nets_to_train, retain_graph=True)
+                            reg_dis_dec.backward(retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item()
 
                             reg_dis_dec = (1 / batch_mult) * d_reg_every * d_reg_param * compute_grad_reg(labs_dec, lat_gen).mean()
-                            model_manager.loss_backwards(reg_dis_dec, nets_to_train, retain_graph=True)
+                            reg_dis_dec.backward(retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item()
 
-                        model_manager.loss_backwards(loss_dis_dec, nets_to_train, retain_graph=True)
+                        loss_dis_dec.backward()
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                 # Generator step
-                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+                with model_manager.on_step(['encoder', 'decoder', 'generator']):
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -209,11 +209,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if not alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_enc, pl_mean_enc = compute_pl_reg_sp(lat_enc, images, pl_mean_enc)
                             reg_gen_enc = (1 / batch_mult) * g_reg_every * reg_gen_enc
-                            model_manager.loss_backwards(reg_gen_enc, nets_to_train, retain_graph=True)
+                            reg_gen_enc.backward(retain_graph=True)
                             reg_gen_enc_sum += reg_gen_enc.item()
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
-                        model_manager.loss_backwards(loss_gen_enc, nets_to_train)
+                        loss_gen_enc.backward()
                         loss_gen_enc_sum += loss_gen_enc.item()
 
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -226,11 +226,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if not alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg_sp(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
-                            model_manager.loss_backwards(reg_gen_dec, nets_to_train, retain_graph=True)
+                            reg_gen_dec.backward(retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item()
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
-                        model_manager.loss_backwards(loss_gen_dec, nets_to_train, retain_graph=True)
+                        loss_gen_dec.backward()
                         loss_gen_dec_sum += loss_gen_dec.item()
 
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -246,7 +246,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             reg_gen_dec = alt_grads.pow(2).view(batch_split_size, -1).sum(1).mean()
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * 10. * reg_gen_dec
-                            model_manager.loss_backwards(reg_gen_dec, nets_to_train, retain_graph=True)
+                            reg_gen_dec.backward()
                             reg_gen_dec_sum += reg_gen_dec.item()
 
                 # Streaming Images
