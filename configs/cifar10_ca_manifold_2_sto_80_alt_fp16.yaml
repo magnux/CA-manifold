@@ -10,7 +10,7 @@ network:
   class: ca_manifold_2
   kwargs:
     ds_size: 32
-    n_filter: 64
+    n_filter: 80
     embed_size: 256
     lat_size: 512
     n_calls: 4
@@ -24,9 +24,9 @@ z_dist:
   type: gauss
   z_dim: 512
 training:
-  out_dir: save/cifar10_ca_manifold_2_sto_alt_fp16
+  out_dir: save/cifar10_ca_manifold_2_sto_80_alt_fp16
   batch_size: 64
-  batch_split: 4
+  batch_split: 8
   batch_mult_steps: 4
   n_workers: 2
   optimizer: adam
