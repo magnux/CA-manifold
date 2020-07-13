@@ -69,16 +69,16 @@ def apply_grad_bkp(network, *args):
                 print('warning, no grad_bkp found!')
 
 
-def make_safe(tens, min=-1e3, max=1e3):
+def make_safe(tens, min, max):
     tens = torch.where(torch.isnan(tens), torch.zeros_like(tens), tens)
     tens = tens.clamp(min=min, max=max)
     return tens
 
 
-def make_grad_safe(params):
+def make_grad_safe(params, min, max):
     for p in params:
         if p.grad is not None:
-            p.grad.data.copy_(make_safe(p.grad))
+            p.grad.data.copy_(make_safe(p.grad, min, max))
 
 
 def compute_inception_score(generator, decoder, inception_sample_size, fid_sample_size, batch_size, zdist, ydist, fid_real_samples, device):

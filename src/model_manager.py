@@ -142,10 +142,10 @@ class ModelManager(object):
             if net_name in nets_to_train:
                 try:
                     if self.fp16:
-                        make_grad_safe(amp.master_params(self.networks_dict[net_name]['optimizer']))
+                        make_grad_safe(amp.master_params(self.networks_dict[net_name]['optimizer']), -(2 ** 15), 2 ** 15)
                         clip_grad_norm_(amp.master_params(self.networks_dict[net_name]['optimizer']), 1., torch._six.inf)
                     else:
-                        # make_grad_safe(self.networks_dict[net_name]['net'].parameters())
+                        # make_grad_safe(self.networks_dict[net_name]['net'].parameters(), -(2 ** 31), 2 ** 31)
                         clip_grad_norm_(self.networks_dict[net_name]['net'].parameters(), 1., torch._six.inf)
                 except ValueError:
                     print('ValueError. Skipping grad clipping.')
