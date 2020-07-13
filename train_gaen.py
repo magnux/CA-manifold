@@ -233,18 +233,32 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-
                         if alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
+                            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                            with torch.no_grad():
+                                lat_gen = generator(z_gen, labels)
+                                images_dec, _, _ = decoder(lat_gen)
+
+                            lat_gen.requires_grad_()
+                            images_dec.requires_grad_()
                             lat_labs = generator(torch.zeros_like(z_gen), labels)
-                            lat_enc, out_embs, _ = encoder(images, lat_labs)
+                            lat_enc, _, _ = encoder(images_dec, lat_labs)
+
+                            reg_gen_enc = compute_grad_reg(F.mse_loss(lat_enc, lat_gen), images_dec).mean()
+                            reg_gen_enc = (1 / batch_mult) * g_reg_every * 10. * reg_gen_enc
+                            model_manager.loss_backward(reg_gen_enc, nets_to_train)
+                            reg_gen_enc_sum += reg_gen_enc.item()
+
+                            with torch.no_grad():
+                                lat_labs = generator(torch.zeros_like(z_gen), labels)
+                                lat_enc, _, _ = encoder(images, lat_labs)
+
+                            images.requires_grad_()
+                            lat_enc.requires_grad_()
                             images_dec, _, _ = decoder(lat_enc)
-                            outputs = F.mse_loss(images_dec, images)
 
-                            alt_grads = torch.autograd.grad(outputs=outputs, inputs=images,
-                                                            create_graph=True, retain_graph=True, only_inputs=True)[0]
-
-                            reg_gen_dec = alt_grads.pow(2).view(batch_split_size, -1).sum(1).mean()
+                            reg_gen_dec = compute_grad_reg(F.mse_loss(images_dec, images), lat_enc).mean()
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * 10. * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train)
                             reg_gen_dec_sum += reg_gen_dec.item()
