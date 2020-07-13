@@ -75,8 +75,8 @@ def make_safe(tens, min=-1e3, max=1e3):
     return tens
 
 
-def make_grad_safe(network):
-    for p in network.parameters():
+def make_grad_safe(params):
+    for p in params:
         if p.grad is not None:
             p.grad.data.copy_(make_safe(p.grad))
 

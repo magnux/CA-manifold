@@ -36,7 +36,7 @@ class ModelManager(object):
 
             if self.fp16:
                 self.networks_dict[net_name]['net'], self.networks_dict[net_name]['optimizer'] = amp.initialize(
-                    self.networks_dict[net_name]['net'], self.networks_dict[net_name]['optimizer'], opt_level='O2', num_losses=32)
+                    self.networks_dict[net_name]['net'], self.networks_dict[net_name]['optimizer'], opt_level='O2', loss_scale=1., verbosity=0)
 
         self.checkpoint_manager = CheckpointManager(self.config['training']['out_dir'])
         self.checkpoint_manager.register_modules(**{net_name: self.networks_dict[net_name]['net']
@@ -142,8 +142,10 @@ class ModelManager(object):
             if net_name in nets_to_train:
                 try:
                     if self.fp16:
+                        make_grad_safe(amp.master_params(self.networks_dict[net_name]['optimizer']))
                         clip_grad_norm_(amp.master_params(self.networks_dict[net_name]['optimizer']), 1., torch._six.inf)
                     else:
+                        # make_grad_safe(self.networks_dict[net_name]['net'].parameters())
                         clip_grad_norm_(self.networks_dict[net_name]['net'].parameters(), 1., torch._six.inf)
                 except ValueError:
                     print('ValueError. Skipping grad clipping.')
@@ -156,13 +158,13 @@ class ModelManager(object):
         yield nets_to_train
         self.on_step_end(nets_to_train)
 
-    def loss_backward(self, loss, nets_to_train, loss_id, **kwargs):
+    def loss_backward(self, loss, nets_to_train, **kwargs):
         if self.fp16:
             optimizers = []
             for net_name in self.networks_dict.keys():
                 if net_name in nets_to_train:
                     optimizers.append(self.networks_dict[net_name]['optimizer'])
-            with amp.scale_loss(loss, optimizers, loss_id=loss_id) as scaled_loss:
+            with amp.scale_loss(loss, optimizers) as scaled_loss:
                 scaled_loss.backward(**kwargs)
         else:
             loss.backward(**kwargs)
