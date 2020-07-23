@@ -50,7 +50,7 @@ class Encoder(nn.Module):
             else:
                 self.inj_cond = ResidualBlock(self.n_filter + self.lat_size, self.n_filter, None, 1, 1, 0)
 
-        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
+        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter, track_running_stats=True) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
                                             ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0),
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
@@ -134,7 +134,7 @@ class Decoder(nn.Module):
         self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
 
-        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
+        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter, track_running_stats=True) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
                                             ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0),
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
@@ -163,13 +163,14 @@ class Decoder(nn.Module):
 
     def forward(self, lat):
         batch_size = lat.size(0)
+        float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if self.adain:
             cond_factors = self.lat_to_facts(lat)
             cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
-            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device)
+            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
         elif self.dyncin:
-            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device)
+            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
         else:
             conv_state = self.lat_to_out(lat)
             cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
