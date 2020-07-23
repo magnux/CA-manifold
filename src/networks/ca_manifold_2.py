@@ -37,7 +37,7 @@ class Decoder(nn.Module):
         self.env_feedback = env_feedback
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3, track_running_stats=True)
+        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:

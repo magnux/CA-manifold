@@ -50,7 +50,7 @@ class Encoder(nn.Module):
             else:
                 self.inj_cond = ResidualBlock(self.n_filter + self.lat_size, self.n_filter, None, 1, 1, 0)
 
-        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter, track_running_stats=True) for _ in range(1 if self.shared_params else self.n_calls)])
+        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
                                             ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0),
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
@@ -134,7 +134,7 @@ class Decoder(nn.Module):
         self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
 
-        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter, track_running_stats=True) for _ in range(1 if self.shared_params else self.n_calls)])
+        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
                                             ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0),
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
