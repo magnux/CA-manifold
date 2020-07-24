@@ -54,7 +54,7 @@ def stream_images(images, model_name, out_dir):
 
 
 async def stream_images_server(reader, writer):
-    global current_images, refresh_images
+    global current_images, refresh_images, video_writers
 
     data = await reader.readline()
     model_name = data[:-1].decode()
@@ -107,15 +107,24 @@ async def listen_images():
 
 
 def gen_image_stream(model_name):
-    global current_images, refresh_images
+    global current_images, refresh_images, video_writers
 
     while True:
         if model_name not in current_images:
-            continue
+            break
 
-        refresh_images[model_name].wait()
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + current_images[model_name] + b'\r\n')
         refresh_images[model_name].clear()
+
+        old_image = current_images[model_name]
+        refresh_images[model_name].wait(60)
+        if current_images[model_name] == old_image:
+            print(model_name, ' timed out, cleaning up')
+            video_writers[model_name].close()
+            del video_writers[model_name]
+            del current_images[model_name]
+            del refresh_images[model_name]
+            break
 
 
 @app.route("/")
