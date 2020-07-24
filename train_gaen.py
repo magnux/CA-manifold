@@ -246,7 +246,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_enc, _, _ = encoder(images_dec, lat_labs)
 
                             reg_gen_enc = compute_grad_reg(F.mse_loss(lat_enc, lat_gen), images_dec).mean()
-                            reg_gen_enc = (1 / batch_mult) * g_reg_every * (1e-5 / (1e-4 + reg_gen_enc))
+                            reg_gen_enc = (1 / batch_mult) * g_reg_every * 10. * -1. * (1. + reg_gen_enc).log()
                             model_manager.loss_backward(reg_gen_enc, nets_to_train)
                             reg_gen_enc_sum += reg_gen_enc.item()
 
@@ -259,7 +259,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_enc)
 
                             reg_gen_dec = compute_grad_reg(F.mse_loss(images_dec, images), lat_enc).mean()
-                            reg_gen_dec = (1 / batch_mult) * g_reg_every * (1e-5 / (1e-4 + reg_gen_dec))
+                            reg_gen_dec = (1 / batch_mult) * g_reg_every * 10. * -1. * (1. + reg_gen_dec).log()
                             model_manager.loss_backward(reg_gen_dec, nets_to_train)
                             reg_gen_dec_sum += reg_gen_dec.item()
 
