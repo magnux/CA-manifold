@@ -28,7 +28,7 @@ def compute_grad_reg(d_out, d_in):
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
     grad_dout2 = grad_dout.pow(2)
     assert(grad_dout2.size() == d_in.size())
-    reg = grad_dout2.view(batch_size, -1).sum(1)
+    reg = grad_dout2.view(batch_size, -1).sum(1).mean()
     return reg
 
 
