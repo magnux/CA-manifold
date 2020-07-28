@@ -208,8 +208,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             if alt_reg:
-                                reg_gen_enc = 1. / (1. + compute_grad_reg(lat_enc, images))
-                                reg_gen_enc = (1 / batch_mult) * g_reg_every * reg_gen_enc
+                                reg_gen_enc = (1 / batch_mult) * g_reg_every * d_reg_param * (1. / (compute_grad_reg(labs_enc, images) + 1e-4))
+                                model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
+                                reg_gen_enc_sum += reg_gen_enc.item()
+
+                                reg_gen_enc = (1 / batch_mult) * g_reg_every * d_reg_param * (1. / (compute_grad_reg(labs_enc, lat_enc) + 1e-4))
                                 model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
                                 reg_gen_enc_sum += reg_gen_enc.item()
                             else:
@@ -231,10 +234,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             if alt_reg:
-                                reg_gen_dec = 1. / (1. + compute_grad_reg(images_dec, lat_gen))
-                                reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
+                                reg_gen_dec = (1 / batch_mult) * g_reg_every * d_reg_param * (1. / (compute_grad_reg(labs_dec, images_dec) + 1e-4))
                                 model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                                 reg_gen_dec_sum += reg_gen_dec.item()
+
+                                reg_gen_dec = (1 / batch_mult) * g_reg_every * d_reg_param * (1. / (compute_grad_reg(labs_dec, lat_gen) + 1e-4))
+                                model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
+                                reg_gen_dec_sum += reg_gen_dec.item()
+
                             else:
                                 reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                                 reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
