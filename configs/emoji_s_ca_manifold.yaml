@@ -43,5 +43,5 @@ training:
   sample_labels: 9
   d_reg_param: 10.
   d_reg_every: 2
-  g_reg_every: 8
+  g_reg_every: 2
   inception_every: 0
