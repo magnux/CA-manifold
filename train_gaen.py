@@ -102,8 +102,6 @@ if config['training']['inception_every'] > 0:
 
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
-pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc')
-pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec')
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
@@ -134,6 +132,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 if not (g_reg_every > 0 and it % g_reg_every == 0):
                     reg_gen_enc_sum = model_manager.log_manager.get_last('regs', 'reg_gen_enc')
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
+
+                    if not alt_reg:
+                        pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc')
+                        pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec')
+                    else:
+                        enc_loss = model_manager.log_manager.get_last('regs', 'enc_loss')
+                        dec_loss = model_manager.log_manager.get_last('regs', 'dec_loss')
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
@@ -206,20 +211,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
-                        if g_reg_every > 0 and it % g_reg_every == 0:
-                            if alt_reg:
-                                reg_gen_enc = (1 / batch_mult) * g_reg_every * d_reg_param * compute_grad_reg(labs_enc, images)
-                                model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
-                                reg_gen_enc_sum += reg_gen_enc.item()
-
-                                reg_gen_enc = (1 / batch_mult) * g_reg_every * d_reg_param * compute_grad_reg(labs_enc, lat_enc)
-                                model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
-                                reg_gen_enc_sum += reg_gen_enc.item()
-                            else:
-                                reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
-                                reg_gen_enc = (1 / batch_mult) * g_reg_every * reg_gen_enc
-                                model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
-                                reg_gen_enc_sum += reg_gen_enc.item()
+                        if not alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
+                            reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
+                            reg_gen_enc = (1 / batch_mult) * g_reg_every * reg_gen_enc
+                            model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
+                            reg_gen_enc_sum += reg_gen_enc.item()
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
@@ -232,24 +228,47 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        if g_reg_every > 0 and it % g_reg_every == 0:
-                            if alt_reg:
-                                reg_gen_dec = (1 / batch_mult) * g_reg_every * d_reg_param * compute_grad_reg(labs_dec, images_dec)
-                                model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
-                                reg_gen_dec_sum += reg_gen_dec.item()
-
-                                reg_gen_dec = (1 / batch_mult) * g_reg_every * d_reg_param * compute_grad_reg(labs_dec, lat_gen)
-                                model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
-                                reg_gen_dec_sum += reg_gen_dec.item()
-                            else:
-                                reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
-                                reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
-                                model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
-                                reg_gen_dec_sum += reg_gen_dec.item()
+                        if not alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
+                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
+                            reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
+                            model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
+                            reg_gen_dec_sum += reg_gen_dec.item()
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
+
+                        if alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
+                            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                            with torch.no_grad():
+                                lat_gen = generator(z_gen, labels)
+                                images_dec, _, _ = decoder(lat_gen)
+
+                            lat_gen.requires_grad_()
+                            images_dec.requires_grad_()
+                            lat_labs = generator(torch.zeros_like(z_gen), labels)
+                            lat_enc, _, _ = encoder(images_dec, lat_labs)
+
+                            enc_loss = F.l1_loss(lat_enc, lat_gen)
+                            reg_gen_enc = compute_grad_reg(enc_loss, images_dec)
+                            reg_gen_enc = (1 / batch_mult) * g_reg_every * 100 * reg_gen_enc
+                            model_manager.loss_backward(reg_gen_enc, nets_to_train)
+                            reg_gen_enc_sum += reg_gen_enc.item()
+
+                            with torch.no_grad():
+                                lat_labs = generator(torch.zeros_like(z_gen), labels)
+                                lat_enc, _, _ = encoder(images, lat_labs)
+
+                            images.requires_grad_()
+                            lat_enc.requires_grad_()
+                            images_dec, _, _ = decoder(lat_enc)
+
+                            dec_loss = F.l1_loss(images_dec, images)
+                            reg_gen_dec = compute_grad_reg(dec_loss, lat_enc)
+                            reg_gen_dec = (1 / batch_mult) * g_reg_every * 100 * reg_gen_dec
+                            model_manager.loss_backward(reg_gen_dec, nets_to_train)
+                            reg_gen_dec_sum += reg_gen_dec.item()
 
                 # Streaming Images
                 with torch.no_grad():
@@ -277,8 +296,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_gen_enc', reg_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_gen_dec', reg_gen_dec_sum, it=it)
-                model_manager.log_manager.add_scalar('regs', 'pl_mean_enc', pl_mean_enc, it=it)
-                model_manager.log_manager.add_scalar('regs', 'pl_mean_dec', pl_mean_dec, it=it)
+
+                if not alt_reg:
+                    model_manager.log_manager.add_scalar('regs', 'pl_mean_enc', pl_mean_enc, it=it)
+                    model_manager.log_manager.add_scalar('regs', 'pl_mean_dec', pl_mean_dec, it=it)
+                else:
+                    model_manager.log_manager.add_scalar('regs', 'enc_loss', enc_loss, it=it)
+                    model_manager.log_manager.add_scalar('regs', 'dec_loss', dec_loss, it=it)
 
                 it += 1
 
