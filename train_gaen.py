@@ -209,7 +209,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             if alt_reg:
-                                reg_gen_enc = (1 / batch_mult) * g_reg_every * compute_grad_reg(lat_enc, images).sqrt()
+                                reg_gen_enc = (1 / batch_mult) * g_reg_every * (1 + compute_grad_reg(lat_enc, images)).log()
                                 model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
                                 reg_gen_enc_sum += reg_gen_enc.item()
                             else:
@@ -231,7 +231,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             if alt_reg:
-                                reg_gen_dec = (1 / batch_mult) * g_reg_every * compute_grad_reg(images_dec, lat_gen).sqrt()
+                                reg_gen_dec = (1 / batch_mult) * g_reg_every * (1 + compute_grad_reg(images_dec, lat_gen)).log()
                                 model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                                 reg_gen_dec_sum += reg_gen_dec.item()
                             else:
