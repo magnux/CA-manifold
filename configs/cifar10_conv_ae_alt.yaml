@@ -38,7 +38,7 @@ training:
   sample_every: 1
   sample_labels: 10
   d_reg_param: 10.
-  d_reg_every: 2
+  d_reg_every: 4
   g_reg_every: 2
   alt_reg: True
   inception_every: 0
