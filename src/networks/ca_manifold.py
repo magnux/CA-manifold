@@ -11,7 +11,8 @@ from src.networks.conv_ae import Encoder, InjectedEncoder
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
+                 fixed_conv=False, alive_masking=False, deactivate_norm=False, leak_factor=None, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -21,13 +22,12 @@ class Decoder(nn.Module):
         self.n_calls = n_calls * 16
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
-        self.fixed_conv = kwargs['fixed_conv'] if 'fixed_conv' in kwargs else False
-        self.alive_masking = kwargs['alive_masking'] if 'alive_masking' in kwargs else False
-        self.deactivate_norm = kwargs['deactivate_norm'] if 'deactivate_norm' in kwargs else False
-        self.fix_leak_1 = kwargs['fix_leak_1'] if 'fix_leak_1' in kwargs else False
+        self.fixed_conv = fixed_conv
+        self.alive_masking = alive_masking
+        self.deactivate_norm = deactivate_norm
 
-        if self.fix_leak_1:
-            self.leak_factor = 1.
+        if leak_factor is not None:
+            self.leak_factor = leak_factor
         else:
             self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
