@@ -46,7 +46,7 @@ class Decoder(nn.Module):
             self.frac_dyna_conv = DynaConvBlock(self.lat_size, self.n_filter * 3, self.n_filter)
 
     def forward(self, lat, ca_init=None):
-        assert self.fixed_conv == lat is None, 'when using fixed convs, the model is fixed to produce a single output, thus the latent should be None'
+        assert self.fixed_conv == (lat is None), 'when using fixed convs, the model is fixed to produce a single output, thus the latent should be None'
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
@@ -60,7 +60,10 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
 
         out_embs = [out]
-        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        if isinstance(self.leak_factor, nn.Parameter):
+            leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        else:
+            leak_factor = self.leak_factor
         for c in range(self.n_calls):
             out_new = out
             if self.alive_masking:
@@ -68,7 +71,7 @@ class Decoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            if not self.dectivate_norm:
+            if not self.deactivate_norm:
                 out_new = self.frac_norm(out_new)
             if self.fixed_conv:
                 out_new = self.frac_conv(out_new)

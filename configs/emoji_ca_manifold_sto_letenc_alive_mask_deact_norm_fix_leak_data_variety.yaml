@@ -1,8 +1,8 @@
 data:
   name: emoji
   type: image
-  train_dir: data/emoji
-  test_dir: data/emoji
+  train_dir: data/data_variety
+  test_dir: data/data_variety
   image_size: 64
   channels: 4
   n_labels: 9
@@ -14,13 +14,16 @@ network:
     lat_size: 512
     n_calls: 4
     shared_params: False
-    letter_encoding: False
+    letter_encoding: True
     perception_noise: False
-    fire_rate: 1.0
+    fire_rate: 0.5
+    alive_masking: True
+    deactivate_norm: True
+    leak_factor: 1.0
 training:
-  out_dir: save/emoji_ca_manifold_persist_regen
-  persistence: True
-  regeneration: True
+  out_dir: save/data_variety_alive_mask_deact_norm_fix_leak
+  persistence: False
+  regeneration: False
   batch_size: 64
   batch_split: 4
   batch_mult_steps: 4
@@ -28,7 +31,7 @@ training:
   optimizer: adamp
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 8192
+  n_epochs: 2600
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0

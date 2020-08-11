@@ -21,8 +21,8 @@ training:
   out_dir: save/data_variety
   persistence: False
   regeneration: False
-  batch_size: 32
-  batch_mult: 2
+  batch_size: 64
+  batch_split: 4
   batch_mult_steps: 4
   n_workers: 2
   optimizer: adamp
