@@ -19,9 +19,8 @@ network:
     fire_rate: 0.5
     alive_masking: True
     deactivate_norm: True
-    leak_factor: 1.0
 training:
-  out_dir: save/data_variety_alive_mask_deact_norm_fix_leak
+  out_dir: save/data_variety_alive_mask_deact_norm
   persistence: False
   regeneration: False
   batch_size: 64

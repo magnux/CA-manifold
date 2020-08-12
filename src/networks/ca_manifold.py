@@ -26,7 +26,7 @@ class Decoder(nn.Module):
         self.alive_masking = alive_masking
         self.deactivate_norm = deactivate_norm
 
-        if leak_factor is not None:
+        if leak_factor is not None or alive_masking:
             self.leak_factor = leak_factor
         else:
             self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
@@ -83,7 +83,8 @@ class Decoder(nn.Module):
                 post_life_mask = F.max_pool2d(out_new[:, 3:4, :, :], 3, 1, 1) > 0.1
                 life_mask = (pre_life_mask & post_life_mask).to(float_type)
                 out = out_new * life_mask
-            out = out + (leak_factor * out_new)
+            else:
+                out = out + (leak_factor * out_new)
             out_embs.append(out)
 
         out = out[:, :self.out_chan, :, :]
