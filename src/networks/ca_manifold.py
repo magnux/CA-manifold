@@ -26,7 +26,9 @@ class Decoder(nn.Module):
         self.alive_masking = alive_masking
         self.deactivate_norm = deactivate_norm
 
-        if leak_factor is not None or alive_masking:
+        if alive_masking:
+            self.leak_factor = 1.0
+        elif leak_factor is not None:
             self.leak_factor = leak_factor
         else:
             self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
@@ -69,7 +71,7 @@ class Decoder(nn.Module):
         for c in range(self.n_calls):
             out_new = out
             if self.alive_masking:
-                pre_life_mask = F.max_pool2d(out_new[:, 3:4, :, :], 3, 1, 1) > 0.1
+                pre_life_mask = F.max_pool2d(out[:, 3:4, :, :], 3, 1, 1) > 0.1
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
@@ -81,12 +83,11 @@ class Decoder(nn.Module):
                 out_new = self.frac_dyna_conv(out_new, lat)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, self.image_size, self.image_size], device=lat.device) <= self.fire_rate).to(float_type)
+            out = out + (leak_factor * out_new)
             if self.alive_masking:
-                post_life_mask = F.max_pool2d(out_new[:, 3:4, :, :], 3, 1, 1) > 0.1
+                post_life_mask = F.max_pool2d(out[:, 3:4, :, :], 3, 1, 1) > 0.1
                 life_mask = (pre_life_mask & post_life_mask).to(float_type)
-                out = (out + out_new) * life_mask
-            else:
-                out = out + (leak_factor * out_new)
+                out = out * life_mask
             out_embs.append(out)
 
         out = out[:, :self.out_chan, :, :]
