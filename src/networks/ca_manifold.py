@@ -82,7 +82,7 @@ class Decoder(nn.Module):
             if self.alive_masking:
                 post_life_mask = F.max_pool2d(out_new[:, 3:4, :, :], 3, 1, 1) > 0.1
                 life_mask = (pre_life_mask & post_life_mask).to(float_type)
-                out = out_new * life_mask
+                out = (out + out_new) * life_mask
             else:
                 out = out + (leak_factor * out_new)
             out_embs.append(out)
