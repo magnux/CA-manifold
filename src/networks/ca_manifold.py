@@ -52,6 +52,8 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
+            if self.alive_masking:
+                out[:, :, self.image_size // 2, self.image_size // 2] = 1.0
         else:
             out = ca_init
 
