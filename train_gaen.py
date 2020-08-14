@@ -124,6 +124,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
+                if not alt_reg:
+                    pl_mean_enc, pl_mean_dec = 0, 0
 
                 if not (d_reg_every > 0 and it % d_reg_every == 0):
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
