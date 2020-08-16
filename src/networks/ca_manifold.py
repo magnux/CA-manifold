@@ -53,9 +53,7 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if self.alive_masking:
-                out[:, :, self.image_size // 2, self.image_size // 2] = 1.0
+            out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device, all_channels=self.alive_masking).to(float_type)
         else:
             out = ca_init
 

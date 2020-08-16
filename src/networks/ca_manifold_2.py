@@ -9,7 +9,7 @@ from src.layers.scale import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.utils.model_utils import ca_seed
+from src.utils.model_utils import ca_seed, checkerboard
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
 
@@ -153,7 +153,8 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
+            # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
+            out = checkerboard(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
         else:
             out = ca_init
 
