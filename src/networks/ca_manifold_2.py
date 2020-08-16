@@ -9,6 +9,7 @@ from src.layers.scale import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.dynaconv import DynaConv
 from src.utils.model_utils import ca_seed, checkerboard_seed, grads_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 from src.layers.pos_encoding import cos_pos_encoding_nd
@@ -136,7 +137,7 @@ class Decoder(nn.Module):
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         self.pos_seed = cos_pos_encoding_nd(self.ds_size, 2)
-        self.pos_to_nf = nn.Conv2d(self.pos_seed.size(1), self.n_filter, 1, 1, 0)
+        self.pos_to_nf = DynaConv(self.lat_size, self.pos_seed.size(1), self.n_filter)
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -162,8 +163,7 @@ class Decoder(nn.Module):
             # out = grads_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             pos_seed = self.pos_seed.to(device=lat.device).to(float_type)
             pos_seed = torch.cat([pos_seed] * batch_size, 0)
-            out = self.pos_to_nf(pos_seed)
-            out = out.clamp(-1., 1.)
+            out = self.pos_to_nf(pos_seed, lat)
         else:
             out = ca_init
 

@@ -61,6 +61,28 @@ class Generator(nn.Module):
         return lat
 
 
+class LabsEncoder(nn.Module):
+    def __init__(self, n_labels, lat_size, embed_size, **kwargs):
+        super().__init__()
+        self.lat_size = lat_size
+        self.register_buffer('embedding_mat', torch.eye(n_labels))
+        self.embedding_fc = nn.Linear(n_labels, embed_size)
+        self.embed_to_lat = nn.Linear(embed_size, self.lat_size)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
+
+    def forward(self, y):
+        if y.dtype is torch.int64:
+            yembed = self.embedding_mat[y]
+        else:
+            yembed = y
+
+        yembed = self.embedding_fc(yembed)
+        yembed = F.normalize(yembed)
+        lat = self.embed_to_lat(yembed)
+
+        return lat
+
+
 class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
