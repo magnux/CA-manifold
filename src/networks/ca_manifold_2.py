@@ -156,7 +156,7 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
-            out = torch.cat([self.seed.to(device=lat.device).to(float_type)] * batch_size, 0)
+            out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
         else:
             out = ca_init
 
