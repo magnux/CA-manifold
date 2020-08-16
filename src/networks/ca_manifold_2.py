@@ -135,7 +135,7 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        self.pos_seed = cos_pos_encoding_nd(self.ds_size, 2).unsqueeze_(0)
+        self.pos_seed = cos_pos_encoding_nd(self.ds_size, 2)
         self.pos_to_nf = nn.Conv2d(self.pos_seed.size(1), self.n_filter, 3, 1, 1)
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
