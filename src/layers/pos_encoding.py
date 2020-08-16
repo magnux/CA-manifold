@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from itertools import combinations
 
 
 def lin_pos_encoding_1d(size):
@@ -35,11 +36,15 @@ def cos_pos_encoding_nd(size, dim):
         pos_enc_l = []
         for d in range(2, dim + 2):
             pos_enc = cos_pos_encoding_1d(size[d - 2])
-            pos_enc = pos_enc.view(
-                *[size[dd - 2] if dd == d else (pos_enc.size(1) if dd == 1 else 1) for dd in range(dim + 2)])
+            pos_enc = pos_enc.view(*[size[dd - 2] if dd == d else (pos_enc.size(1) if dd == 1 else 1) for dd in range(dim + 2)])
             pos_enc = pos_enc.repeat(*[size[dd - 2] if dd != d and dd > 1 else 1 for dd in range(dim + 2)])
             pos_enc_l.append(pos_enc)
-        pos_encoding = torch.cat(pos_enc_l, 1)
+        pos_enc_l_comb = []
+        for r in range(2, dim):
+            comb_pos = combinations(pos_enc_l, r)
+            comb_pos = torch.stack(list(comb_pos), dim=-1).prod(dim=-1)
+            pos_enc_l_comb.append(comb_pos)
+        pos_encoding = torch.cat(pos_enc_l + pos_enc_l_comb, 1)
 
     return pos_encoding
 

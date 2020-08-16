@@ -136,8 +136,8 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        # self.pos_seed = cos_pos_encoding_nd(self.ds_size, 2)
-        # self.pos_to_nf = DynaConv(self.lat_size, self.pos_seed.size(1), self.n_filter)
+        self.pos_seed = cos_pos_encoding_nd(self.ds_size, 2)
+        self.pos_to_nf = nn.Conv2d(self.pos_seed.size(1), self.n_filter, 1, 1, 0)
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -158,12 +158,12 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+            # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             # out = checkerboard_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             # out = grads_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
-            # pos_seed = self.pos_seed.to(device=lat.device).to(float_type)
-            # pos_seed = torch.cat([pos_seed] * batch_size, 0)
-            # out = self.pos_to_nf(pos_seed, lat)
+            pos_seed = self.pos_seed.to(device=lat.device).to(float_type)
+            pos_seed = torch.cat([pos_seed] * batch_size, 0)
+            out = self.pos_to_nf(pos_seed)
         else:
             out = ca_init
 
