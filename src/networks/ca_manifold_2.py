@@ -163,6 +163,7 @@ class Decoder(nn.Module):
             pos_seed = self.pos_seed.to(device=lat.device).to(float_type)
             pos_seed = torch.cat([pos_seed] * batch_size, 0)
             out = self.pos_to_nf(pos_seed)
+            out = out.clamp(-1., 1.)
         else:
             out = ca_init
 
