@@ -188,7 +188,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
+                        lat_labs = labs_encoder(labels)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_labs)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if not alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
