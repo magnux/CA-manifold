@@ -158,9 +158,9 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             # out = checkerboard_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
-            out = grads_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+            # out = grads_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             # pos_seed = self.pos_seed.to(device=lat.device).to(float_type)
             # pos_seed = torch.cat([pos_seed] * batch_size, 0)
             # out = self.pos_to_nf(pos_seed, lat)
