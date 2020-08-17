@@ -198,6 +198,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
+                        if reg_dis_enc_sum > 1. or reg_dis_dec_sum > 1.:
+                            d_reg_every = 1
+                        else:
+                            d_reg_every = config['training']['d_reg_every']
+
                 # Generator step
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
