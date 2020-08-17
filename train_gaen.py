@@ -41,7 +41,6 @@ batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
-n_calls = config['network']['kwargs']['log_mix_out'] = True
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
