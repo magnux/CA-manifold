@@ -237,7 +237,7 @@ def sample_from_discretized_mix_logistic(output, nr_mix):
 
     out = torch.cat([x0.view(xs[:-1] + [1]), x1.view(xs[:-1] + [1]), x2.view(xs[:-1] + [1])], dim=3)
     # put back in Pytorch ordering
-    out = out.permute(0, 3, 1, 2)
+    out = out.permute(0, 3, 1, 2).contiguous()
     return out
 
 
