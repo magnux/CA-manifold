@@ -134,7 +134,7 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
+        # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -155,8 +155,8 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device, all_channels=True).to(float_type)
-            out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
+            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device, all_channels=True).to(float_type)
+            # out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
         else:
             out = ca_init
 
