@@ -143,7 +143,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
-                    for _ in range(batch_mult):
+                    for b in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
@@ -169,7 +169,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item()
 
-                        model_manager.loss_backward(loss_dis_enc, nets_to_train)
+                        if d_reg_every > 0 or (b % int(1 / d_reg_every)):
+                            model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -197,7 +198,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item()
 
-                        model_manager.loss_backward(loss_dis_dec, nets_to_train)
+                        if d_reg_every > 0 or (b % int(1 / d_reg_every)):
+                            model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every > 0 and it % d_reg_every == 0:
@@ -205,7 +207,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         reg_dis_dec_mean = 0.9 * reg_dis_dec_mean + 0.1 * (reg_dis_dec_sum / d_reg_every)
 
                     if reg_dis_enc_mean > 0.1 or reg_dis_dec_mean > 0.1:
-                        d_reg_every = 1
+                        d_reg_every = max(d_reg_every / 2, 1. / config['training']['d_reg_every'])
                     else:
                         d_reg_every = min(d_reg_every * 2, config['training']['d_reg_every'])
 
