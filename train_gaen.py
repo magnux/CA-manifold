@@ -103,6 +103,13 @@ if config['training']['inception_every'] > 0:
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
+reg_dis_enc_mean = model_manager.log_manager.get_last('regs', 'reg_dis_enc_mean', 1.)
+reg_dis_dec_mean = model_manager.log_manager.get_last('regs', 'reg_dis_dec_mean', 1.)
+
+if not alt_reg:
+    pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
+    pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
+
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
 
@@ -124,8 +131,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
-                if not alt_reg:
-                    pl_mean_enc, pl_mean_dec = 0, 0
 
                 if not (d_reg_every > 0 and it % d_reg_every == 0):
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
@@ -134,9 +139,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 if not (g_reg_every > 0 and it % g_reg_every == 0):
                     reg_gen_enc_sum = model_manager.log_manager.get_last('regs', 'reg_gen_enc')
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
-                    if not alt_reg:
-                        pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc')
-                        pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec')
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
@@ -198,7 +200,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                        if (reg_dis_enc_sum / d_reg_every) > 0.1 or (reg_dis_dec_sum / d_reg_every) > 0.1:
+                        reg_dis_enc_mean = 0.9 * reg_dis_enc_mean + 0.1 * (reg_dis_enc_sum / d_reg_every)
+                        reg_dis_dec_mean = 0.9 * reg_dis_dec_mean + 0.1 * (reg_dis_dec_sum / d_reg_every)
+
+                        if reg_dis_enc_mean > 1. or reg_dis_dec_mean > 1.:
                             d_reg_every = 1
                         else:
                             d_reg_every = min(d_reg_every * 2, config['training']['d_reg_every'])
@@ -297,6 +302,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('regs', 'reg_dis_enc_mean', reg_dis_enc_mean, it=it)
+                model_manager.log_manager.add_scalar('regs', 'reg_dis_dec_mean', reg_dis_dec_mean, it=it)
+
                 model_manager.log_manager.add_scalar('regs', 'reg_gen_enc', reg_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_gen_dec', reg_gen_dec_sum, it=it)
                 if not alt_reg:
