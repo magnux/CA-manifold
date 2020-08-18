@@ -203,8 +203,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every > 0 and it % math.ceil(d_reg_every) == 0:
-                        reg_dis_enc_mean = 0.9 * reg_dis_enc_mean + 0.1 * (reg_dis_enc_sum / d_reg_every)
-                        reg_dis_dec_mean = 0.9 * reg_dis_dec_mean + 0.1 * (reg_dis_dec_sum / d_reg_every)
+                        reg_dis_enc_mean = 0.9 * reg_dis_enc_mean + 0.1 * (reg_dis_enc_sum / max(1, d_reg_every))
+                        reg_dis_dec_mean = 0.9 * reg_dis_dec_mean + 0.1 * (reg_dis_dec_sum / max(1, d_reg_every))
 
                     if reg_dis_enc_mean > 0.1 or reg_dis_dec_mean > 0.1:
                         d_reg_every = max(d_reg_every / 2, 1. / config['training']['d_reg_every'])
