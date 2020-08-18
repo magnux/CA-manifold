@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.layers.hard_nl import hardswish
 from src.layers.linearresidualblock import LinearResidualBlock
 
 
@@ -84,9 +83,9 @@ class DynaResidualBlock(nn.Module):
         x_new = x.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
         x_new_s = self.f_conv(x_new, self.k_short, groups=batch_size, padding=self.padding) + self.b_short
         x_new = self.f_conv(x_new, self.k_in, groups=batch_size, padding=self.padding) + self.b_in
-        x_new = hardswish(x_new)
+        x_new = F.leaky_relu(x_new)
         x_new = self.f_conv(x_new, self.k_mid, groups=batch_size, padding=self.padding) + self.b_mid
-        x_new = hardswish(x_new)
+        x_new = F.leaky_relu(x_new)
         x_new = self.f_conv(x_new, self.k_out, groups=batch_size, padding=self.padding) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.reshape([batch_size, self.fout] + [x.size(d + 2) for d in range(self.dim)])
