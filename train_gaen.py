@@ -204,7 +204,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         reg_dis_enc_mean = 0.9 * reg_dis_enc_mean + 0.1 * (reg_dis_enc_sum / d_reg_every)
                         reg_dis_dec_mean = 0.9 * reg_dis_dec_mean + 0.1 * (reg_dis_dec_sum / d_reg_every)
 
-                    if reg_dis_enc_mean > 1. or reg_dis_dec_mean > 1.:
+                    if reg_dis_enc_mean > 0.1 or reg_dis_dec_mean > 0.1:
                         d_reg_every = 1
                     else:
                         d_reg_every = min(d_reg_every * 2, config['training']['d_reg_every'])
