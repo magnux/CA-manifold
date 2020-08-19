@@ -162,7 +162,7 @@ class SamplePool:
 
 
 class KalmanFilter:
-    def __init__(self, total_it, Q_init=1e-5, R_init=1e-2, xhat_init=0.1, P_init=1.0):
+    def __init__(self, total_it, Q_init=1e-3, R_init=1e-2, xhat_init=0.0, P_init=1.0):
         self.total_it = total_it
         self.Q = Q_init  # process variance
         self.R = R_init  # estimate of measurement variance
@@ -181,7 +181,8 @@ class KalmanFilter:
 
     def update_kf(self, it, obs):
         if it - self.last_it > 1:
-            self.z[self.last_it + 1: it] = self.z[self.last_it] + (np.sqrt(self.R) * np.random.randn(it - self.last_it - 1))
+            self.z[self.last_it + 1: it] = self.z[self.last_it]
+            # self.z[self.last_it + 1: it] = self.z[self.last_it] + (np.sqrt(self.R) * np.random.randn(it - self.last_it - 1))
             self.xhat[self.last_it + 1: it] = self.xhat[self.last_it]
             self.P[self.last_it + 1: it] = self.P[self.last_it]
             self.xhatminus[self.last_it + 1: it] = self.xhatminus[self.last_it]
@@ -198,9 +199,9 @@ class KalmanFilter:
         self.xhat[it] = self.xhatminus[it] + self.K[it] * (self.z[it] - self.xhatminus[it])
         self.P[it] = (1 - self.K[it]) * self.Pminus[it]
 
-        if it > 0:
-            self.R = 0.9 * self.R + 0.1 * np.var(self.z[max(0, it - int(1e-3 * self.total_it)):it])
-            self.Q = 1e-3 * self.R
+        # if it > 0:
+        #     self.R = 0.9 * self.R + 0.1 * np.var(self.z[max(0, it - int(1e-3 * self.total_it)):it])
+        #     self.Q = 1e-3 * self.R
 
         self.last_it = it
         return self.xhat[it]
