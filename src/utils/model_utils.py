@@ -168,9 +168,9 @@ class KalmanFilter:
         self.R = R_init  # estimate of measurement variance, change to see effect
 
         # allocate space for arrays
-        self.z = np.zeros(total_it)
-        self.xhat = np.zeros(total_it)  # a posteri estimate of x
-        self.P = np.zeros(total_it)  # a posteri error estimate
+        self.z = np.zeros(total_it)  # measurements
+        self.xhat = np.zeros(total_it)  # a posteriori estimate of x
+        self.P = np.zeros(total_it)  # a posteriori error estimate
         self.xhatminus = np.zeros(total_it)  # a priori estimate of x
         self.Pminus = np.zeros(total_it)  # a priori error estimate
         self.K = np.zeros(total_it)  # gain or blending factor
@@ -199,7 +199,7 @@ class KalmanFilter:
         self.P[it] = (1 - self.K[it]) * self.Pminus[it]
 
         if it > 0:
-            self.R += np.var(self.P[max(0, it - (1e-3 * self.total_it)):it]) - self.R
+            self.R += np.var(self.z[max(0, it - (1e-3 * self.total_it)):it]) - self.R
             self.Q = 1e-3 * self.R
 
         self.last_it = it
