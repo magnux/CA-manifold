@@ -199,7 +199,7 @@ class KalmanFilter:
         self.P[it] = (1 - self.K[it]) * self.Pminus[it]
 
         if it > 0:
-            self.R += np.var(self.z[max(0, it - (1e-3 * self.total_it)):it]) - self.R
+            self.R += np.var(self.z[max(0, it - int(1e-3 * self.total_it)):it]) - self.R
             self.Q = 1e-3 * self.R
 
         self.last_it = it
