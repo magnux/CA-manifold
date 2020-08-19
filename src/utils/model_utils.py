@@ -198,7 +198,7 @@ class KalmanFilter:
         self.xhat[it] = self.xhatminus[it] + self.K[it] * (self.z[it] - self.xhatminus[it])
         self.P[it] = (1 - self.K[it]) * self.Pminus[it]
 
-        self.R += np.var(self.P[max(0, it - (1e-3 * self.total_it)):it]) - self.R
+        self.R = max(1e-3, self.R + np.var(self.P[max(0, it - (1e-3 * self.total_it)):it]) - self.R)
         self.Q = 1e-3 * self.R
 
         self.last_it = it
