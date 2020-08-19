@@ -121,7 +121,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_gen = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-
+        reg_dis_target = 0.1 ** (batch_mult / batch_split)
         it = epoch * (len(trainloader) // batch_split)
 
         t = trange(len(trainloader) // batch_split)
@@ -209,11 +209,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     if d_reg_every > 0 and it % math.ceil(d_reg_every) == 0:
                         reg_dis_enc_mean = reg_dis_enc_est.update_kf(it, reg_dis_enc_sum / max(1, d_reg_every))
                         reg_dis_dec_mean = reg_dis_dec_est.update_kf(it, reg_dis_dec_sum / max(1, d_reg_every))
-
-                    if reg_dis_enc_mean > 0.1 ** (batch_mult / batch_split) or reg_dis_dec_mean > 0.1 ** (batch_mult / batch_split):
-                        d_reg_every = max(d_reg_every / 2, 1. / config['training']['d_reg_every'])
-                    else:
-                        d_reg_every = min(d_reg_every * 2, config['training']['d_reg_every'])
+                        max_reg = max(reg_dis_enc_mean, reg_dis_dec_mean)
+                        d_reg_every = np.clip(1 / reg_dis_target - max_reg, 1 / config['training']['d_reg_every'], config['training']['d_reg_every'])
 
                 # Generator step
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
