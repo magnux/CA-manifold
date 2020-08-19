@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg
-from src.utils.model_utils import compute_inception_score
+from src.utils.model_utils import compute_inception_score, KalmanFilter
 from src.utils.media_utils import rand_erase_images
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -101,14 +101,18 @@ if config['training']['inception_every'] > 0:
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
 
-window_size = math.ceil((len(trainloader) // batch_split) / 10)
+total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
+reg_dis_enc_est = KalmanFilter(total_it)
+reg_dis_dec_est = KalmanFilter(total_it)
 
-reg_dis_enc_mean = model_manager.log_manager.get_last('regs', 'reg_dis_enc_mean', 1.)
-reg_dis_dec_mean = model_manager.log_manager.get_last('regs', 'reg_dis_dec_mean', 1.)
+reg_dis_enc_mean = model_manager.log_manager.get_last('regs', 'reg_dis_enc_mean', 0.)
+reg_dis_dec_mean = model_manager.log_manager.get_last('regs', 'reg_dis_dec_mean', 0.)
 
 if not alt_reg:
     pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
     pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
+
+window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
@@ -118,7 +122,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
 
-        it = (epoch * (len(trainloader) // batch_split))
+        it = epoch * (len(trainloader) // batch_split)
 
         t = trange(len(trainloader) // batch_split)
         t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
@@ -203,10 +207,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every > 0 and it % math.ceil(d_reg_every) == 0:
-                        reg_dis_enc_mean = 0.9 * reg_dis_enc_mean + 0.1 * (reg_dis_enc_sum / max(1, d_reg_every))
-                        reg_dis_dec_mean = 0.9 * reg_dis_dec_mean + 0.1 * (reg_dis_dec_sum / max(1, d_reg_every))
+                        reg_dis_enc_mean = reg_dis_enc_est.update_kf(it, reg_dis_enc_sum / max(1, d_reg_every))
+                        reg_dis_dec_mean = reg_dis_dec_est.update_kf(it, reg_dis_dec_sum / max(1, d_reg_every))
 
-                    if reg_dis_enc_mean > 0.1 or reg_dis_dec_mean > 0.1:
+                    if reg_dis_enc_mean > 0.1 ** (batch_mult / batch_split) or reg_dis_dec_mean > 0.1 ** (batch_mult / batch_split):
                         d_reg_every = max(d_reg_every / 2, 1. / config['training']['d_reg_every'])
                     else:
                         d_reg_every = min(d_reg_every * 2, config['training']['d_reg_every'])
