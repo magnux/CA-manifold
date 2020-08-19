@@ -182,7 +182,7 @@ class KalmanFilter:
     def update_kf(self, it, obs):
         if it - self.last_it > 1:
             self.z[self.last_it + 1: it] = self.z[self.last_it]
-            self.xhat[self.last_it + 1: it] = self.xhat[self.last_it] + (np.sqrt(self.R) * np.random.randn(it - self.last_it + 1))
+            self.xhat[self.last_it + 1: it] = self.xhat[self.last_it] + (np.sqrt(self.R) * np.random.randn(it - self.last_it - 1))
             self.P[self.last_it + 1: it] = self.P[self.last_it]
             self.xhatminus[self.last_it + 1: it] = self.xhatminus[self.last_it]
             self.Pminus[self.last_it + 1: it] = self.Pminus[self.last_it]
@@ -198,8 +198,9 @@ class KalmanFilter:
         self.xhat[it] = self.xhatminus[it] + self.K[it] * (self.z[it] - self.xhatminus[it])
         self.P[it] = (1 - self.K[it]) * self.Pminus[it]
 
-        self.R += np.var(self.P[max(0, it - (1e-3 * self.total_it)):it]) - self.R
-        self.Q = 1e-3 * self.R
+        if it > 0:
+            self.R += np.var(self.P[max(0, it - (1e-3 * self.total_it)):it]) - self.R
+            self.Q = 1e-3 * self.R
 
         self.last_it = it
         return self.xhat[it]
