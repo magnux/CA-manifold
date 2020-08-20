@@ -162,7 +162,7 @@ class SamplePool:
 
 
 class KalmanFilter:
-    def __init__(self, total_it, Q_init=1e-3, R_init=1e-2, xhat_init=0.0, P_init=1.0):
+    def __init__(self, total_it, Q_init=1e-2, R_init=1e-2, xhat_init=0.0, P_init=1.0):
         self.total_it = total_it
         self.Q = Q_init  # process variance
         self.R = R_init  # estimate of measurement variance
