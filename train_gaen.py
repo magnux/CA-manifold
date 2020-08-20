@@ -166,16 +166,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc = (1/batch_mult) * compute_gan_loss(labs_enc, 1)
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
-                            reg_dis_enc = (1/batch_mult) * max(1, d_reg_every) * d_reg_param * compute_grad_reg(labs_enc, images)
+                            reg_dis_enc = (1/batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_enc, images)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item()
 
-                            reg_dis_enc = (1 / batch_mult) * max(1, d_reg_every) * d_reg_param * compute_grad_reg(labs_enc, lat_enc)
+                            reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_enc, lat_enc)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item()
 
-                        if d_reg_every == 0 or d_reg_every >= 1 or it % int(1 / d_reg_every) == 0:
-                            model_manager.loss_backward(loss_dis_enc, nets_to_train)
+                        model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -195,21 +194,20 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec = (1/batch_mult) * compute_gan_loss(labs_dec, 0)
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
-                            reg_dis_dec = (1 / batch_mult) * max(1, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, images_dec)
+                            reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item()
 
-                            reg_dis_dec = (1 / batch_mult) * max(1, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, lat_gen)
+                            reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, lat_gen)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item()
 
-                        if d_reg_every == 0 or d_reg_every >= 1 or it % int(1 / d_reg_every) == 0:
-                            model_manager.loss_backward(loss_dis_dec, nets_to_train)
+                        model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
-                        reg_dis_enc_mean = reg_dis_enc_est.update_kf(it, reg_dis_enc_sum / max(1, d_reg_every))
-                        reg_dis_dec_mean = reg_dis_dec_est.update_kf(it, reg_dis_dec_sum / max(1, d_reg_every))
+                        reg_dis_enc_mean = reg_dis_enc_est.update_kf(it, reg_dis_enc_sum / max(1 / d_reg_every, d_reg_every))
+                        reg_dis_dec_mean = reg_dis_dec_est.update_kf(it, reg_dis_dec_sum / max(1 / d_reg_every, d_reg_every))
                         max_reg = max(reg_dis_enc_mean, reg_dis_dec_mean)
                         d_reg_every_est = np.clip(d_reg_every_est + (reg_dis_target - max_reg), 1 / config['training']['d_reg_every'], config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_est) if d_reg_every_est >= 1 else d_reg_every_est
