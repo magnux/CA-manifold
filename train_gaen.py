@@ -206,7 +206,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    if d_reg_every > 0 and it % math.ceil(d_reg_every) == 0:
+                    if d_reg_every > 0 and it % max(1, d_reg_every) < 1.:
                         reg_dis_enc_mean = reg_dis_enc_est.update_kf(it, reg_dis_enc_sum / max(1, d_reg_every))
                         reg_dis_dec_mean = reg_dis_dec_est.update_kf(it, reg_dis_dec_sum / max(1, d_reg_every))
                         max_reg = max(reg_dis_enc_mean, reg_dis_dec_mean)
