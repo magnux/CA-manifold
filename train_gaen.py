@@ -174,7 +174,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item()
 
-                        if d_reg_every == 0 or d_reg_every >= 1. or it % int(1 / d_reg_every) == 0:
+                        if d_reg_every == 0 or d_reg_every >= 1 or it % int(1 / d_reg_every) == 0:
                             model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
