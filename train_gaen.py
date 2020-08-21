@@ -209,7 +209,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         reg_dis_enc_mean = reg_dis_enc_est.update_kf(it, reg_dis_enc_sum / max(1 / d_reg_every, d_reg_every))
                         reg_dis_dec_mean = reg_dis_dec_est.update_kf(it, reg_dis_dec_sum / max(1 / d_reg_every, d_reg_every))
                         max_reg = max(reg_dis_enc_mean, reg_dis_dec_mean)
-                        d_reg_every_est = np.clip(d_reg_every_est + (reg_dis_target - max_reg), 1 / config['training']['d_reg_every'], config['training']['d_reg_every'])
+                        d_reg_every_est = np.clip(d_reg_every_est + (reg_dis_target - max_reg), 1e-3, config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_est) if d_reg_every_est >= 1 else d_reg_every_est
 
                 # Generator step
