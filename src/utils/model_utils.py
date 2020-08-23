@@ -193,7 +193,7 @@ class NesterovMomentumEst:
         self.velocity = 0.
 
     def update(self, grad_func):
-        value_tmp = self.value + self.beta * self.velocity
+        value_tmp = self.value - self.beta * self.velocity
         self.velocity = self.beta * self.velocity + self.alpha * grad_func(value_tmp)
         self.value = self.value - self.velocity
 
