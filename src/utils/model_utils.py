@@ -171,33 +171,33 @@ class MovingMeanEst:
         return self.mean
 
 
-# class MomentumEst:
-#     def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
-#         self.value = value_init
-#         self.beta = beta
-#         self.alpha = alpha * (1 - self.beta)
-#         self.velocity = 0.
-#
-#     def update(self, grad):
-#         self.velocity = self.beta * self.velocity + self.alpha * grad
-#         self.value = self.value - self.velocity
-#
-#         return self.value
-#
-#
-# class NesterovMomentumEst:
-#     def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
-#         self.value = value_init
-#         self.beta = beta
-#         self.alpha = alpha * (1 - self.beta)
-#         self.velocity = 0.
-#
-#     def update(self, grad_func):
-#         value_tmp = self.value - self.beta * self.velocity
-#         self.velocity = self.beta * self.velocity + self.alpha * grad_func(value_tmp)
-#         self.value = self.value - self.velocity
-#
-#         return self.value
+class MomentumEst:
+    def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
+        self.value = value_init
+        self.beta = beta
+        self.alpha = alpha * (1 - self.beta)
+        self.velocity = 0.
+
+    def update(self, grad):
+        self.velocity = self.beta * self.velocity + self.alpha * grad
+        self.value = self.value - self.velocity
+
+        return self.value
+
+
+class NesterovMomentumEst:
+    def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
+        self.value = value_init
+        self.beta = beta
+        self.alpha = alpha * (1 - self.beta)
+        self.velocity = 0.
+
+    def update(self, grad_func):
+        value_tmp = self.value - self.beta * self.velocity
+        self.velocity = self.beta * self.velocity + self.alpha * grad_func(value_tmp)
+        self.value = self.value - self.velocity
+
+        return self.value
 
 
 class KalmanFilter:
