@@ -161,6 +161,43 @@ class SamplePool:
             getattr(self._parent, k)[self._parent_idx] = getattr(self, k)
 
 
+class MovingMeanEst:
+    def __init__(self, mean_init=0.0, momentum=0.9):
+        self.mean = mean_init
+        self.momentum = momentum
+
+    def update_mean(self, obs):
+        self.mean = self.momentum * self.mean + (1 - self.momentum) * obs
+        return self.mean
+
+
+class MomentumEst:
+    def __init__(self, value_init=0.0, momentum=0.9):
+        self.value = value_init
+        self.momentum = momentum
+        self.velocity = 0.
+
+    def update(self, grad):
+        self.velocity = self.momentum * self.velocity + (1 - self.momentum) * grad
+        self.value = self.value + self.velocity
+
+        return self.value
+
+
+class NesterovMomentumEst:
+    def __init__(self, value_init=0.0, momentum=0.9):
+        self.value = value_init
+        self.momentum = momentum
+        self.velocity = 0.
+
+    def update(self, grad_func):
+        value_tmp = self.value + self.momentum * self.velocity
+        self.velocity = self.momentum * self.velocity + (1 - self.momentum) * grad_func(value_tmp)
+        self.value = self.value + self.velocity
+
+        return self.value
+
+
 class KalmanFilter:
     def __init__(self, total_it, Q_init=1e-2, R_init=1e-2, xhat_init=0.0, P_init=1.0):
         self.total_it = total_it
@@ -168,7 +205,6 @@ class KalmanFilter:
         self.R = R_init  # estimate of measurement variance
 
         # allocate space for arrays
-        self.z = np.zeros(total_it)  # measurements
         self.xhat = np.zeros(total_it)  # a posteriori estimate of x
         self.P = np.zeros(total_it)  # a posteriori error estimate
         self.xhatminus = np.zeros(total_it)  # a priori estimate of x
@@ -181,8 +217,6 @@ class KalmanFilter:
 
     def update_kf(self, it, obs):
         if it - self.last_it > 1:
-            self.z[self.last_it + 1: it] = self.z[self.last_it]
-            # self.z[self.last_it + 1: it] = self.z[self.last_it] + (np.sqrt(self.R) * np.random.randn(it - self.last_it - 1))
             self.xhat[self.last_it + 1: it] = self.xhat[self.last_it]
             self.P[self.last_it + 1: it] = self.P[self.last_it]
             self.xhatminus[self.last_it + 1: it] = self.xhatminus[self.last_it]
@@ -194,14 +228,9 @@ class KalmanFilter:
         self.Pminus[it] = self.P[it - 1] + self.Q
 
         # measurement update
-        self.z[it] = obs
         self.K[it] = self.Pminus[it] / (self.Pminus[it] + self.R)
-        self.xhat[it] = self.xhatminus[it] + self.K[it] * (self.z[it] - self.xhatminus[it])
+        self.xhat[it] = self.xhatminus[it] + self.K[it] * (obs - self.xhatminus[it])
         self.P[it] = (1 - self.K[it]) * self.Pminus[it]
-
-        # if it > 0:
-        #     self.R = 0.9 * self.R + 0.1 * np.var(self.z[max(0, it - int(1e-3 * self.total_it)):it])
-        #     self.Q = 1e-3 * self.R
 
         self.last_it = it
         return self.xhat[it]
