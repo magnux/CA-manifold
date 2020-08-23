@@ -162,38 +162,40 @@ class SamplePool:
 
 
 class MovingMeanEst:
-    def __init__(self, mean_init=0.0, momentum=0.9):
+    def __init__(self, mean_init=0.0, beta=0.9):
         self.mean = mean_init
-        self.momentum = momentum
+        self.beta = beta
 
     def update_mean(self, obs):
-        self.mean = self.momentum * self.mean + (1 - self.momentum) * obs
+        self.mean = self.beta * self.mean + (1 - self.beta) * obs
         return self.mean
 
 
 class MomentumEst:
-    def __init__(self, value_init=0.0, momentum=0.9):
+    def __init__(self, value_init=0.0, beta=0.9, alpha=1e-2):
         self.value = value_init
-        self.momentum = momentum
+        self.beta = beta
+        self.alpha = alpha * (1 - self.beta)
         self.velocity = 0.
 
     def update(self, grad):
-        self.velocity = self.momentum * self.velocity + (1 - self.momentum) * grad
-        self.value = self.value + self.velocity
+        self.velocity = self.beta * self.velocity + self.alpha * grad
+        self.value = self.value - self.velocity
 
         return self.value
 
 
 class NesterovMomentumEst:
-    def __init__(self, value_init=0.0, momentum=0.9):
+    def __init__(self, value_init=0.0, beta=0.9, alpha=1e-2):
         self.value = value_init
-        self.momentum = momentum
+        self.beta = beta
+        self.alpha = alpha * (1 - self.beta)
         self.velocity = 0.
 
     def update(self, grad_func):
-        value_tmp = self.value + self.momentum * self.velocity
-        self.velocity = self.momentum * self.velocity + (1 - self.momentum) * grad_func(value_tmp)
-        self.value = self.value + self.velocity
+        value_tmp = self.value + self.beta * self.velocity
+        self.velocity = self.beta * self.velocity + self.alpha * grad_func(value_tmp)
+        self.value = self.value - self.velocity
 
         return self.value
 
