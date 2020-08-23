@@ -178,7 +178,7 @@ class MomentumEst:
         self.velocity = 0.
 
     def update(self, grad):
-        self.velocity = self.momentum * self.velocity + (1 - self.momentum) * grad
+        self.velocity = self.momentum * self.velocity - (1 - self.momentum) * grad
         self.value = self.value + self.velocity
 
         return self.value
@@ -192,7 +192,7 @@ class NesterovMomentumEst:
 
     def update(self, grad_func):
         value_tmp = self.value + self.momentum * self.velocity
-        self.velocity = self.momentum * self.velocity + (1 - self.momentum) * grad_func(value_tmp)
+        self.velocity = self.momentum * self.velocity - (1 - self.momentum) * grad_func(value_tmp)
         self.value = self.value + self.velocity
 
         return self.value
