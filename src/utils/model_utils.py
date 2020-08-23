@@ -172,7 +172,7 @@ class MovingMeanEst:
 
 
 class MomentumEst:
-    def __init__(self, value_init=0.0, beta=0.9, alpha=1e-2):
+    def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
         self.value = value_init
         self.beta = beta
         self.alpha = alpha * (1 - self.beta)
@@ -186,7 +186,7 @@ class MomentumEst:
 
 
 class NesterovMomentumEst:
-    def __init__(self, value_init=0.0, beta=0.9, alpha=1e-2):
+    def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
         self.value = value_init
         self.beta = beta
         self.alpha = alpha * (1 - self.beta)
