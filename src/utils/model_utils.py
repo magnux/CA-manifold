@@ -207,14 +207,17 @@ class RegEstimator:
         self.beta1 = beta1
         self.vel = 0.
         self.accel = 1.
-        self.total_it = 0
+        self.total_it = 1
 
     def update(self, curr_reg, target, obs):
         grad = -2. * (target - obs)
         self.vel = self.beta0 * self.vel + (1. - self.beta0) * grad
         self.accel = self.beta1 * self.accel + (1. - self.beta1) * grad ** 2
 
-        next_reg = curr_reg - self.vel / np.sqrt(self.accel + 1e-8)
+        vel_norm = self.vel / (1. - self.beta0 ** self.total_it)
+        accel_norm = self.accel / (1. - self.beta1 ** self.total_it)
+
+        next_reg = curr_reg - vel_norm / np.sqrt(accel_norm + 1e-8)
 
         self.total_it += 1
         return next_reg
