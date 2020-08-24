@@ -213,8 +213,8 @@ class RegEstimator:
             self.vel[self.last_it + 1: it] = self.vel[self.last_it]
 
         self.vel[it] = -2. * (target - obs)
-        accel = self.vel[it] - self.vel[it - 1]
-        self.inv_accel = self.beta * self.inv_accel + (1. - self.beta) * (1. / (np.abs(accel) + 1e-4))
+        accel = np.sqrt(np.abs(self.vel[it] - self.vel[it - 1]) + 1e-8)
+        self.inv_accel = self.beta * self.inv_accel + (1. - self.beta) * (1. / accel)
 
         next_reg = curr_reg - self.inv_accel * self.vel[it]
 
