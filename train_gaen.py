@@ -104,7 +104,7 @@ if config['training']['inception_every'] > 0:
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 d_reg_every = model_manager.log_manager.get_last('regs', 'd_reg_every')
 d_reg_every_float = float(d_reg_every)
-d_reg_every_est = RegEstimator(d_reg_every_float)
+d_reg_every_est = RegEstimator(total_it)
 
 
 if not alt_reg:
