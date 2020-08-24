@@ -161,7 +161,7 @@ class SamplePool:
             getattr(self._parent, k)[self._parent_idx] = getattr(self, k)
 
 
-class MovingMeanEst:
+class MovingMean:
     def __init__(self, mean_init=0.0, beta=0.9):
         self.mean = mean_init
         self.beta = beta
@@ -171,33 +171,33 @@ class MovingMeanEst:
         return self.mean
 
 
-class MomentumEst:
-    def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
-        self.value = value_init
-        self.beta = beta
-        self.alpha = alpha * (1 - self.beta)
-        self.velocity = 0.
-
-    def update(self, grad):
-        self.velocity = self.beta * self.velocity + self.alpha * grad
-        self.value = self.value - self.velocity
-
-        return self.value
-
-
-class NesterovMomentumEst:
-    def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
-        self.value = value_init
-        self.beta = beta
-        self.alpha = alpha * (1 - self.beta)
-        self.velocity = 0.
-
-    def update(self, grad_func):
-        value_tmp = self.value - self.beta * self.velocity
-        self.velocity = self.beta * self.velocity + self.alpha * grad_func(value_tmp)
-        self.value = self.value - self.velocity
-
-        return self.value
+# class Momentum:
+#     def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
+#         self.value = value_init
+#         self.beta = beta
+#         self.alpha = alpha * (1 - self.beta)
+#         self.velocity = 0.
+#
+#     def update(self, grad):
+#         self.velocity = self.beta * self.velocity + self.alpha * grad
+#         self.value = self.value - self.velocity
+#
+#         return self.value
+#
+#
+# class NesterovMomentum:
+#     def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
+#         self.value = value_init
+#         self.beta = beta
+#         self.alpha = alpha * (1 - self.beta)
+#         self.velocity = 0.
+#
+#     def update(self, grad_func):
+#         value_tmp = self.value - self.beta * self.velocity
+#         self.velocity = self.beta * self.velocity + self.alpha * grad_func(value_tmp)
+#         self.value = self.value - self.velocity
+#
+#         return self.value
 
 
 class KalmanFilter:
