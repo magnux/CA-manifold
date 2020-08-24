@@ -161,16 +161,16 @@ class SamplePool:
             getattr(self._parent, k)[self._parent_idx] = getattr(self, k)
 
 
-class MovingMean:
-    def __init__(self, mean_init=0.0, beta=0.9):
-        self.mean = mean_init
-        self.beta = beta
-
-    def update_mean(self, obs):
-        self.mean = self.beta * self.mean + (1 - self.beta) * obs
-        return self.mean
-
-
+# class MovingMean:
+#     def __init__(self, mean_init=0.0, beta=0.9):
+#         self.mean = mean_init
+#         self.beta = beta
+#
+#     def update(self, obs):
+#         self.mean = self.beta * self.mean + (1 - self.beta) * obs
+#         return self.mean
+#
+#
 # class Momentum:
 #     def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
 #         self.value = value_init
@@ -198,6 +198,27 @@ class MovingMean:
 #         self.value = self.value - self.velocity
 #
 #         return self.value
+
+
+class RegEstimator:
+    def __init__(self, total_it, beta=0.5):
+        self.total_it = total_it
+        self.last_it = -1
+        self.vel = np.zeros(total_it)
+        self.beta = beta
+        self.inv_accel = 1.
+
+    def update(self, it, curr_reg, target, obs):
+        if it - self.last_it > 1:
+            self.vel[self.last_it + 1: it] = self.vel[self.last_it]
+
+        self.vel[it] = (-2. * (target - obs))
+        self.inv_accel = self.beta * self.inv_accel + (1. - self.beta) * (1. / np.sqrt(self.vel[it] - self.vel[it - 1] + 1.))
+
+        next_reg = curr_reg - self.inv_accel * self.vel[it]
+
+        self.last_it = it
+        return next_reg
 
 
 class KalmanFilter:

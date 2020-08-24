@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg
-from src.utils.model_utils import compute_inception_score, MovingMean
+from src.utils.model_utils import compute_inception_score, RegEstimator
 from src.utils.media_utils import rand_erase_images
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -104,7 +104,7 @@ if config['training']['inception_every'] > 0:
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 d_reg_every = model_manager.log_manager.get_last('regs', 'd_reg_every')
 d_reg_every_float = float(d_reg_every)
-d_reg_every_est = MovingMean(d_reg_every_float)
+d_reg_every_est = RegEstimator(d_reg_every_float)
 
 
 if not alt_reg:
@@ -205,7 +205,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                         max_reg = max(reg_dis_enc_sum / max(1 / d_reg_every, d_reg_every), reg_dis_dec_sum / max(1 / d_reg_every, d_reg_every))
-                        d_reg_every_float = d_reg_every_est.update_mean(d_reg_every_float + 2 * (reg_dis_target - max_reg))
+                        d_reg_every_float = d_reg_every_est.update(it, d_reg_every_float, reg_dis_target, max_reg)
                         d_reg_every_float = np.clip(d_reg_every_float, 1e-3, config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
 
