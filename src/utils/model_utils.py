@@ -206,17 +206,16 @@ class RegEstimator:
         self.last_it = -1
         self.vel = np.zeros(total_it)
         self.beta = beta
-        self.inv_accel = 1.
+        self.accel = 1.
 
     def update(self, it, curr_reg, target, obs):
         if it - self.last_it > 1:
             self.vel[self.last_it + 1: it] = self.vel[self.last_it]
 
         self.vel[it] = -2. * (target - obs)
-        accel = np.sqrt(np.abs(self.vel[it] - self.vel[it - 1]) + 1e-8)
-        self.inv_accel = self.beta * self.inv_accel + (1. - self.beta) * (1. / accel)
+        self.accel = self.beta * self.accel + (1. - self.beta) * np.abs(self.vel[it] - self.vel[it - 1])
 
-        next_reg = curr_reg - self.inv_accel * self.vel[it]
+        next_reg = curr_reg - self.vel[it] / np.sqrt(self.accel + 1e-8)
 
         self.last_it = it
         return next_reg
