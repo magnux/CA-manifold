@@ -161,6 +161,65 @@ class SamplePool:
             getattr(self._parent, k)[self._parent_idx] = getattr(self, k)
 
 
+# class MovingMean:
+#     def __init__(self, mean_init=0.0, beta=0.9):
+#         self.mean = mean_init
+#         self.beta = beta
+#
+#     def update(self, obs):
+#         self.mean = self.beta * self.mean + (1 - self.beta) * obs
+#         return self.mean
+#
+#
+# class Momentum:
+#     def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
+#         self.value = value_init
+#         self.beta = beta
+#         self.alpha = alpha * (1 - self.beta)
+#         self.velocity = 0.
+#
+#     def update(self, grad):
+#         self.velocity = self.beta * self.velocity + self.alpha * grad
+#         self.value = self.value - self.velocity
+#
+#         return self.value
+#
+#
+# class NesterovMomentum:
+#     def __init__(self, value_init=0.0, beta=0.9, alpha=0.1):
+#         self.value = value_init
+#         self.beta = beta
+#         self.alpha = alpha * (1 - self.beta)
+#         self.velocity = 0.
+#
+#     def update(self, grad_func):
+#         value_tmp = self.value - self.beta * self.velocity
+#         self.velocity = self.beta * self.velocity + self.alpha * grad_func(value_tmp)
+#         self.value = self.value - self.velocity
+#
+#         return self.value
+
+
+class RegEstimator:
+    def __init__(self, beta0=0.1, beta1=0.1):
+        self.last_it = -1
+        self.beta0 = beta0
+        self.beta1 = beta1
+        self.vel = 0.
+        self.accel = 1.
+        self.total_it = 0
+
+    def update(self, curr_reg, target, obs):
+        grad = -2. * (target - obs)
+        self.vel = self.beta0 * self.vel + (1. - self.beta0) * grad
+        self.accel = self.beta1 * self.accel + (1. - self.beta1) * grad ** 2
+
+        next_reg = curr_reg - self.vel / np.sqrt(self.accel + 1e-8)
+
+        self.total_it += 1
+        return next_reg
+
+
 class KalmanFilter:
     def __init__(self, total_it, Q_init=1e-2, R_init=1e-2, xhat_init=0.0, P_init=1.0):
         self.total_it = total_it
