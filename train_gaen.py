@@ -206,7 +206,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                         max_reg = max(reg_dis_enc_sum / max(1 / d_reg_every, d_reg_every), reg_dis_dec_sum / max(1 / d_reg_every, d_reg_every))
                         d_reg_every_float = d_reg_every_est.update(d_reg_every_float, reg_dis_target, max_reg)
-                        d_reg_every_float = np.clip(d_reg_every_float, 1e-3, config['training']['d_reg_every'])
+                        d_reg_every_float = np.clip(d_reg_every_float, 1e-9, config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
 
                 # Generator step
