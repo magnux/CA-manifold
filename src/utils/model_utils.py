@@ -201,23 +201,23 @@ class SamplePool:
 
 
 class RegEstimator:
-    def __init__(self, beta0=0.9, beta1=0.9):
+    def __init__(self, beta1=0.9, beta2=0.9):
         self.last_it = -1
-        self.beta0 = beta0
         self.beta1 = beta1
-        self.vel = 0.
-        self.accel = 1.
+        self.beta2 = beta2
+        self.m1 = 0.
+        self.m2 = 1.
         self.total_it = 1
 
     def update(self, curr_reg, target, obs):
         grad = -2. * (target - obs)
-        self.vel = self.beta0 * self.vel + (1. - self.beta0) * grad
-        self.accel = self.beta1 * self.accel + (1. - self.beta1) * grad ** 2
+        self.m1 = self.beta1 * self.m1 + (1. - self.beta1) * grad
+        self.m2 = self.beta2 * self.m2 + (1. - self.beta2) * grad ** 2
 
-        vel_norm = self.vel / (1. - self.beta0 ** self.total_it)
-        accel_norm = self.accel / (1. - self.beta1 ** self.total_it)
+        m1_norm = self.m1 / (1. - self.beta1 ** self.total_it)
+        m2_norm = self.m2 / (1. - self.beta2 ** self.total_it)
 
-        next_reg = curr_reg - vel_norm / np.sqrt(accel_norm + 1e-8)
+        next_reg = curr_reg - m1_norm / np.sqrt(m2_norm + 1e-8)
 
         self.total_it += 1
         return next_reg
