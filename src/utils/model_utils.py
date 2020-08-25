@@ -201,7 +201,7 @@ class SamplePool:
 
 
 class RegEstimator:
-    def __init__(self, alpha=0.1, beta1=0.9, beta2=0.99):
+    def __init__(self, alpha=1e-3, beta1=0.9, beta2=0.99):
         self.last_it = -1
         self.alpha = alpha
         self.beta1 = beta1
