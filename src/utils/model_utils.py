@@ -207,7 +207,7 @@ class RegEstimator:
         self.beta1 = beta1
         self.beta2 = beta2
         self.m1 = 0.
-        self.m2 = 1.
+        self.m2 = 0.
         self.total_it = 1
 
     def update(self, curr_reg, target, obs):
