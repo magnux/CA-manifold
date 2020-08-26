@@ -32,7 +32,7 @@ training:
   batch_mult_steps: 8
   n_workers: 2
   optimizer: sgd
-  lr: 1.0
+  lr: 0.1
   equalize_lr: false
   n_epochs: 512
   save_every: 1
