@@ -204,65 +204,65 @@ class SamplePool:
 #         self.value = self.value - self.velocity
 #
 #         return self.value
-
-
-class RegEstimator:
-    def __init__(self, alpha=1e-2, beta1=0.5, beta2=0.9):
-        self.last_it = -1
-        self.alpha = alpha
-        self.beta1 = beta1
-        self.beta2 = beta2
-        self.m1 = 0.
-        self.m2 = 0.
-        self.total_it = 1
-
-    def update(self, curr_reg, target, obs):
-        grad = -2. * (target - obs)
-        self.m1 = self.beta1 * self.m1 + (1. - self.beta1) * grad
-        self.m2 = self.beta2 * self.m2 + (1. - self.beta2) * grad ** 2
-
-        m1_norm = self.m1 / (1. - self.beta1 ** self.total_it)
-        m2_norm = self.m2 / (1. - self.beta2 ** self.total_it)
-
-        next_reg = curr_reg - self.alpha * m1_norm / np.sqrt(m2_norm + 1e-8)
-
-        self.total_it += 1
-        return next_reg
-
-
-class KalmanFilter:
-    def __init__(self, total_it, Q_init=1e-2, R_init=1e-2, xhat_init=0.0, P_init=1.0):
-        self.total_it = total_it
-        self.Q = Q_init  # process variance
-        self.R = R_init  # estimate of measurement variance
-
-        # allocate space for arrays
-        self.xhat = np.zeros(total_it)  # a posteriori estimate of x
-        self.P = np.zeros(total_it)  # a posteriori error estimate
-        self.xhatminus = np.zeros(total_it)  # a priori estimate of x
-        self.Pminus = np.zeros(total_it)  # a priori error estimate
-        self.K = np.zeros(total_it)  # gain or blending factor
-
-        self.xhat[0] = xhat_init
-        self.P[0] = P_init
-        self.last_it = 0
-
-    def update_kf(self, it, obs):
-        if it - self.last_it > 1:
-            self.xhat[self.last_it + 1: it] = self.xhat[self.last_it]
-            self.P[self.last_it + 1: it] = self.P[self.last_it]
-            self.xhatminus[self.last_it + 1: it] = self.xhatminus[self.last_it]
-            self.Pminus[self.last_it + 1: it] = self.Pminus[self.last_it]
-            self.K[self.last_it + 1: it] = self.K[self.last_it]
-
-        # time update
-        self.xhatminus[it] = self.xhat[it - 1]
-        self.Pminus[it] = self.P[it - 1] + self.Q
-
-        # measurement update
-        self.K[it] = self.Pminus[it] / (self.Pminus[it] + self.R)
-        self.xhat[it] = self.xhatminus[it] + self.K[it] * (obs - self.xhatminus[it])
-        self.P[it] = (1 - self.K[it]) * self.Pminus[it]
-
-        self.last_it = it
-        return self.xhat[it]
+#
+#
+# class RegEstimator:
+#     def __init__(self, alpha=1e-2, beta1=0.5, beta2=0.9):
+#         self.last_it = -1
+#         self.alpha = alpha
+#         self.beta1 = beta1
+#         self.beta2 = beta2
+#         self.m1 = 0.
+#         self.m2 = 0.
+#         self.total_it = 1
+#
+#     def update(self, curr_reg, target, obs):
+#         grad = -2. * (target - obs)
+#         self.m1 = self.beta1 * self.m1 + (1. - self.beta1) * grad
+#         self.m2 = self.beta2 * self.m2 + (1. - self.beta2) * grad ** 2
+#
+#         m1_norm = self.m1 / (1. - self.beta1 ** self.total_it)
+#         m2_norm = self.m2 / (1. - self.beta2 ** self.total_it)
+#
+#         next_reg = curr_reg - self.alpha * m1_norm / np.sqrt(m2_norm + 1e-8)
+#
+#         self.total_it += 1
+#         return next_reg
+#
+#
+# class KalmanFilter:
+#     def __init__(self, total_it, Q_init=1e-2, R_init=1e-2, xhat_init=0.0, P_init=1.0):
+#         self.total_it = total_it
+#         self.Q = Q_init  # process variance
+#         self.R = R_init  # estimate of measurement variance
+#
+#         # allocate space for arrays
+#         self.xhat = np.zeros(total_it)  # a posteriori estimate of x
+#         self.P = np.zeros(total_it)  # a posteriori error estimate
+#         self.xhatminus = np.zeros(total_it)  # a priori estimate of x
+#         self.Pminus = np.zeros(total_it)  # a priori error estimate
+#         self.K = np.zeros(total_it)  # gain or blending factor
+#
+#         self.xhat[0] = xhat_init
+#         self.P[0] = P_init
+#         self.last_it = 0
+#
+#     def update_kf(self, it, obs):
+#         if it - self.last_it > 1:
+#             self.xhat[self.last_it + 1: it] = self.xhat[self.last_it]
+#             self.P[self.last_it + 1: it] = self.P[self.last_it]
+#             self.xhatminus[self.last_it + 1: it] = self.xhatminus[self.last_it]
+#             self.Pminus[self.last_it + 1: it] = self.Pminus[self.last_it]
+#             self.K[self.last_it + 1: it] = self.K[self.last_it]
+#
+#         # time update
+#         self.xhatminus[it] = self.xhat[it - 1]
+#         self.Pminus[it] = self.P[it - 1] + self.Q
+#
+#         # measurement update
+#         self.K[it] = self.Pminus[it] / (self.Pminus[it] + self.R)
+#         self.xhat[it] = self.xhatminus[it] + self.K[it] * (obs - self.xhatminus[it])
+#         self.P[it] = (1 - self.K[it]) * self.Pminus[it]
+#
+#         self.last_it = it
+#         return self.xhat[it]

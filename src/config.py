@@ -48,9 +48,9 @@ def build_optimizer(network, config):
 
     # Optimizers
     if optimizer == 'adam':
-        optimizer = optim.Adam(params, lr=lr, betas=(0.5, 0.9), weight_decay=1e-2, amsgrad=True)
+        optimizer = optim.Adam(params, lr=lr, betas=(0.5, 0.9), weight_decay=1e-5, amsgrad=True)
     elif optimizer == 'adamp':
-        optimizer = AdamP(params, lr=lr, betas=(0.5, 0.9), weight_decay=1e-2, nesterov=True)
+        optimizer = AdamP(params, lr=lr, betas=(0.5, 0.9), weight_decay=1e-5, nesterov=True)
     elif optimizer == 'sgd':
         optimizer = optim.SGD(params, lr=lr, momentum=0.9, weight_decay=1e-5, nesterov=True)
     elif optimizer == 'sgdp':
