@@ -47,16 +47,14 @@ def build_optimizer(network, config):
         params = network.parameters()
 
     # Optimizers
-    if optimizer == 'rmsprop':
-        optimizer = optim.RMSprop(params, lr=lr, alpha=0.99, eps=1e-8)
-    elif optimizer == 'adam':
-        optimizer = optim.Adam(params, lr=lr, betas=(0., 0.99), eps=1e-8, amsgrad=True)
+    if optimizer == 'adam':
+        optimizer = optim.Adam(params, lr=lr, betas=(0.5, 0.9), weight_decay=1e-2, amsgrad=True)
     elif optimizer == 'adamp':
-        optimizer = AdamP(params, lr=lr, betas=(0.5, 0.9), eps=1e-8)
+        optimizer = AdamP(params, lr=lr, betas=(0.5, 0.9), weight_decay=1e-2, nesterov=True)
     elif optimizer == 'sgd':
-        optimizer = optim.SGD(params, lr=lr, momentum=0.)
+        optimizer = optim.SGD(params, lr=lr, momentum=0.9, weight_decay=1e-5, nesterov=True)
     elif optimizer == 'sgdp':
-        optimizer = SGDP(params, lr=lr, momentum=0.)
+        optimizer = SGDP(params, lr=lr, momentum=0.9, weight_decay=1e-5, nesterov=True)
 
     return optimizer
 
