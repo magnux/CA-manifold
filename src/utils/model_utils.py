@@ -21,6 +21,12 @@ def zero_grad(network):
             p.grad.zero_()
 
 
+def grad_noise(network, scale):
+    for p in network.parameters():
+        if p.grad is not None:
+            p.grad.data.copy_(p.grad + torch.randn_like(p.grad) * scale)
+
+
 def bkp_grad(network, bkp_name):
     for p in network.parameters():
         if p.grad is not None:

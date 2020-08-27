@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg
-from src.utils.model_utils import compute_inception_score, RegEstimator
+from src.utils.model_utils import compute_inception_score, grad_noise, RegEstimator
 from src.utils.media_utils import rand_erase_images
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -210,6 +210,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         d_reg_every_float = np.clip(d_reg_every_float, 1e-9, config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
 
+                    grad_noise(dis_encoder, reg_dis_target * 0.1)
+                    grad_noise(discriminator, reg_dis_target * 0.1)
+
                 # Generator step
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
@@ -279,6 +282,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * compute_gan_loss(labs_dec, 1)
                             model_manager.loss_backward(reg_gen_dec, nets_to_train)
                             reg_gen_dec_sum += reg_gen_dec.item()
+
+                    grad_noise(encoder, reg_dis_target * 0.1)
+                    grad_noise(decoder, reg_dis_target * 0.1)
+                    grad_noise(generator, reg_dis_target * 0.1)
 
                 # Streaming Images
                 with torch.no_grad():
