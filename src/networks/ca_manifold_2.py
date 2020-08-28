@@ -67,6 +67,7 @@ class InjectedEncoder(nn.Module):
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
 
         out = self.conv_img(x)
+        inj_lat = 1e3 * inj_lat
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -108,7 +109,6 @@ class InjectedEncoder(nn.Module):
         else:
             conv_state = out.mean(dim=(2, 3))
         lat = self.out_to_lat(conv_state)
-        lat = F.normalize(lat)
 
         return lat, out_embs, None
 

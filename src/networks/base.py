@@ -57,7 +57,6 @@ class Generator(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
-        lat = F.normalize(lat)
 
         return lat
 
@@ -80,7 +79,6 @@ class LabsEncoder(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
         lat = self.embed_to_lat(yembed)
-        lat = F.normalize(lat)
 
         return lat
 
