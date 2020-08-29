@@ -55,6 +55,7 @@ zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=de
 # Networks
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
+    'labs_encoder': {'class': 'base', 'sub_class': 'LabsEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
@@ -62,6 +63,7 @@ networks_dict = {
 }
 model_manager = ModelManager('gaen', networks_dict, config)
 encoder = model_manager.get_network('encoder')
+labs_encoder = model_manager.get_network('labs_encoder')
 decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
 dis_encoder = model_manager.get_network('dis_encoder')
@@ -130,6 +132,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
+                loss_gen_reenc_sum, loss_gen_redec_sum = 0, 0
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
@@ -149,11 +152,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
-                            lat_labs = generator(torch.zeros_like(z_gen), labels)
+                            lat_labs = labs_encoder(labels)
                             lat_enc, _, _ = encoder(images, lat_labs)
-                            lat_enc = (lat_enc + 1. / 128 * torch.randn_like(lat_enc))
-                            images = (images + 1. / 128 * torch.randn_like(images)).clamp_(-1.0, 1.0)
-                            images = rand_erase_images(images)
 
                         images.requires_grad_()
                         lat_enc.requires_grad_()
@@ -174,14 +174,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
-                            lat_gen = (lat_gen + 1. / 128 * torch.randn_like(lat_gen))
-                            images_dec = (images_dec + 1. / 128 * torch.randn_like(images_dec)).clamp_(-1.0, 1.0)
-                            images_dec = rand_erase_images(images_dec)
 
                         lat_gen.requires_grad_()
                         images_dec.requires_grad_()
@@ -209,12 +204,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
 
                 # Generator step
-                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+                with model_manager.on_step(['encoder', 'labs_encoder', 'decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        lat_labs = generator(torch.zeros_like(z_gen), labels)
+                        lat_labs = labs_encoder(labels)
                         lat_enc, out_embs, _ = encoder(images, lat_labs)
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
@@ -225,11 +220,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
                             reg_gen_enc_sum += reg_gen_enc.item()
 
-                        loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
+                        loss_gen_enc = (1 / batch_mult) * 0.9 * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
-
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
@@ -242,41 +235,38 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item()
 
-                        loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
+                        loss_gen_dec = (1 / batch_mult) * 0.1 * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                        if alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
-                            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                            with torch.no_grad():
-                                lat_gen = generator(z_gen, labels)
-                                images_dec, _, _ = decoder(lat_gen)
+                        with torch.no_grad():
+                            lat_gen = generator(z_gen, labels)
+                            images_dec, _, _ = decoder(lat_gen)
 
-                            lat_gen.requires_grad_()
-                            images_dec.requires_grad_()
-                            lat_labs = generator(torch.zeros_like(z_gen), labels)
-                            lat_enc, _, _ = encoder(images_dec, lat_labs)
-                            lat_top_enc, _, _ = dis_encoder(images_dec, lat_enc)
-                            labs_enc = discriminator(lat_top_enc, labels)
+                        images_dec.requires_grad_()
+                        lat_labs = labs_encoder(labels)
+                        lat_enc, _, _ = encoder(images_dec, lat_labs)
+                        lat_top_enc, _, _ = dis_encoder(images_dec, lat_enc)
+                        labs_enc = discriminator(lat_top_enc, labels)
 
-                            reg_gen_enc = (1 / batch_mult) * g_reg_every * compute_gan_loss(labs_enc, 0)
-                            model_manager.loss_backward(reg_gen_enc, nets_to_train)
-                            reg_gen_enc_sum += reg_gen_enc.item()
+                        loss_gen_reenc = (1 / batch_mult) * 0.1 * compute_gan_loss(labs_enc, 0)
+                        model_manager.loss_backward(loss_gen_reenc, nets_to_train)
+                        loss_gen_reenc_sum += loss_gen_reenc.item()
 
-                            with torch.no_grad():
-                                lat_labs = generator(torch.zeros_like(z_gen), labels)
-                                lat_enc, _, _ = encoder(images, lat_labs)
+                        with torch.no_grad():
+                            lat_labs = labs_encoder(labels)
+                            lat_enc, _, _ = encoder(images, lat_labs)
 
-                            images.requires_grad_()
-                            lat_enc.requires_grad_()
-                            images_dec, _, _ = decoder(lat_enc)
-                            lat_top_dec, _, _ = dis_encoder(images_dec, lat_enc)
-                            labs_dec = discriminator(lat_top_dec, labels)
+                        lat_enc.requires_grad_()
+                        images_dec, _, _ = decoder(lat_enc)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_enc)
+                        labs_dec = discriminator(lat_top_dec, labels)
 
-                            reg_gen_dec = (1 / batch_mult) * g_reg_every * compute_gan_loss(labs_dec, 1)
-                            model_manager.loss_backward(reg_gen_dec, nets_to_train)
-                            reg_gen_dec_sum += reg_gen_dec.item()
+                        loss_gen_redec = (1 / batch_mult) * 0.9 * compute_gan_loss(labs_dec, 1)
+                        model_manager.loss_backward(loss_gen_redec, nets_to_train)
+                        loss_gen_redec_sum += loss_gen_redec.item()
 
                 # Streaming Images
                 with torch.no_grad():
@@ -299,6 +289,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen_reenc', loss_gen_reenc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen_redec', loss_gen_redec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
@@ -319,7 +311,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
-            lat_labs = generator(torch.zeros_like(z_gen), labels)
+            lat_labs = labs_encoder(labels)
             lat_enc, _, _ = encoder(images, lat_labs)
             images_dec, _, _ = decoder(lat_enc)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
