@@ -29,7 +29,7 @@ def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
             else:
                 norm = p.grad.data.norm(norm_type)
             norm = torch.ones_like(p.grad.data) * max(norm, max_norm)
-            p.grad.data.copy_(torch.max(torch.stack([p.grad.data, norm], dim=-1), dim=-1))
+            p.grad.data.copy_(p.grad.data.max(norm))
 
 
 def grad_noise(network, scale):
