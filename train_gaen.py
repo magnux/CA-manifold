@@ -8,8 +8,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg
-from src.utils.model_utils import compute_inception_score, clip_grad_ind_norm
-from src.utils.media_utils import rand_erase_images
+from src.utils.model_utils import compute_inception_score
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -120,7 +119,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_gen = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-        reg_dis_target = 0.1 ** ((batch_mult / batch_split) + 1)
+        reg_dis_target = 0.1 ** (batch_mult / batch_split)
         it = epoch * (len(trainloader) // batch_split)
 
         t = trange(len(trainloader) // batch_split)
@@ -161,7 +160,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         loss_dis_enc = (1/batch_mult) * compute_gan_loss(labs_enc, 1)
 
-                        if not alt_reg and d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
+                        if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             reg_dis_enc = (1/batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_enc, images)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item()
@@ -184,7 +183,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         loss_dis_dec = (1/batch_mult) * compute_gan_loss(labs_dec, 0)
 
-                        if not alt_reg and d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
+                        if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item()
@@ -196,13 +195,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    if not alt_reg and d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
+                    if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                         max_reg = max(reg_dis_enc_sum / max(1 / d_reg_every, d_reg_every), reg_dis_dec_sum / max(1 / d_reg_every, d_reg_every))
                         d_reg_every_float = d_reg_every_float + reg_dis_target - max_reg
                         d_reg_every_float = np.clip(d_reg_every_float, 1e-9, config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
-
-                    clip_grad_ind_norm(dis_encoder, reg_dis_target, 2)
 
                 # Generator step
                 with model_manager.on_step(['encoder', 'labs_encoder', 'decoder', 'generator']) as nets_to_train:
@@ -268,8 +265,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_redec = (1 / batch_mult) * 0.9 * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_redec, nets_to_train)
                         loss_gen_redec_sum += loss_gen_redec.item()
-
-                    clip_grad_ind_norm(encoder, reg_dis_target * 10, 2)
 
                 # Streaming Images
                 with torch.no_grad():
