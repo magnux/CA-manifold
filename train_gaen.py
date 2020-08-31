@@ -104,7 +104,8 @@ if config['training']['inception_every'] > 0:
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 d_reg_every = model_manager.log_manager.get_last('regs', 'd_reg_every', 1.)
 d_reg_every_float = float(d_reg_every)
-
+g_reg_every = model_manager.log_manager.get_last('regs', 'g_reg_every', 1.)
+g_reg_every_float = float(g_reg_every)
 
 if not alt_reg:
     pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
@@ -332,6 +333,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('regs', 'reg_gen_enc', reg_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_gen_dec', reg_gen_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('regs', 'g_reg_every', g_reg_every, it=it)
                 if not alt_reg:
                     model_manager.log_manager.add_scalar('regs', 'pl_mean_enc', pl_mean_enc, it=it)
                     model_manager.log_manager.add_scalar('regs', 'pl_mean_dec', pl_mean_dec, it=it)
