@@ -140,7 +140,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
-                if not (g_reg_every > 0 and it % g_reg_every == 0):
+                if not (g_reg_every > 0 and (g_reg_every < 1 or it % g_reg_every == 0)):
                     reg_gen_enc_sum = model_manager.log_manager.get_last('regs', 'reg_gen_enc')
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
