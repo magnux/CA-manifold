@@ -202,7 +202,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         d_reg_every_float = np.clip(d_reg_every_float, 1e-9, config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
 
-                    clip_grad_ind_norm(dis_encoder, reg_dis_target)
+                    clip_grad_ind_norm(dis_encoder, reg_dis_target, 2)
 
                 # Generator step
                 with model_manager.on_step(['encoder', 'labs_encoder', 'decoder', 'generator']) as nets_to_train:
@@ -269,7 +269,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_redec, nets_to_train)
                         loss_gen_redec_sum += loss_gen_redec.item()
 
-                    clip_grad_ind_norm(encoder, reg_dis_target * 10)
+                    clip_grad_ind_norm(encoder, reg_dis_target * 10, 2)
 
                 # Streaming Images
                 with torch.no_grad():
