@@ -25,7 +25,7 @@ def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
     for p in network.parameters():
         if p.grad is not None:
             if norm_type == torch._six.inf:
-                norm = p.grad.abs.max()
+                norm = p.grad.data.abs().max()
             else:
                 norm = p.grad.data.norm(norm_type)
             norm = torch.ones_like(p.grad.data) * max(norm, max_norm)
