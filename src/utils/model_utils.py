@@ -21,6 +21,17 @@ def zero_grad(network):
             p.grad.zero_()
 
 
+def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
+    for p in network.parameters():
+        if p.grad is not None:
+            if norm_type == torch._six.inf:
+                norm = p.grad.abs.max()
+            else:
+                norm = p.grad.data.norm(norm_type)
+            norm = torch.ones_like(p.grad.data) * max(norm, max_norm)
+            p.grad.data.copy_(torch.max(torch.stack([p.grad.data, norm], dim=-1), dim=-1))
+
+
 def grad_noise(network, scale):
     for p in network.parameters():
         if p.grad is not None:
