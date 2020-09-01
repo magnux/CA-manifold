@@ -289,7 +289,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_dec = (1 / batch_mult) * 0.9 * max(1 / g_reg_every, g_reg_every) * 1e-4 * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item()
-                        elif alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
+                        elif g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_enc, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * 0.9 * g_reg_every * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
