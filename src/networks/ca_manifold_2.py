@@ -40,7 +40,7 @@ class InjectedEncoder(nn.Module):
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2] if self.multi_cut else [self.n_filter]
 
-        self.conv_img = nn.Sequential(
+        self.in_conv = nn.Sequential(
             nn.Conv2d(self.in_chan, self.n_filter, 3, 1, 1),
             *([DownScale(self.n_filter, self.n_filter, self.image_size, self.ds_size)] if self.ds_size < self.image_size else []),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
@@ -54,6 +54,7 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
+        self.out_norm = nn.InstanceNorm2d(self.n_filter)
         self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
@@ -66,7 +67,7 @@ class InjectedEncoder(nn.Module):
         batch_size = x.size(0)
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
 
-        out = self.conv_img(x)
+        out = self.in_conv(x)
         inj_lat = F.normalize(inj_lat)
 
         if self.perception_noise and self.training:
@@ -99,7 +100,7 @@ class InjectedEncoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
-        out = self.frac_norm(out)
+        out = self.out_norm(out)
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
@@ -145,7 +146,8 @@ class Decoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.conv_img = nn.Sequential(
+        self.out_norm = nn.InstanceNorm2d(self.n_filter)
+        self.out_conv = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
             *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
@@ -194,8 +196,8 @@ class Decoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
-        out = self.frac_norm(out)
-        out = self.conv_img(out)
+        out = self.out_norm(out)
+        out = self.out_conv(out)
         out_raw = out
         if self.log_mix_out:
             out = sample_from_discretized_mix_logistic(out, 10)
