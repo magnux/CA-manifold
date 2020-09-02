@@ -30,6 +30,8 @@ def compute_grad_reg(d_out, d_in, norm_type=2):
         grad_dout = grad_dout.abs()
     elif norm_type == 2:
         grad_dout = grad_dout.pow(2)
+    elif norm_type == 'log':
+        grad_dout = (grad_dout.abs() + 1.).log()
     assert(grad_dout.size() == d_in.size())
     reg = grad_dout.view(batch_size, -1).sum(1).mean()
     return reg
