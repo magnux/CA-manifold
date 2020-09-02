@@ -99,7 +99,7 @@ class InjectedEncoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
-        out = 1. / (1e-3 + F.relu(out))
+        out = 1. / (0.1 + F.relu(out))
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
