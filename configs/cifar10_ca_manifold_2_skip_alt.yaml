@@ -27,7 +27,7 @@ z_dist:
 training:
   out_dir: save/cifar10_ca_manifold_2_skip_alt
   batch_size: 64
-  batch_split: 8
+  batch_split: 4
   batch_mult_steps: 8
   n_workers: 2
   optimizer: adamp
