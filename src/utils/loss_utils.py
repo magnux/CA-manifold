@@ -22,13 +22,16 @@ def compute_gan_loss(d_out, target, gan_type='standard'):
     return loss
 
 
-def compute_grad_reg(d_out, d_in):
+def compute_grad_reg(d_out, d_in, norm_type=2):
     batch_size = d_in.size(0)
     grad_dout = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
-    grad_dout2 = grad_dout.pow(2)
-    assert(grad_dout2.size() == d_in.size())
-    reg = grad_dout2.view(batch_size, -1).sum(1).mean()
+    if norm_type == 1:
+        grad_dout = grad_dout.abs()
+    elif norm_type == 2:
+        grad_dout = grad_dout.pow(2)
+    assert(grad_dout.size() == d_in.size())
+    reg = grad_dout.view(batch_size, -1).sum(1).mean()
     return reg
 
 
