@@ -140,7 +140,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 if not (g_reg_every > 0 and it % g_reg_every == 0):
                     reg_gen_enc_sum = model_manager.log_manager.get_last('regs', 'reg_gen_enc')
-                if not (g_reg_every > 0 and it % g_reg_every == (g_reg_every // 2)):
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
                 # Discriminator step
@@ -214,8 +213,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             if alt_reg:
-                                reg_gen_enc = compute_grad_reg(lat_enc, images, 'log')
-                                reg_gen_enc = (1 / batch_mult) * 0.9 * g_reg_every * 1e-2 * reg_gen_enc
+                                reg_gen_enc = compute_grad_reg(lat_enc, images)
+                                reg_gen_enc = (1 / batch_mult) * 0.9 * g_reg_every * 1e-3 * reg_gen_enc
                                 model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
                                 reg_gen_enc_sum += reg_gen_enc.item()
                             else:
@@ -233,10 +232,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        if g_reg_every > 0 and it % g_reg_every == (g_reg_every // 2):
+                        if g_reg_every > 0 and it % g_reg_every == 0:
                             if alt_reg:
-                                reg_gen_dec = compute_grad_reg(images_dec, lat_gen, 'log')
-                                reg_gen_dec = (1 / batch_mult) * 0.1 * g_reg_every * 1e-2 * reg_gen_dec
+                                reg_gen_dec = compute_grad_reg(images_dec, lat_gen)
+                                reg_gen_dec = (1 / batch_mult) * 0.1 * g_reg_every * 1e-3 * reg_gen_dec
                                 model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                                 reg_gen_dec_sum += reg_gen_dec.item()
                             else:
@@ -263,8 +262,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             if alt_reg:
-                                reg_gen_enc = compute_grad_reg(lat_enc, images_dec, 'log')
-                                reg_gen_enc = (1 / batch_mult) * 0.1 * g_reg_every * 1e-2 * reg_gen_enc
+                                reg_gen_enc = compute_grad_reg(lat_enc, images_dec)
+                                reg_gen_enc = (1 / batch_mult) * 0.1 * g_reg_every * 1e-3 * reg_gen_enc
                                 model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
                                 reg_gen_enc_sum += reg_gen_enc.item()
                             else:
@@ -286,10 +285,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_enc)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        if g_reg_every > 0 and it % g_reg_every == (g_reg_every // 2):
+                        if g_reg_every > 0 and it % g_reg_every == 0:
                             if alt_reg:
-                                reg_gen_dec = compute_grad_reg(images_dec, lat_enc, 'log')
-                                reg_gen_dec = (1 / batch_mult) * 0.9 * g_reg_every * 1e-2 * reg_gen_dec
+                                reg_gen_dec = compute_grad_reg(images_dec, lat_enc)
+                                reg_gen_dec = (1 / batch_mult) * 0.9 * g_reg_every * 1e-3 * reg_gen_dec
                                 model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                                 reg_gen_dec_sum += reg_gen_dec.item()
                             else:
