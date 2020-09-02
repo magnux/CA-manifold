@@ -99,7 +99,7 @@ class InjectedEncoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
-        out = F.normalize(out, eps=1e-4)
+        out = self.frac_norm(out)
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
@@ -194,7 +194,7 @@ class Decoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
-        out = F.normalize(out, eps=1e-4)
+        out = self.frac_norm(out)
         out = self.conv_img(out)
         out_raw = out
         if self.log_mix_out:
