@@ -7,11 +7,12 @@ from src.layers.linearresidualblock import LinearResidualBlock
 class DynaConv(nn.Module):
     def __init__(self, lat_size, fin, fout, kernel_size=1, padding=0, dim=2):
         super(DynaConv, self).__init__()
-        # Attributes
+
         self.lat_size = lat_size
         self.fin = fin
         self.fout = fout
         self.dim = dim
+
         if dim == 1:
             self.f_conv = F.conv1d
         elif dim == 2:

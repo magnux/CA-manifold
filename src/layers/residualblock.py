@@ -6,7 +6,7 @@ import math
 class ResidualBlock(nn.Module):
     def __init__(self, fin, fout, fhidden=None, kernel_size=3, stride=1, padding=1, conv_fn=nn.Conv2d):
         super(ResidualBlock, self).__init__()
-        # Attributes
+
         self.fin = fin
         self.fout = fout
         self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden

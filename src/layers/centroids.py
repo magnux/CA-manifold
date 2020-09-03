@@ -6,7 +6,7 @@ import torch.nn.functional as F
 class Centroids(nn.Module):
     def __init__(self, n_features, n_centroids, decay=0.99, eps=1e-5):
         super(Centroids, self).__init__()
-        # Attributes
+
         self.n_features = n_features
         self.n_centroids = n_centroids
         self.decay = decay

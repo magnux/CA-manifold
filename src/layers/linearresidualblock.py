@@ -5,7 +5,7 @@ import torch.nn as nn
 class LinearResidualBlock(nn.Module):
     def __init__(self, fin, fout, fhidden=None):
         super(LinearResidualBlock, self).__init__()
-        # Attributes
+
         self.fin = fin
         self.fout = fout
         self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden
