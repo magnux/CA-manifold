@@ -13,10 +13,15 @@ def lin_pos_encoding_1d(size):
 
 
 def cos_pos_encoding_1d(size):
-    sub_freqs = [1./ float(i) for i in range(2, 9)]
-    freqs = list(range(1, size))
-    spaces = [np.linspace(i * freq * 2 * np.pi, (i + 1) * freq * 2 * np.pi, size) for freq in sub_freqs for i in range(int(1 / freq))]
-    spaces = spaces + [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
+    ## Note: freqs can be computed up to 'size', but only half 'size // 2' are taken to reduce computation
+    freqs = list(range(1, size // 2))
+    spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
+
+    ## Note: more sub freqs (low freqs, waves longer than size) can be computed, but only 2 are taken to reduce computation
+    sub_freqs = [1./ float(i) for i in range(2, 4)]
+    sub_spaces = [np.linspace(i * freq * 2 * np.pi, (i + 1) * freq * 2 * np.pi, size) for freq in sub_freqs for i in range(int(1 / freq))]
+    spaces = spaces + sub_spaces
+
     cos = [np.cos(space) for space in spaces]
     return torch.tensor(np.stack(cos).reshape(1, len(spaces), size), dtype=torch.float32)
 
