@@ -55,7 +55,7 @@ def cos_pos_encoding_nd(size, dim):
                     comb_pos_l = []
                     for to_comb_a in to_comb_a_l:
                         comb_pos_l.append(torch.stack([to_comb_a, to_comb_b], dim=-1).prod(dim=-1))
-                    comb_l = comb_l.append(torch.cat(comb_pos_l, 1))
+                    comb_l.append(torch.cat(comb_pos_l, 1))
                 pos_enc_l_comb.append(comb_l)
         pos_encoding = torch.cat(pos_enc_l + pos_enc_l_comb, 1)
 
