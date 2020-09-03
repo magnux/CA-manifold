@@ -46,9 +46,17 @@ def cos_pos_encoding_nd(size, dim):
             pos_enc_l.append(pos_enc)
         pos_enc_l_comb = []
         for c in range(2, dim + 1):
-            comb_pos = combinations(pos_enc_l, c)
-            comb_pos = torch.stack(list(comb_pos), dim=-1).prod(dim=-1)
-            pos_enc_l_comb.append(comb_pos)
+            combs = list(combinations(pos_enc_l, c))
+            for comb in combs:
+                comb_l = list(comb)
+                while len(comb_l) > 1:
+                    to_comb_a_l = torch.split(comb_l.pop(), 1, dim=1)
+                    to_comb_b = comb_l.pop()
+                    comb_pos_l = []
+                    for to_comb_a in to_comb_a_l:
+                        comb_pos_l.append(torch.stack([to_comb_a, to_comb_b], dim=-1).prod(dim=-1))
+                    comb_l = comb_l.append(torch.cat(comb_pos_l, 1))
+                pos_enc_l_comb.append(comb_l)
         pos_encoding = torch.cat(pos_enc_l + pos_enc_l_comb, 1)
 
     return pos_encoding
