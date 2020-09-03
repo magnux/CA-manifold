@@ -263,7 +263,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
-                            images_dec, _, _ = decoder(lat_gen)
+                            letters = letter_encoder(lat_gen)
+                            lat_regen = letter_decoder(letters)
+                            images_dec, _, _ = decoder(lat_regen)
 
                         images_dec.requires_grad_()
                         lat_labs = labs_encoder(labels)
@@ -294,9 +296,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_enc, _, _ = encoder(images, lat_labs)
 
                         lat_enc.requires_grad_()
-                        images_dec, _, _ = decoder(lat_enc)
                         letters = letter_encoder(lat_enc)
                         lat_reenc = letter_decoder(letters)
+                        images_dec, _, _ = decoder(lat_reenc)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_reenc)
                         labs_dec = discriminator(lat_top_dec, labels)
 
