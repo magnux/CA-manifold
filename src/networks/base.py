@@ -7,6 +7,7 @@ from src.layers.centroids import Centroids
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.residualattentionblock import ResidualAttentionBlock
+from itertools import chain
 import math
 
 
@@ -351,18 +352,23 @@ class LetterDecoder(nn.Module):
         return lat
 
 
-class LetterEncoder2(nn.Module):
+class LatTransformer(nn.Module):
     def __init__(self, lat_size, letter_channels=4, letter_bits=16, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.letter_channels = letter_channels
         self.letter_bits = letter_bits
+        n_blocks = 3
         self.lat_to_letters = nn.Sequential(
             ResidualBlock(1, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
+            *list(chain([[ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
+                          ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
+        )
+
+        self.letters_to_lat = nn.Sequential(
+            *list(chain([[ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
+                          ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
+            ResidualBlock(letter_channels * letter_bits, 1, None, 1, 1, 0, nn.Conv1d),
         )
 
     def forward(self, lat):
@@ -370,25 +376,6 @@ class LetterEncoder2(nn.Module):
         letters = self.lat_to_letters(lat)
         letters = letters.view(letters.size(0), self.letter_channels, self.letter_bits * self.lat_size)
         letters = F.softmax(letters, dim=1)
-
-        return letters
-
-
-class LetterDecoder2(nn.Module):
-    def __init__(self, lat_size, letter_channels=4, letter_bits=16, **kwargs):
-        super().__init__()
-        self.lat_size = lat_size
-        self.letter_channels = letter_channels
-        self.letter_bits = letter_bits
-        self.letters_to_lat = nn.Sequential(
-            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualBlock(letter_channels * letter_bits, 1, None, 1, 1, 0, nn.Conv1d),
-        )
-
-    def forward(self, letters):
         letters = letters.view(letters.size(0), self.letter_channels * self.letter_bits, self.lat_size)
         lat = self.letters_to_lat(letters)
         lat = lat.squeeze(dim=1)
