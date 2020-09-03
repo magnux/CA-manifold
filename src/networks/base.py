@@ -359,9 +359,9 @@ class LetterEncoder2(nn.Module):
         self.letter_bits = letter_bits
         self.lat_to_letters = nn.Sequential(
             ResidualBlock(1, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits, nheads=4),
+            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
             ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits, nheads=4),
+            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
             ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
         )
 
@@ -381,9 +381,9 @@ class LetterDecoder2(nn.Module):
         self.letter_channels = letter_channels
         self.letter_bits = letter_bits
         self.letters_to_lat = nn.Sequential(
-            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits, nheads=4),
+            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
             ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits, nheads=4),
+            ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
             ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
             ResidualBlock(letter_channels * letter_bits, 1, None, 1, 1, 0, nn.Conv1d),
         )
