@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class LinearResidualMemory(nn.Module):
-    def __init__(self, fin, n_mem=8):
+    def __init__(self, fin, n_mem=8, dropout=0.1):
         super(LinearResidualMemory, self).__init__()
 
         self.fin = fin
@@ -13,6 +13,11 @@ class LinearResidualMemory(nn.Module):
         self.q = nn.Linear(fin, fin * n_mem)
         self.k = nn.Linear(fin, fin * n_mem)
         self.v = nn.Linear(fin, (fin + 1) * n_mem)
+
+        self.dropout = None
+        if dropout > 0:
+            self.dropout = nn.Dropout(dropout)
+
         self.l_out = nn.Linear((fin + 1), fin)
 
     def forward(self, x):
@@ -23,6 +28,8 @@ class LinearResidualMemory(nn.Module):
         x_v = self.v(x).view(batch_size,  self.n_mem, self.fin + 1)
 
         mem_x = torch.bmm(x_q, x_k)
+        if self.dropout is not None:
+            mem_x = self.dropout(mem_x)
         mem_x = torch.bmm(mem_x, x_v)
         mem_x = mem_x.sum(1)
         mem_x = F.normalize(mem_x)
