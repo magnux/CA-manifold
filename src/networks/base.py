@@ -6,7 +6,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.centroids import Centroids
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.residualattentionblock import ResidualAttentionBlock
+from src.layers.residualmemory import ResidualMemory
 from itertools import chain
 import math
 
