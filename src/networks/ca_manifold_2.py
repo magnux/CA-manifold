@@ -73,7 +73,7 @@ class InjectedEncoder(nn.Module):
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
 
         out = self.in_conv(x)
-        inj_lat = F.normalize(inj_lat)
+        # inj_lat = F.normalize(inj_lat)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -163,7 +163,7 @@ class Decoder(nn.Module):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
-        lat = F.normalize(lat)
+        # lat = F.normalize(lat)
 
         if ca_init is None:
             out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
