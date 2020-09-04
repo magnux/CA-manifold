@@ -9,11 +9,9 @@ from src.layers.scale import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.residualattentionblock import ResidualAttentionBlock
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
-from itertools import chain
 
 
 class InjectedEncoder(nn.Module):
@@ -58,7 +56,10 @@ class InjectedEncoder(nn.Module):
 
         self.out_norm = nn.InstanceNorm2d(self.n_filter)
         self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), self.lat_size)
+        self.out_to_lat = nn.Sequential(
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'

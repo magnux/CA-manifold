@@ -2,11 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.residualblock import ResidualBlock
-from src.layers.residualattentionblock import ResidualAttentionBlock
-from src.layers.lambd import LambdaLayer
+from src.layers.linearresidualmemory import LinearResidualMemory
 from itertools import chain
-from math import ceil
 
 
 class DynaResidualBlock(nn.Module):
@@ -41,9 +38,10 @@ class DynaResidualBlock(nn.Module):
         k_total_size = (self.k_in_size + self.k_mid_size + self.k_out_size + self.k_short_size +
                         self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size)
 
-        n_blocks = 8
+        n_blocks = 4
         self.dyna_k = nn.Sequential(
-            *[LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(n_blocks)],
+            *list(chain(*[[LinearResidualMemory(self.lat_size),
+                           LinearResidualBlock(self.lat_size, self.lat_size)] for _ in range(n_blocks)])),
             LinearResidualBlock(self.lat_size, k_total_size, self.lat_size * 2),
         )
 
@@ -90,9 +88,9 @@ class DynaResidualBlock(nn.Module):
         x_new = x.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
         x_new_s = self.f_conv(x_new, self.k_short, groups=batch_size, padding=self.padding) + self.b_short
         x_new = self.f_conv(x_new, self.k_in, groups=batch_size, padding=self.padding) + self.b_in
-        x_new = F.leaky_relu(x_new)
+        x_new = F.relu(x_new, True)
         x_new = self.f_conv(x_new, self.k_mid, groups=batch_size, padding=self.padding) + self.b_mid
-        x_new = F.leaky_relu(x_new)
+        x_new = F.relu(x_new, True)
         x_new = self.f_conv(x_new, self.k_out, groups=batch_size, padding=self.padding) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.reshape([batch_size, self.fout] + [x.size(d + 2) for d in range(self.dim)])
