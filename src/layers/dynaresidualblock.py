@@ -45,8 +45,8 @@ class DynaResidualBlock(nn.Module):
         self.dyna_k = nn.Sequential(
             nn.Linear(self.lat_size, ceil(k_total_size / self.fhidden) * self.fhidden),
             LambdaLayer(lambda x: x.view(x.size(0), self.fhidden, ceil(k_total_size / self.fhidden))),
-            * list(chain(*[[ResidualAttentionBlock(ceil(k_total_size / self.fhidden), self.fhidden),
-                            ResidualBlock(self.fhidden, self.fhidden, self.fhidden, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
+            * list(chain(*[[ResidualAttentionBlock(ceil(k_total_size / self.fhidden), self.fhidden, self.fhidden // 2),
+                            ResidualBlock(self.fhidden, self.fhidden, self.fhidden // 2, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
             LambdaLayer(lambda x: x.view(x.size(0), ceil(k_total_size / self.fhidden) * self.fhidden)),
             nn.Linear(ceil(k_total_size / self.fhidden) * self.fhidden, self.lat_size),
             nn.Linear(self.lat_size, k_total_size)
