@@ -352,32 +352,32 @@ class LetterDecoder(nn.Module):
         return lat
 
 
-class LatTransformer(nn.Module):
-    def __init__(self, lat_size, letter_channels=4, letter_bits=16, **kwargs):
-        super().__init__()
-        self.lat_size = lat_size
-        self.letter_channels = letter_channels
-        self.letter_bits = letter_bits
-        n_blocks = 2
-        self.lat_to_letters = nn.Sequential(
-            ResidualBlock(1, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            *list(chain(*[[ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
-                           ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
-        )
-
-        self.letters_to_lat = nn.Sequential(
-            *list(chain(*[[ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
-                           ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
-            ResidualBlock(letter_channels * letter_bits, 1, None, 1, 1, 0, nn.Conv1d),
-        )
-
-    def forward(self, lat):
-        lat = lat.view(lat.size(0), 1, self.lat_size)
-        letters = self.lat_to_letters(lat)
-        letters = letters.view(letters.size(0), self.letter_channels, self.letter_bits * self.lat_size)
-        letters = F.softmax(letters, dim=1)
-        letters = letters.view(letters.size(0), self.letter_channels * self.letter_bits, self.lat_size)
-        lat = self.letters_to_lat(letters)
-        lat = lat.squeeze(dim=1)
-
-        return lat
+# class LatTransformer(nn.Module):
+#     def __init__(self, lat_size, letter_channels=4, letter_bits=16, **kwargs):
+#         super().__init__()
+#         self.lat_size = lat_size
+#         self.letter_channels = letter_channels
+#         self.letter_bits = letter_bits
+#         n_blocks = 2
+#         self.lat_to_letters = nn.Sequential(
+#             ResidualBlock(1, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
+#             *list(chain(*[[ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
+#                            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
+#         )
+#
+#         self.letters_to_lat = nn.Sequential(
+#             *list(chain(*[[ResidualAttentionBlock(self.lat_size, letter_channels * letter_bits),
+#                            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
+#             ResidualBlock(letter_channels * letter_bits, 1, None, 1, 1, 0, nn.Conv1d),
+#         )
+#
+#     def forward(self, lat):
+#         lat = lat.view(lat.size(0), 1, self.lat_size)
+#         letters = self.lat_to_letters(lat)
+#         letters = letters.view(letters.size(0), self.letter_channels, self.letter_bits * self.lat_size)
+#         letters = F.softmax(letters, dim=1)
+#         letters = letters.view(letters.size(0), self.letter_channels * self.letter_bits, self.lat_size)
+#         lat = self.letters_to_lat(letters)
+#         lat = lat.squeeze(dim=1)
+#
+#         return lat

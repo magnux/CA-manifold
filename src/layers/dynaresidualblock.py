@@ -2,6 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.linearresidualblock import LinearResidualBlock
+from src.layers.residualblock import ResidualBlock
+from src.layers.residualattentionblock import ResidualAttentionBlock
+from src.layers.lambd import LambdaLayer
+from itertools import chain
+from math import ceil
 
 
 class DynaResidualBlock(nn.Module):
@@ -33,12 +38,17 @@ class DynaResidualBlock(nn.Module):
         self.b_out_size = self.fout if not norm_weights else 0
         self.b_short_size = self.fout if not norm_weights else 0
 
+        k_total_size = (self.k_in_size + self.k_mid_size + self.k_out_size + self.k_short_size +
+                        self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size)
+
+        n_blocks = 2
         self.dyna_k = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.k_in_size + self.k_mid_size +
-                                               self.k_out_size + self.k_short_size +
-                                               self.b_in_size + self.b_mid_size +
-                                               self.b_out_size + self.b_short_size, self.lat_size * 2),
+            nn.Linear(self.lat_size, ceil(k_total_size / self.fhidden) * self.fhidden),
+            LambdaLayer(lambda x: x.view(x.size(0), self.fhidden, ceil(k_total_size / self.fhidden))),
+            * list(chain(*[[ResidualAttentionBlock(ceil(k_total_size / self.fhidden), self.fhidden),
+                            ResidualBlock(self.fhidden, self.fhidden, None, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
+            LambdaLayer(lambda x: x.view(x.size(0), ceil(k_total_size / self.fhidden) * self.fhidden)),
+            nn.Linear(ceil(k_total_size / self.fhidden) * self.fhidden, k_total_size)
         )
 
         self.prev_lat = None
