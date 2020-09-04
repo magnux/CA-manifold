@@ -8,17 +8,17 @@ class LinearResidualMemory(nn.Module):
         super(LinearResidualMemory, self).__init__()
 
         self.fin = fin
-        self.n_mem = n_mem
+        self.n_mem = n_mem if fin > 3 else 1024 * 2 ** (3 - fin)
 
-        self.q = nn.Linear(fin, fin * n_mem)
-        self.k = nn.Linear(fin, fin * n_mem)
-        self.v = nn.Linear(fin, (fin + 1) * n_mem)
+        self.q = nn.Linear(self.fin, self.fin * self.n_mem)
+        self.k = nn.Linear(self.fin, self.fin * self.n_mem)
+        self.v = nn.Linear(self.fin, (self.fin + 1) * self.n_mem)
 
         self.dropout = None
         if dropout > 0:
             self.dropout = nn.Dropout(dropout)
 
-        self.l_out = nn.Linear((fin + 1), fin)
+        self.l_out = nn.Linear((self.fin + 1), self.fin)
 
     def forward(self, x):
         batch_size = x.size(0)
