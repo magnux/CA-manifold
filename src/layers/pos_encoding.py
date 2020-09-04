@@ -13,8 +13,8 @@ def lin_pos_encoding_1d(size):
 
 
 def cos_pos_encoding_1d(size):
-    ## Note: freqs can be computed up to 'size', but only 'size // 4' are taken to reduce computation
-    freqs = list(range(1, size // 4))
+    ## Note: freqs can be computed up to 'size', but only 'size // 2' are taken to reduce computation
+    freqs = list(range(1, size // 2))
     spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
 
     ## Note: more sub freqs (low freqs, waves longer than size) can be computed, but only 2 are taken to reduce computation

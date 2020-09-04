@@ -61,8 +61,8 @@ class InjectedEncoder(nn.Module):
         n_blocks = 2
         self.out_to_lat = nn.Sequential(
             LambdaLayer(lambda x: x.view(x.size(0), self.n_filter, sum(self.conv_state_size) // self.n_filter)),
-            *list(chain(*[[ResidualAttentionBlock(sum(self.conv_state_size) // self.n_filter, self.n_filter),
-                           ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
+            # *list(chain(*[[ResidualAttentionBlock(sum(self.conv_state_size) // self.n_filter, self.n_filter),
+            #                ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0, nn.Conv1d)] for _ in range(n_blocks)])),
             LambdaLayer(lambda x: x.view(x.size(0), sum(self.conv_state_size))),
             nn.Linear(sum(self.conv_state_size), self.lat_size),
         )
