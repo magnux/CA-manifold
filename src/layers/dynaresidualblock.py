@@ -10,7 +10,7 @@ class DynaResidualBlock(nn.Module):
     def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, padding=0, norm_weights=False):
         super(DynaResidualBlock, self).__init__()
 
-        self.lat_size = lat_size
+        self.lat_size = lat_size if lat_size > 3 else 512
         self.fin = fin
         self.fout = fout
         self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden
@@ -38,8 +38,9 @@ class DynaResidualBlock(nn.Module):
         k_total_size = (self.k_in_size + self.k_mid_size + self.k_out_size + self.k_short_size +
                         self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size)
 
-        n_blocks = 4 if fin > 3 else 32
+        n_blocks = 4
         self.dyna_k = nn.Sequential(
+            *([] if lat_size > 3 else [nn.Linear(lat_size, self.lat_size)]),
             *list(chain(*[[LinearResidualMemory(self.lat_size),
                            LinearResidualBlock(self.lat_size, self.lat_size)] for _ in range(n_blocks)])),
             LinearResidualBlock(self.lat_size, k_total_size, self.lat_size * 2),

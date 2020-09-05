@@ -8,7 +8,7 @@ class LinearResidualMemory(nn.Module):
         super(LinearResidualMemory, self).__init__()
 
         self.fin = fin
-        self.n_mem = n_mem if fin > 3 else 1024 * 2 ** (3 - fin)
+        self.n_mem = n_mem
 
         self.q = nn.Linear(self.fin, self.fin * self.n_mem)
         self.k = nn.Linear(self.fin, self.fin * self.n_mem)

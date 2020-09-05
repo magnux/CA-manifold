@@ -24,7 +24,7 @@ class InjectedEncoder(nn.Module):
         self.ds_size = ds_size
         self.in_chan = channels
         self.n_filter = n_filter
-        self.lat_size = lat_size
+        self.lat_size = lat_size if lat_size > 3 else 512
         self.n_calls = n_calls * 4
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
@@ -49,7 +49,7 @@ class InjectedEncoder(nn.Module):
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
+        self.frac_dyna_conv = DynaResidualBlock(lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -59,6 +59,7 @@ class InjectedEncoder(nn.Module):
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
+            *[None if lat_size > 3 else nn.Linear(self.lat_size, lat_size)],
         )
 
     def forward(self, x, inj_lat=None):
