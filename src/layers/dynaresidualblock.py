@@ -10,7 +10,7 @@ class DynaResidualBlock(nn.Module):
     def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, padding=0, norm_weights=False):
         super(DynaResidualBlock, self).__init__()
 
-        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_size = lat_size
         self.fin = fin
         self.fout = fout
         self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden
