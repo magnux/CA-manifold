@@ -5,6 +5,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
+from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.scale import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
@@ -12,6 +13,7 @@ from src.layers.dynaresidualblock import DynaResidualBlock
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
+from itertools import chain
 
 
 class InjectedEncoder(nn.Module):
@@ -139,6 +141,13 @@ class Decoder(nn.Module):
 
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
+        n_blocks = 8
+        self.lat_transformer = nn.Sequential(
+            *([] if lat_size > 3 else [nn.Linear(lat_size, self.lat_size)]),
+            *list(chain(*[[LinearResidualMemory(self.lat_size),
+                           LinearResidualBlock(self.lat_size, self.lat_size)] for _ in range(n_blocks)])),
+        )
+
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
@@ -159,6 +168,7 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         # lat = F.normalize(lat)
+        lat = self.lat_transformer(lat)
 
         if ca_init is None:
             out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
