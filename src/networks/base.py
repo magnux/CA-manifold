@@ -46,7 +46,7 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        n_blocks = 4
+        n_blocks = 6
         self.embed_transformer = nn.Sequential(
             *list(chain(*[[LinearResidualMemory(z_dim + embed_size),
                            LinearResidualBlock(z_dim + embed_size, z_dim + embed_size)] for _ in range(n_blocks)])),
