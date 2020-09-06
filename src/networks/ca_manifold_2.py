@@ -141,7 +141,7 @@ class Decoder(nn.Module):
 
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
-        n_blocks = 8
+        n_blocks = 4
         self.lat_transformer = nn.Sequential(
             *([] if lat_size > 3 else [nn.Linear(lat_size, self.lat_size)]),
             *list(chain(*[[LinearResidualMemory(self.lat_size),
