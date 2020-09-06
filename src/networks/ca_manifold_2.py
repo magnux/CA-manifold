@@ -61,7 +61,7 @@ class InjectedEncoder(nn.Module):
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            *[None if lat_size > 3 else nn.Linear(self.lat_size, lat_size)],
+            *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
         )
 
     def forward(self, x, inj_lat=None):
