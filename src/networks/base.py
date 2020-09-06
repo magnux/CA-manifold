@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
+from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.centroids import Centroids
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
@@ -45,6 +46,11 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
+        n_blocks = 4
+        self.embed_transformer = nn.Sequential(
+            *list(chain(*[[LinearResidualMemory(z_dim + embed_size),
+                           LinearResidualBlock(z_dim + embed_size, z_dim + embed_size)] for _ in range(n_blocks)])),
+        )
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
         nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
@@ -58,7 +64,8 @@ class Generator(nn.Module):
 
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
-        lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
+        lat = self.embed_transformer(torch.cat([z, yembed], dim=1))
+        lat = self.embed_to_lat(lat)
 
         return lat
 

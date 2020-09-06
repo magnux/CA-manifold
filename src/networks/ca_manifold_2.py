@@ -42,10 +42,6 @@ class InjectedEncoder(nn.Module):
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2] if self.multi_cut else [self.n_filter]
 
-        self.lat_transformer = None
-        if lat_size <= 3:
-            self.lat_transformer = nn.Linear(lat_size, self.lat_size)
-
         self.in_conv = nn.Sequential(
             nn.Conv2d(self.in_chan, self.n_filter, 3, 1, 1),
             *([DownScale(self.n_filter, self.n_filter, self.image_size, self.ds_size)] if self.ds_size < self.image_size else []),
@@ -55,7 +51,7 @@ class InjectedEncoder(nn.Module):
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
+        self.frac_dyna_conv = DynaResidualBlock(lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -75,8 +71,6 @@ class InjectedEncoder(nn.Module):
 
         out = self.in_conv(x)
         # inj_lat = F.normalize(inj_lat)
-        if self.lat_transformer is not None:
-            inj_lat = self.lat_transformer(inj_lat)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -132,7 +126,7 @@ class Decoder(nn.Module):
         self.image_size = image_size
         self.ds_size = ds_size
         self.n_filter = n_filter
-        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_size = lat_size
         self.n_calls = n_calls * 4
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
@@ -146,13 +140,6 @@ class Decoder(nn.Module):
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
-
-        n_blocks = 4
-        self.lat_transformer = nn.Sequential(
-            *([] if lat_size > 3 else [nn.Linear(lat_size, self.lat_size)]),
-            *list(chain(*[[LinearResidualMemory(self.lat_size),
-                           LinearResidualBlock(self.lat_size, self.lat_size)] for _ in range(n_blocks)])),
-        )
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -174,7 +161,6 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         # lat = F.normalize(lat)
-        lat = self.lat_transformer(lat)
 
         if ca_init is None:
             out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
