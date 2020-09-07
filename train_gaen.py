@@ -181,7 +181,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         with torch.no_grad():
-                            z_gen = get_z(lat_enc, z_gen)
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
 
