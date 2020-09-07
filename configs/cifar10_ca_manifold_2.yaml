@@ -22,7 +22,7 @@ network:
     fire_rate: 1.0
 z_dist:
   type: gauss
-  z_dim: 512
+  z_dim: 256
 training:
   out_dir: save/cifar10_ca_manifold_2
   batch_size: 64
