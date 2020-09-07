@@ -93,6 +93,15 @@ def get_inputs(trainiter, batch_size, device):
 
 images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
+
+def get_z(lat, z):
+    if isinstance(generator, torch.nn.DataParallel):
+        z = (generator.module.get_z(lat) + 0.1 * z).detach()
+    else:
+        z = (generator.get_z(lat) + 0.1 * z).detach()
+    return z
+
+
 if config['training']['inception_every'] > 0:
     fid_real_samples = []
     for _ in range(10000 // batch_size):
@@ -172,7 +181,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         with torch.no_grad():
-                            z_gen = generator.get_z(lat_enc) + 0.1 * z_gen
+                            z_gen = get_z(lat_enc, z_gen)
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
 
@@ -228,7 +237,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        z_gen = (generator.get_z(lat_enc) + 0.1 * z_gen).detach()
+                        z_gen = get_z(lat_enc, z_gen)
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
