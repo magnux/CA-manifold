@@ -172,7 +172,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         with torch.no_grad():
-                            z_gen = generator.get_z(lat_enc) + 0.1 * z_gen
+                            z_gen = generator.get_z(lat_enc.detach()) + 0.1 * z_gen
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
 
@@ -228,7 +228,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        z_gen = generator.get_z(lat_enc) + 0.1 * z_gen
+                        z_gen = generator.get_z(lat_enc.detach()) + 0.1 * z_gen
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
