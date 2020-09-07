@@ -49,6 +49,7 @@ class Generator(nn.Module):
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
         nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
         self.check_square = False
+        self.inv_func = None
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -67,12 +68,12 @@ class Generator(nn.Module):
     def get_z(self, lat):
         if not self.check_square:
             if self.embed_to_lat.weight.size(0) == self.embed_to_lat.weight.size(1):
-                inv_func = torch.inverse
+                self.inv_func = torch.inverse
             else:
-                inv_func = torch.pinverse
+                self.inv_func = torch.pinverse
                 print('warning: z_dim + embed_size != lat_size, using pinverse z estimate')
             self.check_square = True
-        embed = F.linear(lat - self.embed_to_lat.bias, inv_func(self.embed_to_lat.weight))
+        embed = F.linear(lat - self.embed_to_lat.bias, self.inv_func(self.embed_to_lat.weight))
         z = embed[:, :self.z_dim]
         return z
 
