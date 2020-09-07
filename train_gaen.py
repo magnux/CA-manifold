@@ -146,7 +146,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
                     for _ in range(batch_mult):
-                        images, labels, _, trainiter = get_inputs(trainiter, batch_split_size, device)
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
                             lat_labs = labs_encoder(labels)
@@ -172,7 +172,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         with torch.no_grad():
-                            z_gen = generator.get_z(lat_enc) + 0.1 * torch.randn_like(lat_enc)
+                            z_gen = generator.get_z(lat_enc) + 0.1 * z_gen
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
 
@@ -205,7 +205,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with model_manager.on_step(['encoder', 'labs_encoder', 'decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
-                        images, labels, _, trainiter = get_inputs(trainiter, batch_split_size, device)
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_labs = labs_encoder(labels)
                         lat_enc, out_embs, _ = encoder(images, lat_labs)
@@ -228,7 +228,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        z_gen = generator.get_z(lat_enc) + 0.1 * torch.randn_like(lat_enc)
+                        z_gen = generator.get_z(lat_enc) + 0.1 * z_gen
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
