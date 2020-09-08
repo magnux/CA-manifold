@@ -4,15 +4,13 @@ from torch.nn import functional as F
 from src.layers.pos_encoding import cos_pos_encoding_nd
 
 
-def compute_gan_loss(d_out, target, gan_type='wgan2'):
+def compute_gan_loss(d_out, target, gan_type='wgan'):
     targets = d_out.new_full(size=d_out.size(), fill_value=target)
 
     if gan_type == 'standard':
         loss = F.binary_cross_entropy_with_logits(d_out, targets)
     elif gan_type == 'wgan':
         loss = (2*target - 1) * d_out.mean()
-    elif gan_type == 'wgan2':
-        loss = (2 * target - 1) * d_out.pow(2).mean()
     elif gan_type == 'abs':
         loss = (2*target - 1) * d_out.mean()
         loss = loss.abs() if target == 1 else loss
