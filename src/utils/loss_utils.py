@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from src.layers.pos_encoding import cos_pos_encoding_nd
 
 
-def compute_gan_loss(d_out, target, gan_type='standard'):
+def compute_gan_loss(d_out, target, gan_type='wgan'):
     targets = d_out.new_full(size=d_out.size(), fill_value=target)
 
     if gan_type == 'standard':
@@ -14,8 +14,6 @@ def compute_gan_loss(d_out, target, gan_type='standard'):
     elif gan_type == 'abs':
         loss = (2*target - 1) * d_out.mean()
         loss = loss.abs() if target == 1 else loss
-    elif gan_type == 'rectified':
-        loss = (2*target - 1) * (F.hardtanh(d_out) + 1e-3 * d_out).mean()
     else:
         raise NotImplementedError
 
