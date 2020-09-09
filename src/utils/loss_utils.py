@@ -17,8 +17,7 @@ def compute_gan_loss(d_out, target, gan_type='saddle'):
     elif gan_type == 'rectified':
         loss = (2*target - 1) * (d_out.clamp(-1, 1) + 1e-3 * d_out).mean()
     elif gan_type == 'saddle':
-        saddle = d_out.pow(3) / d_out.abs().pow(1.5)
-        loss = (2*target - 1) * (saddle.clamp(-1, 1) + 1e-3 * saddle).mean()
+        loss = (2*target - 1) * (d_out.pow(3) / d_out.abs().pow(1.5)).mean()
     else:
         raise NotImplementedError
 
