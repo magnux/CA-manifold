@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, padding=0, norm_weights=False):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, norm_weights=False):
         super(DynaResidualBlock, self).__init__()
 
         self.lat_size = lat_size if lat_size > 3 else 512
@@ -46,6 +46,7 @@ class DynaResidualBlock(nn.Module):
         self.k_in, self.k_mid, self.k_out, self.k_short = None, None, None, None
         self.b_in, self.b_mid, self.b_out, self.b_short = 0, 0, 0, 0
         self.kernel_size = [kernel_size for _ in range(self.dim)]
+        self.stride = stride
         self.padding = padding
         self.norm_weights = norm_weights
 
@@ -83,12 +84,12 @@ class DynaResidualBlock(nn.Module):
             self.prev_lat = lat
 
         x_new = x.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
-        x_new_s = self.f_conv(x_new, self.k_short, groups=batch_size, padding=self.padding) + self.b_short
-        x_new = self.f_conv(x_new, self.k_in, groups=batch_size, padding=self.padding) + self.b_in
+        x_new_s = self.f_conv(x_new, self.k_short, stride=self.stride, padding=self.padding, groups=batch_size) + self.b_short
+        x_new = self.f_conv(x_new, self.k_in, stride=1, padding=self.padding, groups=batch_size) + self.b_in
         x_new = F.relu(x_new, True)
-        x_new = self.f_conv(x_new, self.k_mid, groups=batch_size, padding=self.padding) + self.b_mid
+        x_new = self.f_conv(x_new, self.k_mid, stride=1, padding=self.padding, groups=batch_size) + self.b_mid
         x_new = F.relu(x_new, True)
-        x_new = self.f_conv(x_new, self.k_out, groups=batch_size, padding=self.padding) + self.b_out
+        x_new = self.f_conv(x_new, self.k_out, stride=self.stride, padding=self.padding, groups=batch_size) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.reshape([batch_size, self.fout] + [x.size(d + 2) for d in range(self.dim)])
         

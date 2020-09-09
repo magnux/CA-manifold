@@ -12,11 +12,11 @@ class ResidualBlock(nn.Module):
         self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden
 
         self.block = nn.Sequential(
-            conv_fn(self.fin, self.fhidden, kernel_size, stride=stride, padding=padding, bias=bias),
+            conv_fn(self.fin, self.fhidden, kernel_size, stride=1, padding=padding, bias=bias),
             nn.ReLU(True),
             conv_fn(self.fhidden, self.fhidden, kernel_size, stride=1, padding=padding, bias=bias),
             nn.ReLU(True),
-            conv_fn(self.fhidden, self.fout, kernel_size, stride=1, padding=padding, bias=bias)
+            conv_fn(self.fhidden, self.fout, kernel_size, stride=stride, padding=padding, bias=bias)
         )
         self.shortcut = conv_fn(self.fin, self.fout, kernel_size, stride=stride, padding=padding, bias=bias)
 
