@@ -14,6 +14,10 @@ def compute_gan_loss(d_out, target, gan_type='wgan'):
     elif gan_type == 'abs':
         loss = (2*target - 1) * d_out.mean()
         loss = loss.abs() if target == 1 else loss
+    elif gan_type == 'rectified':
+        loss = (2*target - 1) * (d_out.clamp(-1, 1) + 1e-3 * d_out).mean()
+    elif gan_type == 'squared':
+        loss = (2*target - 1) * d_out.clamp(-1, 1).pow(2).mean()
     else:
         raise NotImplementedError
 
