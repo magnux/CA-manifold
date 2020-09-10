@@ -162,7 +162,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             if alt_reg:
-                                reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * (1 / d_reg_param) * compute_grad_reg(loss_dis_enc, labs_enc, 'none')
+                                reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(loss_dis_enc, labs_enc, 'none')
                                 model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                                 reg_dis_enc_sum += reg_dis_enc.item()
                             else:
@@ -190,7 +190,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             if alt_reg:
-                                reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * (1 / d_reg_param) * compute_grad_reg(loss_dis_dec, labs_dec, 'none')
+                                reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(loss_dis_dec, labs_dec, 'none')
                                 model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                                 reg_dis_dec_sum += reg_dis_dec.item()
                             else:
