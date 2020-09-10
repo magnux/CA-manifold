@@ -235,7 +235,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_enc_sum += reg_gen_enc.item()
 
                         if alt_reg:
-                            loss_gen_enc = (1 / batch_mult) * F.relu(-labs_enc).mean()
+                            loss_gen_enc = (1 / batch_mult) * -F.relu(labs_enc).mean()
                         else:
                             loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
@@ -253,7 +253,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_dec_sum += reg_gen_dec.item()
 
                         if alt_reg:
-                            loss_gen_dec = (1 / batch_mult) * F.relu(labs_dec).mean()
+                            loss_gen_dec = (1 / batch_mult) * -F.relu(-labs_dec).mean()
                         else:
                             loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
