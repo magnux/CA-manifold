@@ -2,6 +2,7 @@
 import math
 import numpy as np
 import torch
+import torch.nn.functional as F
 import argparse
 from tqdm import trange
 from src.config import load_config
@@ -158,11 +159,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
-                        loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
+                        if alt_reg:
+                            loss_dis_enc = (1 / batch_mult) * F.relu(labs_enc)
+                        else:
+                            loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             if alt_reg:
-                                reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * loss_dis_enc**2
+                                reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * 1 / d_reg_param * F.relu(-labs_enc)
                                 model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                                 reg_dis_enc_sum += reg_dis_enc.item() / max(1 / d_reg_every, d_reg_every)
                             else:
@@ -186,11 +190,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
+                        if alt_reg:
+                            loss_dis_enc = (1 / batch_mult) * F.relu(-labs_dec)
+                        else:
+                            loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             if alt_reg:
-                                reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * loss_dis_dec**2
+                                reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * 1 / d_reg_param * F.relu(labs_dec)
                                 model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                                 reg_dis_dec_sum += reg_dis_dec.item() / max(1 / d_reg_every, d_reg_every)
                             else:
@@ -227,7 +234,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
                             reg_gen_enc_sum += reg_gen_enc.item()
 
-                        loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
+                        if alt_reg:
+                            loss_gen_enc = (1 / batch_mult) * F.relu(-labs_enc)
+                        else:
+                            loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
@@ -242,7 +252,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item()
 
-                        loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
+                        if alt_reg:
+                            loss_gen_dec = (1 / batch_mult) * F.relu(labs_dec)
+                        else:
+                            loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
