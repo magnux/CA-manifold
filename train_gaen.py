@@ -162,17 +162,17 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             if alt_reg:
-                                reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(loss_dis_enc, labs_enc, 'neg')
+                                reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * loss_dis_enc**2
                                 model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                                reg_dis_enc_sum -= reg_dis_enc.item()
+                                reg_dis_enc_sum += reg_dis_enc.item() / max(1 / d_reg_every, d_reg_every)
                             else:
                                 reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_enc, images)
                                 model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                                reg_dis_enc_sum += reg_dis_enc.item()
+                                reg_dis_enc_sum += reg_dis_enc.item() / max(1 / d_reg_every, d_reg_every)
 
                                 reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_enc, lat_enc)
                                 model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                                reg_dis_enc_sum += reg_dis_enc.item()
+                                reg_dis_enc_sum += reg_dis_enc.item() / max(1 / d_reg_every, d_reg_every)
 
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
@@ -190,24 +190,23 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             if alt_reg:
-                                reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(loss_dis_dec, labs_dec, 'neg')
+                                reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * loss_dis_dec**2
                                 model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                                reg_dis_dec_sum -= reg_dis_dec.item()
+                                reg_dis_dec_sum += reg_dis_dec.item() / max(1 / d_reg_every, d_reg_every)
                             else:
                                 reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, images_dec)
                                 model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                                reg_dis_dec_sum += reg_dis_dec.item()
+                                reg_dis_dec_sum += reg_dis_dec.item() / max(1 / d_reg_every, d_reg_every)
 
                                 reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, lat_gen)
                                 model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                                reg_dis_dec_sum += reg_dis_dec.item()
+                                reg_dis_dec_sum += reg_dis_dec.item() / max(1 / d_reg_every, d_reg_every)
 
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
-                        max_reg = max(reg_dis_enc_sum / max(1 / d_reg_every, d_reg_every), reg_dis_dec_sum / max(1 / d_reg_every, d_reg_every))
-                        d_reg_every_float = d_reg_every_float + reg_dis_target - max_reg
+                        d_reg_every_float = d_reg_every_float + reg_dis_target - max(reg_dis_enc_sum, reg_dis_dec_sum)
                         d_reg_every_float = np.clip(d_reg_every_float, 1e-9, config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
 
