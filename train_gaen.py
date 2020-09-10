@@ -191,7 +191,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if alt_reg:
-                            loss_dis_enc = (1 / batch_mult) * F.relu(-labs_dec).mean()
+                            loss_dis_dec = (1 / batch_mult) * F.relu(-labs_dec).mean()
                         else:
                             loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
 
