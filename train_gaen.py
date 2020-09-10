@@ -160,13 +160,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_enc = discriminator(lat_top_enc, labels)
 
                         if alt_reg:
-                            loss_dis_enc = (1 / batch_mult) * F.relu(labs_enc)
+                            loss_dis_enc = (1 / batch_mult) * F.relu(labs_enc).mean()
                         else:
                             loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             if alt_reg:
-                                reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * 1 / d_reg_param * F.relu(-labs_enc)
+                                reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * 1 / d_reg_param * F.relu(-labs_enc).mean()
                                 model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                                 reg_dis_enc_sum += reg_dis_enc.item() / max(1 / d_reg_every, d_reg_every)
                             else:
@@ -191,13 +191,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if alt_reg:
-                            loss_dis_enc = (1 / batch_mult) * F.relu(-labs_dec)
+                            loss_dis_enc = (1 / batch_mult) * F.relu(-labs_dec).mean()
                         else:
                             loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
 
                         if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
                             if alt_reg:
-                                reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * 1 / d_reg_param * F.relu(labs_dec)
+                                reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * 1 / d_reg_param * F.relu(labs_dec).mean()
                                 model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                                 reg_dis_dec_sum += reg_dis_dec.item() / max(1 / d_reg_every, d_reg_every)
                             else:
@@ -235,7 +235,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_enc_sum += reg_gen_enc.item()
 
                         if alt_reg:
-                            loss_gen_enc = (1 / batch_mult) * F.relu(-labs_enc)
+                            loss_gen_enc = (1 / batch_mult) * F.relu(-labs_enc).mean()
                         else:
                             loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
@@ -253,7 +253,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_dec_sum += reg_gen_dec.item()
 
                         if alt_reg:
-                            loss_gen_dec = (1 / batch_mult) * F.relu(labs_dec)
+                            loss_gen_dec = (1 / batch_mult) * F.relu(labs_dec).mean()
                         else:
                             loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
