@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from src.layers.pos_encoding import cos_pos_encoding_nd
 
 
-def compute_gan_loss(d_out, target, gan_type='negtanh'):
+def compute_gan_loss(d_out, target, gan_type='tanh'):
     targets = d_out.new_full(size=d_out.size(), fill_value=target)
 
     if gan_type == 'standard':
@@ -18,8 +18,8 @@ def compute_gan_loss(d_out, target, gan_type='negtanh'):
         loss = (2*target - 1) * (d_out.clamp(-1, 1) + 1e-3 * d_out).mean()
     elif gan_type == 'dssqrt':
         loss = (2*target - 1) * (d_out / d_out.abs().sqrt()).mean()
-    elif gan_type == 'negtanh':
-        loss = (2*target - 1) * (-((0.1 * d_out).tanh())).mean()
+    elif gan_type == 'tanh':
+        loss = (2*target - 1) * (0.1 * d_out).tanh().mean()
     else:
         raise NotImplementedError
 
@@ -36,8 +36,8 @@ def compute_grad_reg(d_out, d_in, norm_type=2):
         grad_dout = grad_dout.pow(2)
     elif norm_type == 'log':
         grad_dout = (grad_dout.abs() + 1.).log()
-    elif norm_type == 'none':
-        pass
+    elif norm_type == 'neg':
+        grad_dout = -1 * grad_dout.abs()
     assert(grad_dout.size() == d_in.size())
     reg = grad_dout.view(batch_size, -1).sum(1).mean()
     return reg

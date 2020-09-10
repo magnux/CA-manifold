@@ -40,7 +40,7 @@ training:
   monitoring: tensorboard
   sample_every: 1
   sample_labels: 10
-  d_reg_param: 1000.
+  d_reg_param: 10.
   d_reg_every: 8
   g_reg_every: 0
   alt_reg: True
