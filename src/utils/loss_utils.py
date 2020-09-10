@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from src.layers.pos_encoding import cos_pos_encoding_nd
 
 
-def compute_gan_loss(d_out, target, gan_type='relu'):
+def compute_gan_loss(d_out, target, gan_type='wgan'):
     targets = d_out.new_full(size=d_out.size(), fill_value=target)
 
     if gan_type == 'standard':
