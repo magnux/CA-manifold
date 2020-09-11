@@ -47,10 +47,10 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     elif norm_type == 'neg':
         grad_dout = -1 * grad_dout.abs()
 
-    reg = grad_dout.view(batch_size, -1).sum(1)
+    reg = grad_dout.view(batch_size, -1)
     if margin > 0:
-        reg = torch.max(torch.zeros_like(reg), reg - margin)
-    reg = reg.mean()
+        reg = torch.max(torch.zeros_like(reg), reg - (margin / reg.size(1)))
+    reg = reg.sum(1).mean()
 
     return reg
 
