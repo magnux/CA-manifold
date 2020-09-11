@@ -30,10 +30,12 @@ def compute_gan_loss(d_out, target, gan_type='wgan'):
     return loss
 
 
-def compute_grad_reg(d_out, d_in, norm_type=2):
+def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     batch_size = d_in.size(0)
     grad_dout = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
+    assert(grad_dout.size() == d_in.size())
+
     if norm_type == 1:
         grad_dout = grad_dout.abs()
     elif norm_type == 2:
@@ -44,8 +46,12 @@ def compute_grad_reg(d_out, d_in, norm_type=2):
         grad_dout = grad_dout.exp() - 1.
     elif norm_type == 'neg':
         grad_dout = -1 * grad_dout.abs()
-    assert(grad_dout.size() == d_in.size())
-    reg = grad_dout.view(batch_size, -1).sum(1).mean()
+
+    reg = grad_dout.view(batch_size, -1).sum(1)
+    if margin > 0:
+        reg = torch.max(torch.zeros_like(reg), reg - margin)
+    reg = reg.mean()
+
     return reg
 
 
