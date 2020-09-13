@@ -48,8 +48,6 @@ class Generator(nn.Module):
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
         nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
-        self.lat_mem = nn.Sequential(*list(chain(*[(LinearResidualMemory(self.lat_size, 16),
-                                                    LinearResidualBlock(self.lat_size, self.lat_size, bias=False)) for _ in range(2)])))
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -62,7 +60,6 @@ class Generator(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
-        lat = self.lat_mem(lat)
 
         return lat
 
