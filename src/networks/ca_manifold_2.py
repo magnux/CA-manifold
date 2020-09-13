@@ -49,7 +49,7 @@ class InjectedEncoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
         )
 
-        self.lat_mem = nn.Sequential([LinearResidualMemory(lat_size, 16) for _ in range(4)])
+        self.lat_mem = nn.Sequential(*[LinearResidualMemory(lat_size, 16) for _ in range(4)])
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -143,7 +143,7 @@ class Decoder(nn.Module):
 
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
-        self.lat_mem = nn.Sequential([LinearResidualMemory(lat_size, 16) for _ in range(4)])
+        self.lat_mem = nn.Sequential(*[LinearResidualMemory(lat_size, 16) for _ in range(4)])
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
