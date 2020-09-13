@@ -25,7 +25,7 @@ class ResidualMemory(nn.Module):
 
         self.q = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.fin, 1, 1, 0)
         self.k = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.fin, 1, 1, 0)
-        self.v = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * (self.fin + 1), 1, 1, 0)
+        self.v = nn.Parameter(torch.randn(self.n_mem, self.fin + 1, 1))
         self.temp = self.fin ** 0.5
         self.dropout = None
         if dropout > 0:
@@ -39,7 +39,7 @@ class ResidualMemory(nn.Module):
 
         x_q = self.q(x_pos).view(batch_size,  self.n_mem, self.fin, -1).view(batch_size * self.n_mem, self.fin, -1).contiguous()
         x_k = self.k(x_pos).view(batch_size,  self.n_mem, self.fin, -1).view(batch_size * self.n_mem, self.fin, -1).contiguous().permute(0, 2, 1)
-        x_v = self.v(x_pos).view(batch_size,  self.n_mem, self.fin, -1).view(batch_size * self.n_mem, self.fin, -1).contiguous()
+        x_v = torch.cat([self.v] * batch_size, 0)
 
         mem_x = torch.bmm(x_q, x_k)
         if self.dropout is not None:
@@ -52,7 +52,8 @@ class ResidualMemory(nn.Module):
         elif self.dim == 3:
             mem_x = mem_x.view(batch_size, self.n_mem, (self.fin + 1), x.size(2), x.size(3), x.size(4))
 
-        mem_x = mem_x.mean(1)
+        mem_x = F.softmax(mem_x, dim=1).sum(1)
+        mem_x = F.normalize(mem_x)
         mem_x = self.conv_out(mem_x)
 
         return x + mem_x

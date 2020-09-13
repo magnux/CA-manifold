@@ -5,7 +5,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.quantize import QLinear
+from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.scale import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
@@ -49,7 +49,7 @@ class InjectedEncoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
         )
 
-        self.lat_to_qlat = QLinear(lat_size, lat_size, False, num_bits=8, num_bits_grad=8)
+        self.lat_mem = nn.Sequential([LinearResidualMemory(lat_size, 16) for _ in range(4)])
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -72,7 +72,7 @@ class InjectedEncoder(nn.Module):
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
 
         out = self.in_conv(x)
-        inj_lat = self.lat_to_qlat(F.normalize(inj_lat))
+        inj_lat = self.lat_mem(F.normalize(inj_lat))
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -143,7 +143,7 @@ class Decoder(nn.Module):
 
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
-        self.lat_to_qlat = QLinear(lat_size, lat_size, False, num_bits=8, num_bits_grad=8)
+        self.lat_mem = nn.Sequential([LinearResidualMemory(lat_size, 16) for _ in range(4)])
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -164,7 +164,7 @@ class Decoder(nn.Module):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
-        lat = self.lat_to_qlat(F.normalize(lat))
+        lat = self.lat_mem(F.normalize(lat))
 
         if ca_init is None:
             out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
