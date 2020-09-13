@@ -25,8 +25,6 @@ class Decoder(nn.Module):
         self.shared_params = shared_params
         self.log_mix_out = log_mix_out
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
-        self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_mem = nn.ModuleList([ResidualMemory(self.ds_size, self.n_filter, 16, 2) for _ in range(1 if self.shared_params else self.n_calls)])
@@ -34,10 +32,8 @@ class Decoder(nn.Module):
         self.lat_to_out = nn.Sequential(
             *([] if lat_size > 3 else [nn.Linear(lat_size, self.lat_size, bias=False)]),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, sum(self.conv_state_size), self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.n_filter, self.lat_size * 2),
         )
-
-        self.in_conv = ResidualBlock(sum(self.merge_sizes), self.n_filter, None, 1, 1, 0)
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
@@ -49,14 +45,7 @@ class Decoder(nn.Module):
     def forward(self, lat):
         batch_size = lat.size(0)
 
-        conv_state = self.lat_to_out(lat)
-        cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
-        cs_f_m = cs_f_m.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
-        cs_fh = cs_fh.view(batch_size, self.n_filter, self.ds_size, 1).repeat(1, 1, 1, self.ds_size)
-        cs_fw = cs_fw.view(batch_size, self.n_filter, 1, self.ds_size).repeat(1, 1, self.ds_size, 1)
-        cs_hw = cs_hw.view(batch_size, 1, self.ds_size, self.ds_size)
-        out = torch.cat([cs_f_m, cs_fh, cs_fw, cs_hw], dim=1)
-        out = self.in_conv(out)
+        out = self.lat_to_out(lat).view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
