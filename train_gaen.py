@@ -180,12 +180,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         with torch.no_grad():
-                            lat_gen = generator(z_gen, labels)
-                            images_dec, _, _ = decoder(lat_gen)
+                            z_reenc, _ = get_z(lat_enc, labels)
+                            lat_reenc = generator(z_reenc, labels)
+                            images_dec, _, _ = decoder(lat_reenc)
 
-                        lat_gen.requires_grad_()
+                        lat_reenc.requires_grad_()
                         images_dec.requires_grad_()
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_reenc)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
@@ -195,7 +196,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / max(1 / d_reg_every, d_reg_every)
 
-                            reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, lat_gen)#, margin=reg_dis_target / d_reg_param if alt_reg else 0)
+                            reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, lat_reenc)#, margin=reg_dis_target / d_reg_param if alt_reg else 0)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / max(1 / d_reg_every, d_reg_every)
 
@@ -237,7 +238,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_z, nets_to_train)
                         loss_gen_z_sum += loss_gen_z.item()
 
-                        lat_enc = -1 * lat_enc.detach()
+                        # lat_enc = -1 * lat_enc.detach()
                         with torch.no_grad():
                             z_reenc, _ = get_z(lat_enc, labels)
 
