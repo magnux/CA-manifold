@@ -181,7 +181,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             z_reenc, _ = get_z(lat_enc, labels)
-                            z_reenc = F.normalize(z_reenc + 0.1 * torch.randn_like(z_reenc))
+                            z_reenc = F.normalize(z_reenc + torch.randn_like(z_reenc))
                             lat_reenc = generator(z_reenc, labels)
                             images_dec, _, _ = decoder(lat_reenc)
 
@@ -243,7 +243,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             z_reenc, _ = get_z(lat_enc, labels)
 
                         z_reenc.requires_grad_()
-                        z_reenc = F.normalize(z_reenc + 0.1 * torch.randn_like(z_reenc))
+                        z_reenc = F.normalize(z_reenc + torch.randn_like(z_reenc))
                         lat_reenc = generator(z_reenc, labels)
                         images_dec, _, _ = decoder(lat_reenc)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_reenc)
