@@ -180,8 +180,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         with torch.no_grad():
-                            z_reenc, _ = -1 * get_z(lat_enc, labels)
-                            lat_reenc = generator(z_reenc, labels)
+                            z_reenc, _ = get_z(lat_enc, labels)
+                            lat_reenc = generator(-1 * z_reenc, labels)
                             images_dec, _, _ = decoder(lat_reenc)
 
                         lat_reenc.requires_grad_()
@@ -239,10 +239,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_z_sum += loss_gen_z.item()
 
                         with torch.no_grad():
-                            z_reenc, _ = -1 * get_z(lat_enc, labels)
+                            z_reenc, _ = get_z(lat_enc, labels)
 
                         z_reenc.requires_grad_()
-                        lat_reenc = generator(z_reenc, labels)
+                        lat_reenc = generator(-1 * z_reenc, labels)
                         images_dec, _, _ = decoder(lat_reenc)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_reenc)
                         labs_dec = discriminator(lat_top_dec, labels)
