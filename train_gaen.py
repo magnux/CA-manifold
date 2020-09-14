@@ -2,6 +2,7 @@
 import math
 import numpy as np
 import torch
+import torch.nn.functional as F
 import argparse
 from tqdm import trange
 from src.config import load_config
@@ -129,7 +130,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
-                loss_gen_reenc_sum, loss_gen_redec_sum = 0, 0
+                loss_gen_z_sum = 0
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
@@ -220,13 +221,26 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        lat_gen = (generator(z_gen, labels) + lat_enc.detach()) / 2
-                        images_dec, _, _ = decoder(lat_gen)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
+                        with torch.no_grad():
+                            lat_gen = generator(z_gen, labels)
+
+                        lat_gen.requires_grad_()
+                        z_regen, yembed_loss = generator.get_z(lat_gen, labels)
+                        loss_gen_z = (1 / batch_mult) * (F.mse_loss(z_regen, z_gen) + yembed_loss)
+                        model_manager.loss_backward(loss_gen_z, nets_to_train)
+                        loss_gen_z_sum += loss_gen_z.item()
+
+                        with torch.no_grad():
+                            z_reenc, _ = generator.get_z(lat_enc, labels)
+
+                        z_reenc.requires_grad_()
+                        lat_reenc = generator(z_reenc, labels)
+                        images_dec, _, _ = decoder(lat_reenc)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_reenc)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
-                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
+                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_reenc, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item()
@@ -244,7 +258,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Print progress
                 running_loss_dis[batch % window_size] = loss_dis_enc_sum + loss_dis_dec_sum
-                running_loss_gen[batch % window_size] = loss_gen_enc_sum + loss_gen_dec_sum + loss_gen_reenc_sum + loss_gen_redec_sum
+                running_loss_gen[batch % window_size] = loss_gen_enc_sum + loss_gen_dec_sum
                 running_factor = window_size if batch > window_size else batch + 1
                 t.set_postfix(loss_dis='%.2e' % (np.sum(running_loss_dis) / running_factor),
                               loss_gen='%.2e' % (np.sum(running_loss_gen) / running_factor))
@@ -254,8 +268,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum + loss_gen_reenc_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum + loss_gen_redec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen_z', loss_gen_z_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
