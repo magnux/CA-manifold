@@ -246,7 +246,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Streaming Images
                 with torch.no_grad():
-                    z_test = get_z(encoder(images_test, labs_encoder(labels_test)))
+                    z_test = get_z(encoder(images_test, labs_encoder(labels_test))[0])
                     lat_gen = generator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
 
@@ -286,7 +286,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
-            z_test = get_z(encoder(images_test, labs_encoder(labels_test)))
+            z_test = get_z(encoder(images_test, labs_encoder(labels_test))[0])
             lat_gen = generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
             lat_labs = labs_encoder(labels)
