@@ -92,7 +92,7 @@ def get_inputs(trainiter, batch_size, device):
     return images, labels, z_gen, trainiter
 
 
-images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
+images_test, labels_test, _, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
 
 if config['training']['inception_every'] > 0:
@@ -246,6 +246,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Streaming Images
                 with torch.no_grad():
+                    z_test = get_z(encoder(images_test, labs_encoder(labels_test)))
                     lat_gen = generator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
 
@@ -284,7 +285,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
+            images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
+            z_test = get_z(encoder(images_test, labs_encoder(labels_test)))
             lat_gen = generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
             lat_labs = labs_encoder(labels)
