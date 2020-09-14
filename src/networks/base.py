@@ -77,7 +77,7 @@ class Generator(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
 
-        z, yembed_rec = torch.split(self.lat_to_embed(lat, dim=1), [self.z_dim, self.embed_size], dim=1)
+        z, yembed_rec = torch.split(self.lat_to_embed(lat), [self.z_dim, self.embed_size], dim=1)
 
         yembed_loss = F.mse_loss(yembed_rec, yembed)
 
