@@ -103,6 +103,13 @@ if config['training']['inception_every'] > 0:
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
 
+def get_z(lat, labels):
+    if isinstance(generator, torch.nn.DataParallel):
+        return generator.module.get_z(lat, labels)
+    else:
+        return generator.get_z(lat, labels)
+
+
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 d_reg_every = model_manager.log_manager.get_last('regs', 'd_reg_every', 1.)
 d_reg_every_float = float(d_reg_every)
@@ -225,13 +232,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_gen = generator(z_gen, labels)
 
                         lat_gen.requires_grad_()
-                        z_regen, yembed_loss = generator.get_z(lat_gen, labels)
+                        z_regen, yembed_loss = get_z(lat_gen, labels)
                         loss_gen_z = (1 / batch_mult) * (F.mse_loss(z_regen, z_gen) + yembed_loss)
                         model_manager.loss_backward(loss_gen_z, nets_to_train)
                         loss_gen_z_sum += loss_gen_z.item()
 
                         with torch.no_grad():
-                            z_reenc, _ = generator.get_z(lat_enc, labels)
+                            z_reenc, _ = get_z(lat_enc, labels)
 
                         z_reenc.requires_grad_()
                         lat_reenc = generator(z_reenc, labels)
