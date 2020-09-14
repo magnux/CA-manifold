@@ -49,8 +49,7 @@ class Generator(nn.Module):
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
         nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
-        self.lat_to_embed = nn.Linear(self.lat_size, z_dim + embed_size, bias=False)
-        nn.init.xavier_normal_(self.lat_to_embed.weight, 0.1)
+        self.lat_to_z = nn.Linear(self.lat_size, z_dim, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -66,22 +65,12 @@ class Generator(nn.Module):
 
         return lat
 
-    def get_z(self, lat, y):
-        assert (lat.size(0) == y.size(0))
+    def get_z(self, lat):
 
-        if y.dtype is torch.int64:
-            yembed = self.embedding_mat[y]
-        else:
-            yembed = y
+        z = self.lat_to_z(lat)
+        z = F.normalize(z)
 
-        yembed = self.embedding_fc(yembed)
-        yembed = F.normalize(yembed)
-
-        z, yembed_rec = torch.split(self.lat_to_embed(lat), [self.z_dim, self.embed_size], dim=1)
-
-        yembed_loss = F.mse_loss(yembed_rec, yembed)
-
-        return z, yembed_loss
+        return z
 
 
 class LabsEncoder(nn.Module):
