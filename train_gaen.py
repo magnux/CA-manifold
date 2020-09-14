@@ -238,13 +238,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_z, nets_to_train)
                         loss_gen_z_sum += loss_gen_z.item()
 
-                        # lat_enc = -1 * lat_enc.detach()
                         with torch.no_grad():
                             z_reenc, _ = get_z(lat_enc, labels)
 
                         z_reenc.requires_grad_()
                         lat_reenc = generator(z_reenc, labels)
-                        lat_reenc = lat_reenc + (lat_enc - lat_reenc).detach()
                         images_dec, _, _ = decoder(lat_reenc)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_reenc)
                         labs_dec = discriminator(lat_top_dec, labels)
