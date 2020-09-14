@@ -237,6 +237,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_z, nets_to_train)
                         loss_gen_z_sum += loss_gen_z.item()
 
+                        lat_enc = -1 * lat_enc.detach()
                         with torch.no_grad():
                             z_reenc, _ = get_z(lat_enc, labels)
 
