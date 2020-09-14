@@ -153,7 +153,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
                     for _ in range(batch_mult):
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+                        images, labels, _, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
                             lat_labs = labs_encoder(labels)
@@ -180,7 +180,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             z_reenc = get_z(lat_enc.detach())
-                            z_reenc = F.normalize(0.9 * z_reenc + 0.1 * z_gen)
                             lat_reenc = generator(z_reenc, labels)
                             images_dec, _, _ = decoder(lat_reenc)
 
@@ -212,7 +211,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with model_manager.on_step(['encoder', 'labs_encoder', 'decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+                        images, labels, _, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_labs = labs_encoder(labels)
                         lat_enc, out_embs, _ = encoder(images, lat_labs)
@@ -230,7 +229,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_enc_sum += loss_gen_enc.item()
 
                         z_reenc = get_z(lat_enc.detach())
-                        z_reenc = F.normalize(0.9 * z_reenc + 0.1 * z_gen)
                         lat_reenc = generator(z_reenc, labels)
                         images_dec, _, _ = decoder(lat_reenc)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_reenc)
