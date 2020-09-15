@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, compute_pl_reg_sp
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, compute_pl_reg_dct
 from src.utils.model_utils import compute_inception_score
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -236,7 +236,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             if alt_reg:
-                                reg_gen_dec, pl_mean_dec = compute_pl_reg_sp(images_dec, lat_reenc, pl_mean_dec)
+                                reg_gen_dec, pl_mean_dec = compute_pl_reg_dct(images_dec, lat_reenc, pl_mean_dec)
                             else:
                                 reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_reenc, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
