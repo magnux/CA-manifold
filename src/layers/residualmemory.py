@@ -26,7 +26,7 @@ class ResidualMemory(nn.Module):
 
         self.q = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.fin, 1, 1, 0)
         self.k = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.fin, 1, 1, 0)
-        self.v = nn.Parameter(torch.rand(1, self.n_mem, self.fin + 1))
+        self.v = nn.Parameter(nn.init.orthogonal_(torch.empty(self.n_mem, self.fin + 1)).unsqueeze(0))
 
         self.dropout = None
         if dropout > 0:

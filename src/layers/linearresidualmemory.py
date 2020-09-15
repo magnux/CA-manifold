@@ -12,7 +12,7 @@ class LinearResidualMemory(nn.Module):
 
         self.q = nn.Linear(self.fin, self.fin * self.n_mem)
         self.k = nn.Linear(self.fin, self.fin * self.n_mem)
-        self.v = nn.Parameter(torch.rand(1, self.n_mem, self.fin + 1))
+        self.v = nn.Parameter(nn.init.orthogonal_(torch.empty(self.n_mem, self.fin + 1)).unsqueeze(0))
 
         self.dropout = None
         if dropout > 0:
