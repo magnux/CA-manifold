@@ -55,9 +55,10 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     return reg
 
 
-def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-2):
+def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=0.1):
     if g_out.dim() == 2:
         g_out = g_out.unsqueeze(1)
+
     space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
     pl_noise = torch.randn_like(g_out) / space_sqrt
     outputs = (g_out * pl_noise).sum()
@@ -74,7 +75,7 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-2):
     return pl_reg, new_pl_mean
 
 
-def compute_pl_reg_dct(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-2):
+def compute_pl_reg_dct(g_out, g_in, pl_mean, beta=0.99, min_pl=0.1):
     if g_out.dim() == 2:
         g_out = g_out.unsqueeze(1)
 
