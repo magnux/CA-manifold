@@ -19,12 +19,12 @@ network:
     dyncin: True
     letter_encoding: False
     perception_noise: False
-    fire_rate: 0.5
+    fire_rate: 1.0
 z_dist:
   type: gauss
   z_dim: 3
 training:
-  out_dir: save/emoji_s_ca_manifold_2_sto_alt_lat3
+  out_dir: save/emoji_s_ca_manifold_2_alt_lat3
   persistence: False
   regeneration: False
   batch_size: 64
