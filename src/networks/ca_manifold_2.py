@@ -18,7 +18,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, normout=False, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, normout=False, z_dim=0, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -62,11 +62,8 @@ class InjectedEncoder(nn.Module):
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
             *([] if not normout else [NormScaleAndShift(self.lat_size) for _ in range(16)]),
-            *([] if not normout else [nn.Linear(self.lat_size, self.lat_size)]),
-            *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
+            *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size if not normout else z_dim)]),
         )
-        if normout:
-            nn.init.xavier_normal_(self.out_to_lat[-1 if lat_size > 3 else -2].weight, 0.1)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
