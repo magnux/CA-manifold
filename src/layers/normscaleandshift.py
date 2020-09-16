@@ -16,6 +16,13 @@ class NormScaleAndShift(nn.Module):
         z = x * torch.exp(s) + t
         return z
 
+    def backward(self, z):
+        s = self.s if self.s is not None else z.new_zeros(z.size())
+        s = s.clamp(-1e-3, 1.)  # Safety first
+        t = self.t if self.t is not None else z.new_zeros(z.size())
+        x = (z - t) * torch.exp(-s)
+        return x
+
 
 class DeNormScaleAndShift(nn.Module):
 
@@ -30,3 +37,10 @@ class DeNormScaleAndShift(nn.Module):
         t = self.t if self.t is not None else z.new_zeros(z.size())
         x = (z - t) * torch.exp(-s)
         return x
+
+    def backward(self, x):
+        s = self.s if self.s is not None else x.new_zeros(x.size())
+        s = s.clamp(-1e-3, 1.)  # Safety first
+        t = self.t if self.t is not None else x.new_zeros(x.size())
+        z = x * torch.exp(s) + t
+        return z
