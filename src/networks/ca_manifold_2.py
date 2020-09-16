@@ -59,7 +59,7 @@ class InjectedEncoder(nn.Module):
         self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            LinearResidualBlock(self.lat_size, self.lat_size),
+            *[LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(8)],
             *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
         )
 
