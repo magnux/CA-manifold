@@ -9,6 +9,7 @@ from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.normscaleandshift import NormScaleAndShift
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
@@ -60,6 +61,7 @@ class InjectedEncoder(nn.Module):
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
+            *[NormScaleAndShift(self.lat_size) for _ in range(16)],
             *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
         )
 

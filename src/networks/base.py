@@ -6,7 +6,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.centroids import Centroids
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.scaleandshift import ScaleAndShift
 import math
 
 
@@ -45,11 +44,8 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        self.embed_to_lat = nn.Sequential(
-            nn.Linear(z_dim + embed_size, self.lat_size),
-            *[ScaleAndShift(self.lat_size) for _ in range(16)],
-        )
-        nn.init.xavier_normal_(self.embed_to_lat[0].weight, 0.1)
+        self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
