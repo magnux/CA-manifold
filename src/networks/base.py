@@ -49,7 +49,7 @@ class Generator(nn.Module):
             nn.Linear(z_dim + embed_size, self.lat_size),
             *[ScaleAndShift(self.lat_size) for _ in range(16)],
         )
-        nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
+        nn.init.xavier_normal_(self.embed_to_lat[0].weight, 0.1)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
