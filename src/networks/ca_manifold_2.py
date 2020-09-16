@@ -18,7 +18,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, normout=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -61,7 +61,7 @@ class InjectedEncoder(nn.Module):
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            *[NormScaleAndShift(self.lat_size) for _ in range(16)],
+            *([] if not normout else [NormScaleAndShift(self.lat_size) for _ in range(16)]),
             *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
         )
 
@@ -115,6 +115,12 @@ class InjectedEncoder(nn.Module):
         lat = self.out_to_lat(conv_state)
 
         return lat, out_embs, None
+
+
+class NormInjectedEncoder(InjectedEncoder):
+    def __init__(self, **kwargs):
+        kwargs['normout'] = True
+        super().__init__(**kwargs)
 
 
 class Decoder(nn.Module):
