@@ -3,12 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.centroids import Centroids
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.residualmemory import ResidualMemory
-from itertools import chain
+from src.layers.scaleandshift import ScaleAndShift
 import math
 
 
@@ -26,7 +24,7 @@ class Discriminator(nn.Module):
     def __init__(self, n_labels, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.labs = nn.Linear(self.lat_size, n_labels, bias=False)
+        self.labs = nn.Linear(self.lat_size, n_labels)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -46,8 +44,11 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
-        self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
+        self.embedding_fc = nn.Linear(n_labels, embed_size)
+        self.embed_to_lat = nn.Sequential(
+            nn.Linear(z_dim + embed_size, self.lat_size),
+            *[ScaleAndShift(self.lat_size) for _ in range(16)],
+        )
         nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
     def forward(self, z, y):
@@ -70,8 +71,8 @@ class LabsEncoder(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
-        self.embed_to_lat = nn.Linear(embed_size, self.lat_size, bias=False)
+        self.embedding_fc = nn.Linear(n_labels, embed_size)
+        self.embed_to_lat = nn.Linear(embed_size, self.lat_size)
         nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
     def forward(self, y):
@@ -91,7 +92,7 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.labs = nn.Linear(self.lat_size, 1, bias=False)
+        self.labs = nn.Linear(self.lat_size, 1)
 
     def forward(self, lat):
         labs = self.labs(lat)
@@ -103,7 +104,7 @@ class UnconditionalGenerator(nn.Module):
     def __init__(self, lat_size, z_dim, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.embed_to_lat = nn.Linear(z_dim, self.lat_size, bias=False)
+        self.embed_to_lat = nn.Linear(z_dim, self.lat_size)
         nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
     def forward(self, z):

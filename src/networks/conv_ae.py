@@ -5,7 +5,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.scale import DownScale, UpScale
+from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.utils.model_utils import ca_seed
