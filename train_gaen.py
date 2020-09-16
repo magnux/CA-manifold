@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, compute_pl_reg_dct
-from src.utils.model_utils import compute_inception_score
+from src.utils.model_utils import compute_inception_score, zero_grad
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -222,6 +222,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
+                        zero_grad(generator)
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
