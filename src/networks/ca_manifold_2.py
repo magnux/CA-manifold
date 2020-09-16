@@ -62,6 +62,7 @@ class InjectedEncoder(nn.Module):
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
             *([] if not normout else [NormScaleAndShift(self.lat_size) for _ in range(16)]),
+            *([] if not normout else [nn.Linear(self.lat_size, self.lat_size)]),
             *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
         )
 
