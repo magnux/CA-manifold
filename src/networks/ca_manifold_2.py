@@ -65,6 +65,8 @@ class InjectedEncoder(nn.Module):
             *([] if not normout else [nn.Linear(self.lat_size, self.lat_size)]),
             *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
         )
+        if normout:
+            nn.init.xavier_normal_(self.out_to_lat[-1 if lat_size > 3 else -2].weight, 0.1)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
