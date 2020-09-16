@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.layers.pos_encoding import PosEncoding
+from src.layers.posencoding import PosEncoding
 import numpy as np
 
 

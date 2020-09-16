@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch.nn import functional as F
-from src.layers.pos_encoding import cos_pos_encoding_nd
+from src.layers.posencoding import cos_pos_encoding_nd
 
 
 def compute_gan_loss(d_out, target, gan_type='standard'):
