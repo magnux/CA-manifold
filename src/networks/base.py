@@ -46,7 +46,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
-        nn.init.xavier_normal_(self.embed_to_lat[-1].weight, 0.1)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
