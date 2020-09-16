@@ -14,8 +14,7 @@ class NormScaleAndShift(nn.Module):
         s = s.clamp(-1e-3, 1.)  # Safety first
         t = self.t if self.t is not None else x.new_zeros(x.size())
         z = x * torch.exp(s) + t
-        log_det = torch.sum(s, dim=1)
-        return z, log_det
+        return z
 
 
 class DeNormScaleAndShift(nn.Module):
