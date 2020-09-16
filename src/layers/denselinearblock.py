@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class DenseLinearBlock(nn.Module):
-    def __init__(self, fin, n_layers=4, bias=True):
+    def __init__(self, fin, n_layers=8, bias=True):
         super(DenseLinearBlock, self).__init__()
 
         self.fin = fin
