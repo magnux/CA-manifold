@@ -11,7 +11,7 @@ class ScaleAndShift(nn.Module):
 
     def forward(self, z):
         s = self.s if self.s is not None else z.new_zeros(z.size())
-        s = s.clamp(-1000, 10)  # Safety first
+        s = s.clamp(-1e-3, 1.)  # Safety first
         t = self.t if self.t is not None else z.new_zeros(z.size())
         x = (z - t) * torch.exp(-s)
         return x
