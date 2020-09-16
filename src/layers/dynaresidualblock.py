@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.denselinearblock import DenseLinearBlock
 
 
 class DynaResidualBlock(nn.Module):
@@ -39,7 +38,7 @@ class DynaResidualBlock(nn.Module):
 
         self.dyna_k = nn.Sequential(
             *([] if lat_size > 3 else [nn.Linear(lat_size, self.lat_size)]),
-            *[DenseLinearBlock(self.lat_size) for _ in range(4)],
+            LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, k_total_size, self.lat_size * 2),
         )
 

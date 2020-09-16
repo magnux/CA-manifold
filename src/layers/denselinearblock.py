@@ -13,6 +13,7 @@ class DenseLinearBlock(nn.Module):
         self.layers = nn.ModuleList()
         for n in range(self.n_layers):
             self.layers.append(nn.Linear(self.fin * (n + 1), self.fin, bias=bias))
+            nn.init.orthogonal_(self.layers[-1].weight)
 
     def forward(self, x):
         xs = [x]

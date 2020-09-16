@@ -5,7 +5,6 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.denselinearblock import DenseLinearBlock
 from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
@@ -60,7 +59,7 @@ class InjectedEncoder(nn.Module):
         self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            *[DenseLinearBlock(self.lat_size) for _ in range(4)],
+            LinearResidualBlock(self.lat_size, self.lat_size),
             *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
         )
 
