@@ -107,6 +107,13 @@ total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 d_reg_every = model_manager.log_manager.get_last('regs', 'd_reg_every', 1.)
 d_reg_every_float = float(d_reg_every)
 
+dis_grad_norm = model_manager.log_manager.get_last('norms', 'dis_grad_norm', 0.)
+dis_enc_grad_norm = model_manager.log_manager.get_last('norms', 'dis_enc_grad_norm', 0.)
+enc_grad_norm = model_manager.log_manager.get_last('norms', 'enc_grad_norm', 0.)
+dec_grad_norm = model_manager.log_manager.get_last('norms', 'dec_grad_norm', 0.)
+gen_grad_norm = model_manager.log_manager.get_last('norms', 'gen_grad_norm', 0.)
+
+
 pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
 pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
 
@@ -119,7 +126,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_gen = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-        reg_dis_target = 0.1 ** (batch_mult / batch_split)
+        reg_anneal_factor = 10 * (1.1 - int((epoch / config['training']['n_epochs'])))
         it = epoch * (len(trainloader) // batch_split)
 
         t = trange(len(trainloader) // batch_split)
@@ -195,6 +202,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
+                        reg_dis_target = (enc_grad_norm + dec_grad_norm + gen_grad_norm) * reg_anneal_factor
                         d_reg_every_float = d_reg_every_float + reg_dis_target - max(reg_dis_enc_sum, reg_dis_dec_sum)
                         d_reg_every_float = np.clip(d_reg_every_float, 1e-9, config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
