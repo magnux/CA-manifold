@@ -119,7 +119,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_gen = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-        reg_dis_target = 0.1 * (1.001 - (epoch / config['training']['n_epochs']))
+        reg_dis_target = 0.01 * (1.01 - (epoch / config['training']['n_epochs']))
         it = epoch * (len(trainloader) // batch_split)
 
         t = trange(len(trainloader) // batch_split)
