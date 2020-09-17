@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, compute_pl_reg_dct
-from src.utils.model_utils import compute_inception_score
+from src.utils.model_utils import compute_inception_score, get_grad_norm
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -199,6 +199,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         d_reg_every_float = np.clip(d_reg_every_float, 1e-9, config['training']['d_reg_every'])
                         d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
 
+                    dis_grad_norm = get_grad_norm(discriminator).item()
+                    dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
+
                 # Generator step
                 with model_manager.on_step(['encoder', 'labs_encoder', 'decoder', 'generator']) as nets_to_train:
 
@@ -238,6 +241,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
+                    enc_grad_norm = get_grad_norm(encoder).item()
+                    dec_grad_norm = get_grad_norm(decoder).item()
+                    gen_grad_norm = get_grad_norm(generator).item()
+
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
@@ -271,6 +278,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     model_manager.log_manager.add_scalar('regs', 'pl_mean_enc', pl_mean_enc, it=it)
                     model_manager.log_manager.add_scalar('regs', 'pl_mean_dec', pl_mean_dec, it=it)
+
+                model_manager.log_manager.add_scalar('norms', 'dis_grad_norm', dis_grad_norm, it=it)
+                model_manager.log_manager.add_scalar('norms', 'dis_enc_grad_norm', dis_enc_grad_norm, it=it)
+                model_manager.log_manager.add_scalar('norms', 'enc_grad_norm', enc_grad_norm, it=it)
+                model_manager.log_manager.add_scalar('norms', 'dec_grad_norm', dec_grad_norm, it=it)
+                model_manager.log_manager.add_scalar('norms', 'gen_grad_norm', gen_grad_norm, it=it)
 
                 it += 1
 

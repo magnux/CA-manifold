@@ -8,9 +8,9 @@ def count_parameters(network):
     return sum(p.numel() for p in network.parameters() if p.requires_grad)
 
 
-def toggle_grad(model, requires_grad):
-    model.train(requires_grad)
-    for p in model.parameters():
+def toggle_grad(network, requires_grad):
+    network.train(requires_grad)
+    for p in network.parameters():
         if p.dtype == torch.FloatTensor:
             p.requires_grad_(requires_grad)
 
@@ -19,6 +19,14 @@ def zero_grad(network):
     for p in network.parameters():
         if p.grad is not None:
             p.grad.zero_()
+
+
+def get_grad_norm(network):
+    grad_norm = 0.
+    for p in network.parameters():
+        if p.grad is not None:
+            grad_norm += p.grad.pow(2).mean()
+    return grad_norm
 
 
 def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
