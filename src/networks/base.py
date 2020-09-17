@@ -46,12 +46,10 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        self.embed_to_lat = nn.Sequential(
-            nn.Linear(z_dim + embed_size, self.lat_size),
-            *[DenseLinearBlock(self.lat_size) for _ in range(4)],
-            nn.Linear(self.lat_size, self.lat_size),
-        )
-        nn.init.xavier_uniform_(self.embed_to_lat[-1].weight, 0.1)
+        self.embed_to_embed = LinearResidualBlock(z_dim + embed_size, z_dim + embed_size, (z_dim + embed_size) * 8)
+        self.n_calls = 16
+        self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -63,7 +61,12 @@ class Generator(nn.Module):
 
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
-        lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
+
+        embed = torch.cat([z, yembed], dim=1)
+        for c in range(self.n_calls):
+            embed = embed + 0.1 * self.embed_to_embed(embed)
+
+        lat = self.embed_to_lat(embed)
 
         return lat
 
