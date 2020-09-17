@@ -22,14 +22,21 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
+        self.z_dim = z_dim
+        self.embed_size = embed_size
         self.labs = nn.Linear(self.lat_size, n_labels)
+        self.lat_to_lat = LinearResidualBlock(z_dim + embed_size, z_dim + embed_size, (z_dim + embed_size) * 8)
+        self.n_calls = 16
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
         batch_size = lat.size(0)
+
+        for c in range(self.n_calls):
+            lat = lat + 0.1 * self.lat_to_lat(lat)
 
         labs = self.labs(lat)
         index = torch.arange(0, batch_size, device=lat.device)
@@ -46,8 +53,6 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        self.embed_to_embed = LinearResidualBlock(z_dim + embed_size, z_dim + embed_size, (z_dim + embed_size) * 8)
-        self.n_calls = 16
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
         nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
@@ -61,12 +66,7 @@ class Generator(nn.Module):
 
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
-
-        embed = torch.cat([z, yembed], dim=1)
-        for c in range(self.n_calls):
-            embed = embed + 0.1 * self.embed_to_embed(embed)
-
-        lat = self.embed_to_lat(embed)
+        lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
 
