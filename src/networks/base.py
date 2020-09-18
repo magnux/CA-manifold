@@ -48,9 +48,8 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        nn.init.normal_(self.embedding_fc.weight, 1.)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size)
-        nn.init.normal_(self.embed_to_lat.weight, 1.)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 10.)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -73,9 +72,8 @@ class LabsEncoder(nn.Module):
         self.lat_size = lat_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        nn.init.normal_(self.embedding_fc.weight, 1.)
         self.embed_to_lat = nn.Linear(embed_size, self.lat_size)
-        nn.init.normal_(self.embed_to_lat.weight, 1.)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 10.)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -107,7 +105,7 @@ class UnconditionalGenerator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.embed_to_lat = nn.Linear(z_dim, self.lat_size)
-        nn.init.normal_(self.embed_to_lat.weight, 1.)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 10.)
 
     def forward(self, z):
         lat = self.embed_to_lat(z)
@@ -122,7 +120,6 @@ class VarEncoder(nn.Module):
         self.z_dim = z_dim
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        nn.init.normal_(self.embedding_fc.weight, 1.)
         self.lat_to_z = nn.Sequential(
             LinearResidualBlock(self.lat_size + embed_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -151,7 +148,6 @@ class VarDecoder(nn.Module):
         self.lat_size = lat_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        nn.init.normal_(self.embedding_fc.weight, 1.)
         self.z_to_lat = nn.Sequential(
             LinearResidualBlock(z_dim + embed_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -214,7 +210,6 @@ class CodeBookDecoder(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        nn.init.normal_(self.embedding_fc.weight, 1.)
 
     def forward(self, codes, y):
         batch_size = codes.size(0)
@@ -269,7 +264,6 @@ class LetterGenerator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
-        nn.init.normal_(self.embedding_fc.weight, 1.)
 
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
