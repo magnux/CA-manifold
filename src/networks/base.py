@@ -61,7 +61,7 @@ class Generator(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
-        # yembed = F.normalize(yembed)
+        yembed = F.normalize(yembed)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
@@ -84,7 +84,7 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
-        # yembed = F.normalize(yembed)
+        yembed = F.normalize(yembed)
         lat = self.embed_to_lat(yembed)
 
         return lat
@@ -122,6 +122,7 @@ class VarEncoder(nn.Module):
         self.z_dim = z_dim
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
+        nn.init.normal_(self.embedding_fc.weight, 1.)
         self.lat_to_z = nn.Sequential(
             LinearResidualBlock(self.lat_size + embed_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -150,6 +151,7 @@ class VarDecoder(nn.Module):
         self.lat_size = lat_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
+        nn.init.normal_(self.embedding_fc.weight, 1.)
         self.z_to_lat = nn.Sequential(
             LinearResidualBlock(z_dim + embed_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -212,6 +214,7 @@ class CodeBookDecoder(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
+        nn.init.normal_(self.embedding_fc.weight, 1.)
 
     def forward(self, codes, y):
         batch_size = codes.size(0)
@@ -266,6 +269,7 @@ class LetterGenerator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size)
+        nn.init.normal_(self.embedding_fc.weight, 1.)
 
         self.n_calls = 8
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
