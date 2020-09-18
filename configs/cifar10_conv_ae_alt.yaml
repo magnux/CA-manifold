@@ -24,7 +24,7 @@ z_dist:
 training:
   out_dir: save/cifar10_conv_ae_alt
   batch_size: 64
-  batch_split: 4
+  batch_split: 8
   batch_mult_steps: 4
   n_workers: 2
   optimizer: adamp
