@@ -17,7 +17,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, norm_cond_out=False, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -36,7 +36,6 @@ class InjectedEncoder(nn.Module):
         self.gated = gated
         self.env_feedback = env_feedback
         self.multi_cut = multi_cut
-        self.norm_cond_out = norm_cond_out
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
@@ -63,10 +62,6 @@ class InjectedEncoder(nn.Module):
             LinearResidualBlock(self.lat_size, self.lat_size),
             *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
         )
-
-        if self.norm_cond_out:
-            self.norm_lat = nn.BatchNorm1d(lat_size)
-            self.cond_lat = nn.Linear(lat_size * 2, lat_size)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -117,17 +112,7 @@ class InjectedEncoder(nn.Module):
             conv_state = out.mean(dim=(2, 3))
         lat = self.out_to_lat(conv_state)
 
-        if self.norm_cond_out:
-            lat = self.norm_lat(lat)
-            lat = self.cond_lat(torch.cat([lat, inj_lat], dim=1))
-
         return lat, out_embs, None
-
-
-class NormInjectedEncoder(InjectedEncoder):
-    def __init__(self, **kwargs):
-        kwargs['norm_cond_out'] = True
-        super().__init__(**kwargs)
 
 
 class Decoder(nn.Module):

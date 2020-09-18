@@ -53,7 +53,7 @@ zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=de
 
 # Networks
 networks_dict = {
-    'encoder': {'class': config['network']['class'], 'sub_class': 'NormInjectedEncoder'},
+    'encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
     'labs_encoder': {'class': 'base', 'sub_class': 'LabsEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
