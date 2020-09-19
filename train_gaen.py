@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, compute_pl_reg_dct
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, compute_pl_reg_dct, update_reg_params
 from src.utils.model_utils import compute_inception_score, get_grad_norm
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -32,6 +32,8 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
+d_reg_every = config['training']['d_reg_every']
+d_reg_param = config['training']['d_reg_param']
 g_reg_every = config['training']['g_reg_every']
 alt_reg = config['training']['alt_reg'] if 'alt_reg' in config['training'] else False
 batch_size = config['training']['batch_size']
@@ -103,45 +105,13 @@ if config['training']['inception_every'] > 0:
 
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 
-d_reg_every_enc = model_manager.log_manager.get_last('regs', 'd_reg_every_enc', 1 if config['training']['d_reg_every'] > 0 else 0)
-d_reg_every_dec = model_manager.log_manager.get_last('regs', 'd_reg_every_dec', 1 if config['training']['d_reg_every'] > 0 else 0)
-d_reg_param_enc = model_manager.log_manager.get_last('regs', 'd_reg_param_enc', config['training']['d_reg_param'])
-d_reg_param_dec = model_manager.log_manager.get_last('regs', 'd_reg_param_dec', config['training']['d_reg_param'])
+d_reg_every_enc = model_manager.log_manager.get_last('regs', 'd_reg_every_enc', 1 if d_reg_every > 0 else 0)
+d_reg_every_dec = model_manager.log_manager.get_last('regs', 'd_reg_every_dec', 1 if d_reg_every > 0 else 0)
+d_reg_param_enc = model_manager.log_manager.get_last('regs', 'd_reg_param_enc', d_reg_param)
+d_reg_param_dec = model_manager.log_manager.get_last('regs', 'd_reg_param_dec', d_reg_param)
 
 pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
 pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
-
-
-def update_reg_params(d_reg_every, d_reg_param, reg_dis_target, reg_dis, loss_dis):
-    # Linear update estimate
-    # delta_reg = (reg_dis_target - reg_dis) * np.ceil(d_reg_every)
-    # Quadratic update estimate
-    delta_reg = (((reg_dis_target - reg_dis) / reg_dis) ** 2) * reg_dis * np.ceil(d_reg_every)
-
-    # Note the interval check is unnecessary since there is a clip later, but is left there for clarity of code
-    if 1 <= d_reg_every <= config['training']['d_reg_every'] and d_reg_param == config['training']['d_reg_param']:
-        d_reg_every += delta_reg
-
-    # This is not the same as an else, note d_reg_every can go out of the interval
-    if not (1 <= d_reg_every <= config['training']['d_reg_every'] and d_reg_param == config['training']['d_reg_param']):
-        d_reg_param -= delta_reg
-
-    d_reg_every = np.clip(d_reg_every, 1, config['training']['d_reg_every'])
-    
-    if d_reg_every == 1:
-        d_reg_param = np.clip(d_reg_param, config['training']['d_reg_param'], 1e9)
-    elif d_reg_every == config['training']['d_reg_every']:
-        d_reg_param = np.clip(d_reg_param, 1e-9, config['training']['d_reg_param'])
-    else:
-        assert d_reg_param == config['training']['d_reg_param'], 'in between the interval d_reg_param should be fixed, something is wrong'
-    
-    # Emergency break, in case the discriminator had slowly slip through the fence
-    if loss_dis < 1e-2:
-        d_reg_every = 1
-        d_reg_param = 1e9
-    
-    return d_reg_every, d_reg_param
-
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
@@ -230,10 +200,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every_enc > 0 and it % np.ceil(d_reg_every_enc) == 0:
-                        d_reg_every_enc, d_reg_param_enc = update_reg_params(d_reg_every_enc, d_reg_param_enc, reg_dis_target, reg_dis_enc_sum, loss_dis_enc_sum)
+                        d_reg_every_enc, d_reg_param_enc = update_reg_params(d_reg_every_enc, d_reg_every, d_reg_param_enc, d_reg_param,
+                                                                             reg_dis_enc_sum, reg_dis_target, loss_dis_enc_sum)
 
                     if d_reg_every_dec > 0 and it % np.ceil(d_reg_every_dec) == 0:
-                        d_reg_every_dec, d_reg_param_dec = update_reg_params(d_reg_every_dec, d_reg_param_dec, reg_dis_target, reg_dis_dec_sum, loss_dis_dec_sum)
+                        d_reg_every_dec, d_reg_param_dec = update_reg_params(d_reg_every_dec, d_reg_every, d_reg_param_dec, d_reg_param,
+                                                                             reg_dis_dec_sum, reg_dis_target, loss_dis_dec_sum)
 
                     dis_grad_norm = get_grad_norm(discriminator).item()
                     dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
