@@ -165,13 +165,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
 
                         if d_reg_every_enc > 0 and it % np.ceil(d_reg_every_enc) == 0:
-                            reg_dis_enc = (1 / batch_mult) * d_reg_every_enc * d_reg_param_enc * compute_grad_reg(labs_enc, images)
+                            reg_dis_enc = (1 / batch_mult) * d_reg_factor_enc * compute_grad_reg(labs_enc, images)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_every_enc
+                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor_enc
 
-                            reg_dis_enc = (1 / batch_mult) * d_reg_every_enc * d_reg_param_enc * compute_grad_reg(labs_enc, lat_enc)
+                            reg_dis_enc = (1 / batch_mult) * d_reg_factor_enc * compute_grad_reg(labs_enc, lat_enc)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_every_enc
+                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor_enc
 
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
@@ -188,13 +188,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
 
                         if d_reg_every_dec > 0 and it % np.ceil(d_reg_every_dec) == 0:
-                            reg_dis_dec = (1 / batch_mult) * d_reg_every_dec * d_reg_param_dec * compute_grad_reg(labs_dec, images_dec)
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor_dec * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_every_dec
+                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor_dec
 
-                            reg_dis_dec = (1 / batch_mult) * d_reg_every_dec * d_reg_param_dec * compute_grad_reg(labs_dec, lat_gen)
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor_dec * compute_grad_reg(labs_dec, lat_gen)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_every_dec
+                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor_dec
 
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
@@ -202,10 +202,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     if d_reg_every_enc > 0 and it % np.ceil(d_reg_every_enc) == 0:
                         d_reg_every_enc, d_reg_param_enc = update_reg_params(d_reg_every_enc, d_reg_every, d_reg_param_enc, d_reg_param,
                                                                              reg_dis_enc_sum, reg_dis_target, loss_dis_enc_sum)
+                        d_reg_factor_enc = d_reg_every_enc * d_reg_param_enc
 
                     if d_reg_every_dec > 0 and it % np.ceil(d_reg_every_dec) == 0:
                         d_reg_every_dec, d_reg_param_dec = update_reg_params(d_reg_every_dec, d_reg_every, d_reg_param_dec, d_reg_param,
                                                                              reg_dis_dec_sum, reg_dis_target, loss_dis_dec_sum)
+                        d_reg_factor_dec = d_reg_every_dec * d_reg_param_dec
 
                     dis_grad_norm = get_grad_norm(discriminator).item()
                     dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
@@ -226,7 +228,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
                             reg_gen_enc = (1 / batch_mult) * g_reg_every * reg_gen_enc
                             model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
-                            reg_gen_enc_sum += reg_gen_enc.item()
+                            reg_gen_enc_sum += reg_gen_enc.item() / g_reg_every
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
@@ -244,7 +246,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
-                            reg_gen_dec_sum += reg_gen_dec.item()
+                            reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)

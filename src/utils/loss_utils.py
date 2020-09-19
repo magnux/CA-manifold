@@ -62,7 +62,9 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target,
         delta_reg = (reg_loss_target - reg_loss) * np.ceil(reg_every)
     elif est_type == 'squared':
         # Squared update estimate
-        delta_reg = (((reg_loss_target - reg_loss) / reg_loss) ** 2) * reg_loss * np.ceil(reg_every)
+        delta_reg = reg_loss_target - reg_loss
+        reg_scale = np.abs(reg_loss)
+        delta_reg = np.sign(delta_reg) * ((delta_reg / reg_scale) ** 2) * reg_scale * np.ceil(reg_every)
 
     # Note the interval check is unnecessary since there is a clip later, but is left there for clarity of code
     if 1 <= reg_every <= reg_every_target and reg_param == reg_param_target:
