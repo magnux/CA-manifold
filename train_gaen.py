@@ -137,6 +137,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
 
+                d_reg_factor_enc = d_reg_every_enc * d_reg_param_enc
+                d_reg_factor_dec = d_reg_every_dec * d_reg_param_dec
+
                 if not (d_reg_every_enc > 0 and it % np.ceil(d_reg_every_enc) == 0):
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
                 if not (d_reg_every_dec > 0 and it % np.ceil(d_reg_every_dec) == 0):
@@ -202,12 +205,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     if d_reg_every_enc > 0 and it % np.ceil(d_reg_every_enc) == 0:
                         d_reg_every_enc, d_reg_param_enc = update_reg_params(d_reg_every_enc, d_reg_every, d_reg_param_enc, d_reg_param,
                                                                              reg_dis_enc_sum, reg_dis_target, loss_dis_enc_sum)
-                        d_reg_factor_enc = d_reg_every_enc * d_reg_param_enc
 
                     if d_reg_every_dec > 0 and it % np.ceil(d_reg_every_dec) == 0:
                         d_reg_every_dec, d_reg_param_dec = update_reg_params(d_reg_every_dec, d_reg_every, d_reg_param_dec, d_reg_param,
                                                                              reg_dis_dec_sum, reg_dis_target, loss_dis_dec_sum)
-                        d_reg_factor_dec = d_reg_every_dec * d_reg_param_dec
 
                     dis_grad_norm = get_grad_norm(discriminator).item()
                     dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
