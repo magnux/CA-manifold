@@ -105,8 +105,8 @@ total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 
 d_reg_every_enc = model_manager.log_manager.get_last('regs', 'd_reg_every_enc', 1.)
 d_reg_every_dec = model_manager.log_manager.get_last('regs', 'd_reg_every_dec', 1.)
-d_reg_param_enc = model_manager.log_manager.get_last('regs', 'd_reg_every_enc', config['training']['d_reg_param'])
-d_reg_param_dec = model_manager.log_manager.get_last('regs', 'd_reg_every_dec', config['training']['d_reg_param'])
+d_reg_param_enc = model_manager.log_manager.get_last('regs', 'd_reg_param_enc', config['training']['d_reg_param'])
+d_reg_param_dec = model_manager.log_manager.get_last('regs', 'd_reg_param_dec', config['training']['d_reg_param'])
 
 
 def update_reg_params(d_reg_every, d_reg_param, reg_dis_target, reg_dis, loss_dis):
