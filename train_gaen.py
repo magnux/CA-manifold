@@ -32,8 +32,6 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
-d_reg_param = config['training']['d_reg_param']
-d_reg_every = config['training']['d_reg_every']
 g_reg_every = config['training']['g_reg_every']
 alt_reg = config['training']['alt_reg'] if 'alt_reg' in config['training'] else False
 batch_size = config['training']['batch_size']
@@ -104,8 +102,37 @@ if config['training']['inception_every'] > 0:
 
 
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
-d_reg_every = model_manager.log_manager.get_last('regs', 'd_reg_every', 1.)
-d_reg_every_float = float(d_reg_every)
+
+d_reg_every_enc = model_manager.log_manager.get_last('regs', 'd_reg_every_enc', 1.)
+d_reg_every_dec = model_manager.log_manager.get_last('regs', 'd_reg_every_dec', 1.)
+d_reg_param_enc = model_manager.log_manager.get_last('regs', 'd_reg_every_enc', config['training']['d_reg_param'])
+d_reg_param_dec = model_manager.log_manager.get_last('regs', 'd_reg_every_dec', config['training']['d_reg_param'])
+
+
+def update_reg_params(d_reg_every, d_reg_param, reg_dis_target, reg_dis, loss_dis):
+    if 1 <= d_reg_every <= config['training']['d_reg_every'] and d_reg_param == config['training']['d_reg_param']:
+        d_reg_every = d_reg_every + reg_dis_target - reg_dis
+
+    # This is not the same as an else, note d_reg_everyfloat can go out of the interval
+    if not (1 <= d_reg_every <= config['training']['d_reg_every'] and d_reg_param == config['training']['d_reg_param']):
+        d_reg_param = d_reg_param - reg_dis_target + reg_dis
+
+    d_reg_every = np.clip(d_reg_every, 1, config['training']['d_reg_every'])
+    
+    if d_reg_every == 1:
+        d_reg_param = np.clip(d_reg_param, config['training']['d_reg_param'], 1e9)
+    elif d_reg_every == config['training']['d_reg_every']:
+        d_reg_param = np.clip(d_reg_param, 1e-9, config['training']['d_reg_param'])
+    else:
+        assert d_reg_param == config['training']['d_reg_param'], 'in between the interval d_reg_param should be fixed, something is wrong'
+    
+    # Emergency break, in case the discriminator had slowly slip through the fence
+    if loss_dis < 0.01:
+        d_reg_every = 1
+        d_reg_param = 1e9
+    
+    return d_reg_every, d_reg_param
+
 
 pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
 pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
@@ -134,8 +161,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
 
-                if not (d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0)):
+                if not (d_reg_every_enc > 0 and it % np.ceil(d_reg_every_enc) == 0):
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
+                if not (d_reg_every_dec > 0 and it % np.ceil(d_reg_every_dec) == 0):
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
                 if not (g_reg_every > 0 and it % g_reg_every == 0):
@@ -160,14 +188,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
 
-                        if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
-                            reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_enc, images)
+                        if d_reg_every_enc > 0 and it % np.ceil(d_reg_every_enc) == 0:
+                            reg_dis_enc = (1 / batch_mult) * d_reg_every_enc * d_reg_param_enc * compute_grad_reg(labs_enc, images)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                            reg_dis_enc_sum += reg_dis_enc.item() / max(1 / d_reg_every, d_reg_every)
+                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_every_enc
 
-                            reg_dis_enc = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_enc, lat_enc)
+                            reg_dis_enc = (1 / batch_mult) * d_reg_every_enc * d_reg_param_enc * compute_grad_reg(labs_enc, lat_enc)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                            reg_dis_enc_sum += reg_dis_enc.item() / max(1 / d_reg_every, d_reg_every)
+                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_every_enc
 
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
@@ -183,27 +211,23 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
 
-                        if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
-                            reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, images_dec)
+                        if d_reg_every_dec > 0 and it % np.ceil(d_reg_every_dec) == 0:
+                            reg_dis_dec = (1 / batch_mult) * d_reg_every_dec * d_reg_param_dec * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                            reg_dis_dec_sum += reg_dis_dec.item() / max(1 / d_reg_every, d_reg_every)
+                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_every_dec
 
-                            reg_dis_dec = (1 / batch_mult) * max(1 / d_reg_every, d_reg_every) * d_reg_param * compute_grad_reg(labs_dec, lat_gen)
+                            reg_dis_dec = (1 / batch_mult) * d_reg_every_dec * d_reg_param_dec * compute_grad_reg(labs_dec, lat_gen)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                            reg_dis_dec_sum += reg_dis_dec.item() / max(1 / d_reg_every, d_reg_every)
+                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_every_dec
 
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    if d_reg_every > 0 and (d_reg_every < 1 or it % d_reg_every == 0):
-                        d_reg_every_float = d_reg_every_float + reg_dis_target - max(reg_dis_enc_sum, reg_dis_dec_sum)
-                        if d_reg_every_float > config['training']['d_reg_every'] or d_reg_param < config['training']['d_reg_param']:
-                            d_reg_param = d_reg_param - d_reg_every_float + config['training']['d_reg_every']
-                        d_reg_every_float = np.clip(d_reg_every_float, 1e-9, config['training']['d_reg_every'])
-                        d_reg_param = np.clip(d_reg_param, 1e-9, config['training']['d_reg_param'])
-                        if loss_dis_enc_sum + loss_dis_dec_sum < 0.1:
-                            d_reg_every_float = 1e-9
-                        d_reg_every = int(d_reg_every_float) if d_reg_every_float >= 1 else d_reg_every_float
+                    if d_reg_every_enc > 0 and it % np.ceil(d_reg_every_enc) == 0:
+                        d_reg_every_enc, d_reg_param_enc = update_reg_params(d_reg_every_enc, d_reg_param_enc, reg_dis_target, reg_dis_enc_sum, loss_dis_enc_sum)
+
+                    if d_reg_every_dec > 0 and it % np.ceil(d_reg_every_dec) == 0:
+                        d_reg_every_dec, d_reg_param_dec = update_reg_params(d_reg_every_dec, d_reg_param_dec, reg_dis_target, reg_dis_dec_sum, loss_dis_dec_sum)
 
                     dis_grad_norm = get_grad_norm(discriminator).item()
                     dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
@@ -276,7 +300,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
-                model_manager.log_manager.add_scalar('regs', 'd_reg_every', d_reg_every, it=it)
+                model_manager.log_manager.add_scalar('regs', 'd_reg_every_enc', d_reg_every_enc, it=it)
+                model_manager.log_manager.add_scalar('regs', 'd_reg_every_dec', d_reg_every_dec, it=it)
+                model_manager.log_manager.add_scalar('regs', 'd_reg_param_enc', d_reg_param_enc, it=it)
+                model_manager.log_manager.add_scalar('regs', 'd_reg_param_dec', d_reg_param_dec, it=it)
 
                 if g_reg_every > 0:
                     model_manager.log_manager.add_scalar('regs', 'g_reg_every', g_reg_every, it=it)
