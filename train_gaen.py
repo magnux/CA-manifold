@@ -113,7 +113,10 @@ pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
 
 
 def update_reg_params(d_reg_every, d_reg_param, reg_dis_target, reg_dis, loss_dis):
-    delta_reg = (reg_dis_target - reg_dis) * np.ceil(d_reg_every)
+    # Linear update estimate
+    # delta_reg = (reg_dis_target - reg_dis) * np.ceil(d_reg_every)
+    # Quadratic update estimate
+    delta_reg = (((reg_dis_target - reg_dis) / reg_dis) ** 2) * reg_dis * np.ceil(d_reg_every)
 
     # Note the interval check is unnecessary since there is a clip later, but is left there for clarity of code
     if 1 <= d_reg_every <= config['training']['d_reg_every'] and d_reg_param == config['training']['d_reg_param']:
