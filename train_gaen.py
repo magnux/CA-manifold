@@ -113,13 +113,15 @@ pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
 
 
 def update_reg_params(d_reg_every, d_reg_param, reg_dis_target, reg_dis, loss_dis):
+    delta_reg = (reg_dis_target - reg_dis) * np.ceil(d_reg_every)
+
     # Note the interval check is unnecessary since there is a clip later, but is left there for clarity of code
     if 1 <= d_reg_every <= config['training']['d_reg_every'] and d_reg_param == config['training']['d_reg_param']:
-        d_reg_every = d_reg_every + reg_dis_target - reg_dis
+        d_reg_every += delta_reg
 
     # This is not the same as an else, note d_reg_every can go out of the interval
     if not (1 <= d_reg_every <= config['training']['d_reg_every'] and d_reg_param == config['training']['d_reg_param']):
-        d_reg_param = d_reg_param - reg_dis_target + reg_dis
+        d_reg_param -= delta_reg
 
     d_reg_every = np.clip(d_reg_every, 1, config['training']['d_reg_every'])
     
