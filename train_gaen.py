@@ -108,12 +108,16 @@ d_reg_every_dec = model_manager.log_manager.get_last('regs', 'd_reg_every_dec', 
 d_reg_param_enc = model_manager.log_manager.get_last('regs', 'd_reg_param_enc', config['training']['d_reg_param'])
 d_reg_param_dec = model_manager.log_manager.get_last('regs', 'd_reg_param_dec', config['training']['d_reg_param'])
 
+pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
+pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
+
 
 def update_reg_params(d_reg_every, d_reg_param, reg_dis_target, reg_dis, loss_dis):
+    # Note the interval check is unnecessary since there is a clip later, but is left there for clarity of code
     if 1 <= d_reg_every <= config['training']['d_reg_every'] and d_reg_param == config['training']['d_reg_param']:
         d_reg_every = d_reg_every + reg_dis_target - reg_dis
 
-    # This is not the same as an else, note d_reg_everyfloat can go out of the interval
+    # This is not the same as an else, note d_reg_every can go out of the interval
     if not (1 <= d_reg_every <= config['training']['d_reg_every'] and d_reg_param == config['training']['d_reg_param']):
         d_reg_param = d_reg_param - reg_dis_target + reg_dis
 
@@ -127,15 +131,12 @@ def update_reg_params(d_reg_every, d_reg_param, reg_dis_target, reg_dis, loss_di
         assert d_reg_param == config['training']['d_reg_param'], 'in between the interval d_reg_param should be fixed, something is wrong'
     
     # Emergency break, in case the discriminator had slowly slip through the fence
-    if loss_dis < 0.01:
+    if loss_dis < 1e-2:
         d_reg_every = 1
         d_reg_param = 1e9
     
     return d_reg_every, d_reg_param
 
-
-pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
-pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
