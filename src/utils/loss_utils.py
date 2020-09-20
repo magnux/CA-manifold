@@ -56,7 +56,7 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
 
 
 def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target,
-                      reg_loss, reg_loss_target, loss_dis, est_type='squared'):
+                      reg_loss, reg_loss_target, loss_dis, est_type='squared', lazy_reg=False):
     if est_type == 'linear':
         # Linear update estimate
         delta_reg = (reg_loss_target - reg_loss) * np.ceil(reg_every)
@@ -67,21 +67,24 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target,
         delta_reg = np.sign(delta_reg) * ((delta_reg / reg_scale) ** 2) * reg_scale * np.ceil(reg_every)
 
     # Note the interval check is unnecessary since there is a clip later, but is left there for clarity of code
-    if 1 <= reg_every <= reg_every_target and reg_param == reg_param_target:
+    if lazy_reg and 1 <= reg_every <= reg_every_target and reg_param == reg_param_target:
         reg_every += delta_reg
 
     # This is not the same as an else, note reg_every can go out of the interval
-    if not (1 <= reg_every <= reg_every_target and reg_param == reg_param_target):
+    if not (lazy_reg and 1 <= reg_every <= reg_every_target and reg_param == reg_param_target):
         reg_param -= delta_reg
 
     reg_every = np.clip(reg_every, 1, reg_every_target)
 
-    if reg_every == 1:
-        reg_param = np.clip(reg_param, reg_param_target, 1e9)
-    elif reg_every == reg_every_target:
-        reg_param = np.clip(reg_param, 1e-9, reg_param_target)
+    if lazy_reg:
+        if reg_every == 1:
+            reg_param = np.clip(reg_param, reg_param_target, 1e9)
+        elif reg_every == reg_every_target:
+            reg_param = np.clip(reg_param, 1e-9, reg_param_target)
+        else:
+            assert reg_param == reg_param_target, 'in between the interval reg_param should be fixed, something is wrong'
     else:
-        assert reg_param == reg_param_target, 'in between the interval reg_param should be fixed, something is wrong'
+        reg_param = np.clip(reg_param, 1e-9, 1e9)
 
     # Emergency break, in case the discriminator had slowly slip through the fence
     if loss_dis < 1e-2:
