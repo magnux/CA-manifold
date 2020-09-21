@@ -76,7 +76,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
     # Emergency break, in case the discriminator had slowly slip through the fence
     if loss_dis < 1e-2:
         reg_every = 1
-        reg_param *= 2
+        reg_param /= 2
 
     return reg_every, reg_param
 
