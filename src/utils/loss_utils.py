@@ -62,7 +62,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
     # reg_param update
     delta_reg = reg_loss_target - reg_loss
     reg_scale = 2 * reg_param / (reg_loss_target + reg_loss)
-    reg_param -= lr / (reg_scale * delta_reg * reg_elapsed)
+    reg_param += lr * reg_scale * delta_reg * reg_elapsed
     reg_param = np.clip(reg_param, 1e-9, 1e9)
 
     # reg_every update

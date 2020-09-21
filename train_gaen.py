@@ -106,7 +106,7 @@ if config['training']['inception_every'] > 0:
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', 1 if d_reg_every > 0 else 0)
-d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', d_reg_param)
+d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
 d_reg_last_it = -1
 
 pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
@@ -137,7 +137,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
 
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                    d_reg_factor = (it - d_reg_last_it) * d_reg_param_mean
+                    d_reg_factor = (it - d_reg_last_it) * (1 / d_reg_param_mean)
                 else:
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')                    
