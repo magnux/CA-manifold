@@ -53,7 +53,7 @@ zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=de
 
 # Networks
 networks_dict = {
-    'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
+    'encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
     'labs_encoder': {'class': 'base', 'sub_class': 'LabsEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
@@ -157,8 +157,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_labs = labs_encoder(labels)
-                            z_enc, _, _ = encoder(images, lat_labs)
-                            lat_enc = generator(z_enc, labels)
+                            lat_enc, _, _ = encoder(images, lat_labs)
 
                         images.requires_grad_()
                         lat_enc.requires_grad_()
@@ -220,8 +219,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_labs = labs_encoder(labels)
-                        z_enc, out_embs, _ = encoder(images, lat_labs)
-                        lat_enc = generator(z_enc, labels)
+                        lat_enc, out_embs, _ = encoder(images, lat_labs)
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
@@ -311,8 +309,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             lat_gen = generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
             lat_labs = labs_encoder(labels)
-            z_enc, _, _ = encoder(images, lat_labs)
-            lat_enc = generator(z_enc, labels)
+            lat_enc, _, _ = encoder(images, lat_labs)
             images_dec, _, _ = decoder(lat_enc)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
