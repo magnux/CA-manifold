@@ -140,12 +140,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
 
                 if d_reg_every_enc > 0 and it % d_reg_every_enc == 0:
-                    d_reg_factor_enc = (it - d_last_reg_enc) * d_reg_param_enc
+                    d_reg_factor_enc = (it - d_last_reg_enc) * ((d_reg_param_enc + d_reg_param_dec) / 2)
                 else:
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
 
                 if d_reg_every_dec > 0 and it % d_reg_every_dec == 0:
-                    d_reg_factor_dec = (it - d_last_reg_dec) * d_reg_param_dec
+                    d_reg_factor_dec = (it - d_last_reg_dec) * ((d_reg_param_enc + d_reg_param_dec) / 2)
                 else:
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
