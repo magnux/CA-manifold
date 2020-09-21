@@ -139,13 +139,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
 
+                d_reg_param_mean = (d_reg_param_enc + d_reg_param_dec) / 2
+
                 if d_reg_every_enc > 0 and it % d_reg_every_enc == 0:
-                    d_reg_factor_enc = (it - d_last_reg_enc) * ((d_reg_param_enc + d_reg_param_dec) / 2)
+                    d_reg_factor_enc = (it - d_last_reg_enc) * d_reg_param_mean
                 else:
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
 
                 if d_reg_every_dec > 0 and it % d_reg_every_dec == 0:
-                    d_reg_factor_dec = (it - d_last_reg_dec) * ((d_reg_param_enc + d_reg_param_dec) / 2)
+                    d_reg_factor_dec = (it - d_last_reg_dec) * d_reg_param_mean
                 else:
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
@@ -206,12 +208,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every_enc > 0 and it % d_reg_every_enc == 0:
-                        d_reg_every_enc, d_reg_param_enc = update_reg_params(d_reg_every_enc, d_reg_every, d_reg_param_enc, d_reg_param,
+                        d_reg_every_enc, d_reg_param_enc = update_reg_params(d_reg_every_enc, d_reg_every, d_reg_param_mean, d_reg_param,
                                                                              reg_dis_enc_sum, reg_dis_target, it - d_last_reg_enc, loss_dis_enc_sum)
                         d_last_reg_enc = it
 
                     if d_reg_every_dec > 0 and it % d_reg_every_dec == 0:
-                        d_reg_every_dec, d_reg_param_dec = update_reg_params(d_reg_every_dec, d_reg_every, d_reg_param_dec, d_reg_param,
+                        d_reg_every_dec, d_reg_param_dec = update_reg_params(d_reg_every_dec, d_reg_every, d_reg_param_mean, d_reg_param,
                                                                              reg_dis_dec_sum, reg_dis_target, it - d_last_reg_dec, loss_dis_dec_sum)
                         d_last_reg_dec = it
 
