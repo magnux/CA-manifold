@@ -64,7 +64,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss
         reg_param -= delta_reg * reg_elapsed
     elif est_type == 'squared':
         # Squared update estimate
-        reg_scale = reg_loss_target / 2
+        reg_scale = reg_loss_target * 10
         reg_param -= np.sign(delta_reg) * ((delta_reg / reg_scale) ** 2) * reg_scale * reg_elapsed
     reg_param = np.clip(reg_param, 1e-9, 1e9)
 
