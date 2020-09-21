@@ -206,15 +206,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every_enc > 0 and it % d_reg_every_enc == 0:
-                        d_reg_every_enc, d_reg_param_enc = update_reg_params(d_reg_every_enc, d_reg_every, d_reg_param_enc,
-                                                                             reg_dis_enc_sum, reg_dis_target,
-                                                                             it - d_last_reg_enc, loss_dis_enc_sum)
+                        d_reg_every_enc, d_reg_param_enc = update_reg_params(d_reg_every_enc, d_reg_every, d_reg_param_enc, d_reg_param,
+                                                                             reg_dis_enc_sum, reg_dis_target, it - d_last_reg_enc, loss_dis_enc_sum)
                         d_last_reg_enc = it
 
                     if d_reg_every_dec > 0 and it % d_reg_every_dec == 0:
-                        d_reg_every_dec, d_reg_param_dec = update_reg_params(d_reg_every_dec, d_reg_every, d_reg_param_dec,
-                                                                             reg_dis_dec_sum, reg_dis_target,
-                                                                             it - d_last_reg_dec, loss_dis_dec_sum)
+                        d_reg_every_dec, d_reg_param_dec = update_reg_params(d_reg_every_dec, d_reg_every, d_reg_param_dec, d_reg_param,
+                                                                             reg_dis_dec_sum, reg_dis_target, it - d_last_reg_dec, loss_dis_dec_sum)
                         d_last_reg_dec = it
 
                     dis_grad_norm = get_grad_norm(discriminator).item()

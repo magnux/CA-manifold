@@ -55,7 +55,7 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     return reg
 
 
-def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss_target,
+def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, reg_loss, reg_loss_target,
                       reg_elapsed, loss_dis, est_type='squared', update_every=True):
     # reg_param update
     delta_reg = reg_loss_target - reg_loss
@@ -79,6 +79,8 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss
     if loss_dis < 1e-2:
         reg_every = 1
         reg_param = 1e9
+    elif 0.65 < loss_dis < 0.75 and reg_param > 1e8:
+        reg_param = reg_param_target
 
     return reg_every, reg_param
 
