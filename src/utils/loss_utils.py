@@ -56,8 +56,16 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
 
 
 def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss_target,
-                      reg_elapsed, loss_dis, est_type='squared', lazy_reg=True):
+                      reg_elapsed, loss_dis, est_type='squared', update_every=True):
+    # reg_every update
+    if update_every:
+        if reg_loss / reg_loss_target < 1:
+            reg_every += 1
+        else:
+            reg_every -= 1
+        reg_every = np.clip(reg_every, 1, reg_every_target)
 
+    # reg_param update
     delta_reg = reg_loss_target - reg_loss
     if est_type == 'linear':
         # Linear update estimate
@@ -67,15 +75,6 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss
         reg_scale = reg_loss_target / 10
         delta_reg = np.sign(delta_reg) * ((delta_reg / reg_scale) ** 2) * reg_scale * reg_elapsed
 
-    # reg_every update
-    if lazy_reg:
-        if delta_reg / reg_loss_target < 1:
-            reg_every += 1
-        else:
-            reg_every -= 1
-        reg_every = np.clip(reg_every, 1, reg_every_target)
-
-    # reg_param update
     reg_param -= delta_reg
     reg_param = np.clip(reg_param, 1e-9, 1e9)
 
