@@ -217,7 +217,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
                         loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
                         d_reg_every_mean, d_reg_param_mean = update_reg_params(d_reg_every_mean, d_reg_every, d_reg_param_mean, d_reg_param,
-                                                                               reg_dis_mean, reg_dis_target, it - d_reg_last_it, loss_dis_mean)
+                                                                               reg_dis_mean, reg_dis_target, it - d_reg_last_it, loss_dis_mean, update_every=False)
                         d_reg_last_it = it
 
                     dis_grad_norm = get_grad_norm(discriminator).item()
@@ -267,14 +267,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         g_reg_every_enc, g_reg_param_enc = update_reg_params(g_reg_every_enc, g_reg_every,
                                                                              g_reg_param_enc, d_reg_param,
                                                                              reg_gen_enc_sum, 0.5 * reg_dis_target,
-                                                                             it - g_reg_last_it_enc, maximize=False)
+                                                                             it - g_reg_last_it_enc, update_every=False, maximize=False)
                         g_reg_last_it_enc = it
 
                     if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                         g_reg_every_dec, g_reg_param_dec = update_reg_params(g_reg_every_dec, g_reg_every,
                                                                              g_reg_param_dec, d_reg_param,
                                                                              reg_gen_dec_sum, 0.5 * reg_dis_target,
-                                                                             it - g_reg_last_it_dec, maximize=False)
+                                                                             it - g_reg_last_it_dec, update_every=False, maximize=False)
                         g_reg_last_it_dec = it
 
                     enc_grad_norm = get_grad_norm(encoder).item()
