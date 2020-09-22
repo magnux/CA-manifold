@@ -85,9 +85,12 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3):
     if g_out.dim() == 2:
         g_out = g_out.unsqueeze(1)
 
-    space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
-    pl_noise = torch.randn_like(g_out) / space_sqrt
-    outputs = (g_out * pl_noise).sum()
+    # space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
+    # pl_noise = torch.randn_like(g_out) / space_sqrt
+    # outputs = (g_out * pl_noise).sum()
+
+    pl_noise = 0.001 * torch.randn_like(g_out)
+    outputs = ((g_out + pl_noise) / 1.001).sum()
 
     pl_grads = torch.autograd.grad(outputs=outputs, inputs=g_in,
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
@@ -110,9 +113,12 @@ def compute_pl_reg_dct(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3):
     pl_noise = torch.randn([dc_enc.size(0), dc_enc.size(1)] + [1 for _ in range(2, g_out.dim())], device=g_out.device)
     pl_noise = (pl_noise * dc_enc).mean(dim=1, keepdim=True)
 
-    space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
-    pl_noise = pl_noise / space_sqrt
-    outputs = (g_out * pl_noise).sum()
+    # space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
+    # pl_noise = pl_noise / space_sqrt
+    # outputs = (g_out * pl_noise).sum()
+
+    pl_noise = 0.001 * pl_noise
+    outputs = ((g_out + pl_noise) / 1.001).sum()
 
     pl_grads = torch.autograd.grad(outputs=outputs, inputs=g_in,
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
