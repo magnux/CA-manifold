@@ -34,7 +34,7 @@ n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
 d_reg_param = config['training']['d_reg_param']
 d_reg_every = config['training']['d_reg_every']
-g_reg_every = config['training']['g_reg_every']
+g_reg_every = 1  # config['training']['g_reg_every']
 alt_reg = config['training']['alt_reg'] if 'alt_reg' in config['training'] else False
 batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
@@ -252,6 +252,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     if g_reg_every > 0 and it % g_reg_every == 0:
                         g_reg_ratio = (reg_gen_dec_sum + 1e-8) / (reg_gen_enc_sum + 1e-8)
+                        if 0.5 < g_reg_ratio < 2:
+                            g_reg_every += 1
+                        else:
+                            g_reg_every -= 1
+                        g_reg_every = np.clip(g_reg_every, 1, config['training']['g_reg_every'])
 
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
