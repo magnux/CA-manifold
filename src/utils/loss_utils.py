@@ -89,7 +89,7 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3):
     space_sqrt = np.prod([g_out.size(i) for i in range(2, g_out.dim())])
     pl_noise = torch.randn_like(g_out) / space_sqrt
     # outputs = (g_out * pl_noise).sum()
-    outputs = ((g_out + pl_noise) / (1 + space_sqrt)).sum()
+    outputs = ((g_out + pl_noise) / (1 + (1 / space_sqrt))).sum()
 
     pl_grads = torch.autograd.grad(outputs=outputs, inputs=g_in,
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
@@ -116,7 +116,7 @@ def compute_pl_reg_dct(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3):
     space_sqrt = np.prod([g_out.size(i) for i in range(2, g_out.dim())])
     pl_noise = pl_noise / space_sqrt
     # outputs = (g_out * pl_noise).sum()
-    outputs = ((g_out + pl_noise) / (1 + space_sqrt)).sum()
+    outputs = ((g_out + pl_noise) / (1 + (1 / space_sqrt))).sum()
 
     pl_grads = torch.autograd.grad(outputs=outputs, inputs=g_in,
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
