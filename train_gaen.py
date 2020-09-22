@@ -251,7 +251,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec_sum += loss_gen_dec.item()
 
                     if g_reg_every > 0 and it % g_reg_every == 0:
-                        g_reg_ratio = reg_gen_dec_sum / reg_gen_enc_sum
+                        g_reg_ratio = (reg_gen_dec_sum + 1e-8) / (reg_gen_enc_sum + 1e-8)
 
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
