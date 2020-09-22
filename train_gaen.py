@@ -266,14 +266,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
                         g_reg_every_enc, g_reg_param_enc = update_reg_params(g_reg_every_enc, g_reg_every,
                                                                              g_reg_param_enc, d_reg_param,
-                                                                             reg_gen_enc_sum, 0.1 * reg_dis_target,
+                                                                             reg_gen_enc_sum, 0.5 * reg_dis_target,
                                                                              it - g_reg_last_it_enc, maximize=False)
                         g_reg_last_it_enc = it
 
                     if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                         g_reg_every_dec, g_reg_param_dec = update_reg_params(g_reg_every_dec, g_reg_every,
                                                                              g_reg_param_dec, d_reg_param,
-                                                                             reg_gen_dec_sum, 0.1 * reg_dis_target,
+                                                                             reg_gen_dec_sum, 0.5 * reg_dis_target,
                                                                              it - g_reg_last_it_dec, maximize=False)
                         g_reg_last_it_dec = it
 
