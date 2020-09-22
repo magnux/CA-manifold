@@ -26,7 +26,7 @@ z_dist:
 training:
   out_dir: save/cifar10_ca_manifold_2_sto_80_alt
   batch_size: 64
-  batch_split: 4
+  batch_split: 8
   batch_mult_steps: 4
   n_workers: 2
   optimizer: adamp
@@ -41,6 +41,6 @@ training:
   sample_labels: 10
   d_reg_param: 10.
   d_reg_every: 16
-  g_reg_every: 0
+  g_reg_every: 8
   alt_reg: True
   inception_every: 0
