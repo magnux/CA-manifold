@@ -8,8 +8,8 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, compute_pl_reg_dct, update_reg_params
-from src.utils.model_utils import compute_inception_score, get_grad_norm
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params
+from src.utils.model_utils import compute_inception_score, get_grad_norm, grad_noise
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -221,7 +221,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
-                        if g_reg_every > 0 and it % g_reg_every == 0:
+                        if not alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
                             reg_gen_enc = (1 / batch_mult) * g_reg_every * reg_gen_enc
                             model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
@@ -236,11 +236,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        if g_reg_every > 0 and it % g_reg_every == 0:
-                            if alt_reg:
-                                reg_gen_dec, pl_mean_dec = compute_pl_reg_dct(images_dec, lat_gen, pl_mean_dec)
-                            else:
-                                reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
+                        if not alt_reg and g_reg_every > 0 and it % g_reg_every == 0:
+                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
@@ -252,6 +249,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
                     gen_grad_norm = get_grad_norm(generator).item()
+
+                    if alt_reg:
+                        if enc_grad_norm > dec_grad_norm:
+                            grad_noise(decoder, enc_grad_norm - dec_grad_norm)
+                        else:
+                            grad_noise(encoder, dec_grad_norm - enc_grad_norm)
 
                 # Streaming Images
                 with torch.no_grad():
