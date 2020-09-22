@@ -116,11 +116,10 @@ class InjectedEncoder(nn.Module):
         return lat, out_embs, None
 
 
-# TODO: remove z_out and z_dim params from InjectedEncoder
-# class ZInjectedEncoder(InjectedEncoder):
-#     def __init__(self, **kwargs):
-#         kwargs['z_out'] = True
-#         super().__init__(**kwargs)
+class ZInjectedEncoder(InjectedEncoder):
+    def __init__(self, **kwargs):
+        kwargs['z_out'] = True
+        super().__init__(**kwargs)
 
 
 class Decoder(nn.Module):
