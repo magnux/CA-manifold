@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, compute_pl_reg_dct, update_reg_params
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params
 from src.utils.model_utils import compute_inception_score, get_grad_norm
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -111,11 +111,11 @@ d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean'
 
 g_reg_every_enc = model_manager.log_manager.get_last('regs', 'g_reg_every_enc', 1 if g_reg_every > 0 else 0)
 g_reg_every_enc_next = g_reg_every_enc
-g_reg_param_enc = model_manager.log_manager.get_last('regs', 'g_reg_param_enc', 1 / d_reg_param)
+g_reg_param_enc = model_manager.log_manager.get_last('regs', 'g_reg_param_enc', d_reg_param)
 
 g_reg_every_dec = model_manager.log_manager.get_last('regs', 'g_reg_every_dec', 1 if g_reg_every > 0 else 0)
 g_reg_every_dec_next = g_reg_every_dec
-g_reg_param_dec = model_manager.log_manager.get_last('regs', 'g_reg_param_dec', 1 / d_reg_param)
+g_reg_param_dec = model_manager.log_manager.get_last('regs', 'g_reg_param_dec', d_reg_param)
 
 pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
 pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
@@ -151,12 +151,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
                 if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
-                    g_reg_factor_enc = g_reg_every_enc_next * g_reg_param_enc
+                    g_reg_factor_enc = g_reg_every_enc_next * (1 / g_reg_param_enc)
                 else:
                     reg_gen_enc_sum = model_manager.log_manager.get_last('regs', 'reg_gen_enc')
 
                 if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
-                    g_reg_factor_dec = g_reg_every_dec_next * g_reg_param_dec
+                    g_reg_factor_dec = g_reg_every_dec_next * (1 / g_reg_param_dec)
                 else:
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
@@ -252,7 +252,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                             # if alt_reg:
-                            #     reg_gen_dec, pl_mean_dec = compute_pl_reg_dct(images_dec, lat_gen, pl_mean_dec)
+                            #     reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec, alt_pl=g_reg_factor_dec, mode='dct')
                             # else:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec, alt_pl=g_reg_factor_dec)
                             reg_gen_dec = (1 / batch_mult) * reg_gen_dec
@@ -268,14 +268,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         g_reg_every_enc_next, g_reg_param_enc = update_reg_params(g_reg_every_enc_next, g_reg_every,
                                                                                   g_reg_param_enc, d_reg_param,
                                                                                   reg_gen_enc_sum, reg_dis_target,
-                                                                                  reg_param_is_fraction=False)
+                                                                                  maximize=False)
 
                     if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                         g_reg_every_dec = g_reg_every_dec_next
                         g_reg_every_dec_next, g_reg_param_dec = update_reg_params(g_reg_every_dec_next, g_reg_every,
                                                                                   g_reg_param_dec, d_reg_param,
                                                                                   reg_gen_dec_sum, reg_dis_target,
-                                                                                  reg_param_is_fraction=False)
+                                                                                  maximize=False)
 
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
