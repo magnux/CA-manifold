@@ -106,16 +106,16 @@ if config['training']['inception_every'] > 0:
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', 1 if d_reg_every > 0 else 0)
+d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
-d_reg_last_it = -1
 
 g_reg_every_enc = model_manager.log_manager.get_last('regs', 'g_reg_every_enc', 1 if g_reg_every > 0 else 0)
+g_reg_every_enc_next = g_reg_every_enc
 g_reg_param_enc = model_manager.log_manager.get_last('regs', 'g_reg_param_enc', 1 / d_reg_param)
-g_reg_last_it_enc = -1
 
 g_reg_every_dec = model_manager.log_manager.get_last('regs', 'g_reg_every_dec', 1 if g_reg_every > 0 else 0)
+g_reg_every_dec_next = g_reg_every_dec
 g_reg_param_dec = model_manager.log_manager.get_last('regs', 'g_reg_param_dec', 1 / d_reg_param)
-g_reg_last_it_dec = -1
 
 pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
 pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
@@ -145,18 +145,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
 
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                    d_reg_factor = (it - d_reg_last_it) * (1 / d_reg_param_mean)
+                    d_reg_factor = d_reg_every_mean_next * (1 / d_reg_param_mean)
                 else:
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
                 if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
-                    g_reg_factor_enc = (it - g_reg_last_it_enc) * (1 / g_reg_param_enc)
+                    g_reg_factor_enc = g_reg_every_enc_next * (1 / g_reg_param_enc)
                 else:
                     reg_gen_enc_sum = model_manager.log_manager.get_last('regs', 'reg_gen_enc')
 
                 if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
-                    g_reg_factor_dec = (it - g_reg_last_it_dec) * (1 / g_reg_param_dec)
+                    g_reg_factor_dec = g_reg_every_dec_next * (1 / g_reg_param_dec)
                 else:
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
@@ -216,9 +216,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                         reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
                         loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
-                        d_reg_every_mean, d_reg_param_mean = update_reg_params(d_reg_every_mean, d_reg_every, d_reg_param_mean, d_reg_param,
-                                                                               reg_dis_mean, reg_dis_target, it - d_reg_last_it, loss_dis_mean, update_every=False)
-                        d_reg_last_it = it
+                        d_reg_every_mean = d_reg_every_mean_next
+                        d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
+                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
 
                     dis_grad_norm = get_grad_norm(discriminator).item()
                     dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
@@ -264,18 +264,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec_sum += loss_gen_dec.item()
 
                     if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
-                        g_reg_every_enc, g_reg_param_enc = update_reg_params(g_reg_every_enc, g_reg_every,
-                                                                             g_reg_param_enc, d_reg_param,
-                                                                             reg_gen_enc_sum, 0.5 * reg_dis_target,
-                                                                             it - g_reg_last_it_enc, update_every=False, maximize=False)
-                        g_reg_last_it_enc = it
+                        g_reg_every_enc = g_reg_every_enc_next
+                        g_reg_every_enc_next, g_reg_param_enc = update_reg_params(g_reg_every_enc_next, g_reg_every,
+                                                                                  g_reg_param_enc, d_reg_param,
+                                                                                  reg_gen_enc_sum, reg_dis_target,
+                                                                                  maximize=False)
 
                     if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
-                        g_reg_every_dec, g_reg_param_dec = update_reg_params(g_reg_every_dec, g_reg_every,
-                                                                             g_reg_param_dec, d_reg_param,
-                                                                             reg_gen_dec_sum, 0.5 * reg_dis_target,
-                                                                             it - g_reg_last_it_dec, update_every=False, maximize=False)
-                        g_reg_last_it_dec = it
+                        g_reg_every_dec = g_reg_every_dec_next
+                        g_reg_every_dec_next, g_reg_param_dec = update_reg_params(g_reg_every_dec_next, g_reg_every,
+                                                                                  g_reg_param_dec, d_reg_param,
+                                                                                  reg_gen_dec_sum, reg_dis_target,
+                                                                                  maximize=False)
 
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
