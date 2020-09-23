@@ -56,7 +56,7 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
 
 
 def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, reg_loss, reg_loss_target,
-                      loss_dis=None, update_every=True, maximize=True):
+                      loss_dis=None, update_every=True, maximize=True, reg_param_is_fraction=True):
     lr = 1e-2 * reg_param_target
 
     # reg_param update
@@ -67,7 +67,10 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
         reg_param += reg_update
     else:
         reg_param -= reg_update
-    reg_param = np.clip(reg_param, 1e-9, 1e9)
+    if reg_param_is_fraction:
+        reg_param = np.clip(reg_param, 1e-9, 1e9)
+    else:
+        reg_param = np.clip(reg_param, -1e3, 1e3)
 
     # reg_every update
     if update_every:
@@ -86,12 +89,11 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
     return reg_every, reg_param
 
 
-def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3, alt_pl=None):
+def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None):
     if g_out.dim() == 2:
         g_out = g_out.unsqueeze(1)
 
-    # space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
-    space_sqrt = np.prod([g_out.size(i) for i in range(2, g_out.dim())])
+    space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
     pl_noise = torch.randn_like(g_out) / space_sqrt
     outputs = (g_out * pl_noise).sum()
 
@@ -100,7 +102,7 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3, alt_pl=None):
 
     pl_lengths = (pl_grads ** 2).mean(dim=1).sqrt()
     if alt_pl is None:
-        pl_reg = ((pl_lengths - max(pl_mean, min_pl)) ** 2).mean()
+        pl_reg = ((pl_lengths - pl_mean) ** 2).mean()
     else:
         pl_reg = ((pl_lengths - alt_pl) ** 2).mean()
 
@@ -110,7 +112,7 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3, alt_pl=None):
     return pl_reg, new_pl_mean
 
 
-def compute_pl_reg_dct(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3):
+def compute_pl_reg_dct(g_out, g_in, pl_mean, beta=0.99, alt_pl=None):
     if g_out.dim() == 2:
         g_out = g_out.unsqueeze(1)
 
@@ -119,8 +121,7 @@ def compute_pl_reg_dct(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3):
     pl_noise = torch.randn([dc_enc.size(0), dc_enc.size(1)] + [1 for _ in range(2, g_out.dim())], device=g_out.device)
     pl_noise = (pl_noise * dc_enc).mean(dim=1, keepdim=True)
 
-    # space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
-    space_sqrt = np.prod([g_out.size(i) for i in range(2, g_out.dim())])
+    space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
     pl_noise = pl_noise / space_sqrt
     outputs = (g_out * pl_noise).sum()
 
@@ -128,7 +129,10 @@ def compute_pl_reg_dct(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3):
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
 
     pl_lengths = (pl_grads ** 2).mean(dim=1).sqrt()
-    pl_reg = ((pl_lengths - max(pl_mean, min_pl)) ** 2).mean()
+    if alt_pl is None:
+        pl_reg = ((pl_lengths - pl_mean) ** 2).mean()
+    else:
+        pl_reg = ((pl_lengths - alt_pl) ** 2).mean()
 
     avg_pl_length = np.mean(pl_lengths.detach().cpu().numpy())
     new_pl_mean = pl_mean * beta + (1 - beta) * avg_pl_length
