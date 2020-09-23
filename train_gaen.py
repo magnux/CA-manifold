@@ -268,14 +268,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         g_reg_every_enc_next, g_reg_param_enc = update_reg_params(g_reg_every_enc_next, g_reg_every,
                                                                                   g_reg_param_enc, d_reg_param,
                                                                                   reg_gen_enc_sum, reg_dis_target,
-                                                                                  maximize=False, reg_param_is_fraction=False)
+                                                                                  reg_param_is_fraction=False)
 
                     if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                         g_reg_every_dec = g_reg_every_dec_next
                         g_reg_every_dec_next, g_reg_param_dec = update_reg_params(g_reg_every_dec_next, g_reg_every,
                                                                                   g_reg_param_dec, d_reg_param,
                                                                                   reg_gen_dec_sum, reg_dis_target,
-                                                                                  maximize=False, reg_param_is_fraction=False)
+                                                                                  reg_param_is_fraction=False)
 
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
