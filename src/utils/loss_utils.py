@@ -106,9 +106,9 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, loss_pow=0.5, m
 
     pl_lengths = (pl_grads ** 2).mean(dim=1).sqrt()
     if alt_pl is None:
-        pl_reg = ((pl_lengths - pl_mean) ** loss_pow).mean()
+        pl_reg = ((pl_lengths - pl_mean).abs() ** loss_pow).mean()
     else:
-        pl_reg = ((pl_lengths - alt_pl) ** loss_pow).mean()
+        pl_reg = ((pl_lengths - alt_pl).abs() ** loss_pow).mean()
 
     avg_pl_length = np.mean(pl_lengths.detach().cpu().numpy())
     new_pl_mean = pl_mean * beta + (1 - beta) * avg_pl_length
