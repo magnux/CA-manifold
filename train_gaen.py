@@ -236,7 +236,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_enc = discriminator(lat_top_enc, labels)
 
                         if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
-                            reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc, min_pl=g_reg_factor_enc)
+                            reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc, alt_pl=g_reg_factor_enc)
                             reg_gen_enc = (1 / batch_mult) * reg_gen_enc
                             model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
                             reg_gen_enc_sum += reg_gen_enc.item()
@@ -254,7 +254,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             # if alt_reg:
                             #     reg_gen_dec, pl_mean_dec = compute_pl_reg_dct(images_dec, lat_gen, pl_mean_dec)
                             # else:
-                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec, min_pl=g_reg_factor_dec)
+                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec, alt_pl=g_reg_factor_dec)
                             reg_gen_dec = (1 / batch_mult) * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item()

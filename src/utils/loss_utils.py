@@ -71,7 +71,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
 
     # reg_every update
     if update_every:
-        if np.abs(delta_reg / reg_loss_target) < 0.1:
+        if np.abs(delta_reg / reg_loss_target) < 1.0:
             reg_every += 1
         else:
             reg_every -= 1
@@ -86,7 +86,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
     return reg_every, reg_param
 
 
-def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3):
+def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3, alt_pl=None):
     if g_out.dim() == 2:
         g_out = g_out.unsqueeze(1)
 
@@ -99,7 +99,10 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, min_pl=1e-3):
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
 
     pl_lengths = (pl_grads ** 2).mean(dim=1).sqrt()
-    pl_reg = ((pl_lengths - max(pl_mean, min_pl)) ** 2).mean()
+    if alt_pl is None:
+        pl_reg = ((pl_lengths - max(pl_mean, min_pl)) ** 2).mean()
+    else:
+        pl_reg = ((pl_lengths - alt_pl) ** 2).mean()
 
     avg_pl_length = np.mean(pl_lengths.detach().cpu().numpy())
     new_pl_mean = pl_mean * beta + (1 - beta) * avg_pl_length
