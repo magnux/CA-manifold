@@ -86,7 +86,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
     return reg_every, reg_param
 
 
-def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, loss_pow=0.5, mode='normal'):
+def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, reg_factor=1., mode='normal'):
     if g_out.dim() == 2:
         g_out = g_out.unsqueeze(1)
 
@@ -106,9 +106,10 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, loss_pow=0.5, m
 
     pl_lengths = (pl_grads ** 2).mean(dim=1).sqrt()
     if alt_pl is None:
-        pl_reg = ((pl_lengths - pl_mean).abs() ** loss_pow).mean()
+        pl_reg = ((pl_lengths - pl_mean) ** 2).mean()
     else:
-        pl_reg = ((pl_lengths - alt_pl).abs() ** loss_pow).mean()
+        pl_reg = ((pl_lengths - alt_pl) ** 2).mean()
+    pl_reg *= reg_factor
 
     avg_pl_length = np.mean(pl_lengths.detach().cpu().numpy())
     new_pl_mean = pl_mean * beta + (1 - beta) * avg_pl_length
