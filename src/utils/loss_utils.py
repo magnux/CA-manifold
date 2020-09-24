@@ -61,7 +61,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
 
     # reg_param update
     delta_reg = reg_loss_target - reg_loss
-    reg_scale = 2 * reg_param / (reg_loss_target + reg_loss + np.log(reg_every))
+    reg_scale = 2 * reg_param / (reg_loss_target + reg_loss)
     reg_update = lr * reg_scale * delta_reg
     if maximize:
         reg_param += reg_update
@@ -71,7 +71,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
 
     # reg_every update
     if update_every:
-        if np.abs(delta_reg / reg_param) < 1e-3:
+        if np.abs(reg_update / reg_param) < 0.1:
             reg_every = reg_every_target
         else:
             reg_every = 1
