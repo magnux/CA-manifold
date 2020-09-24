@@ -71,7 +71,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
 
     # reg_every update
     if update_every:
-        if np.abs(reg_update / reg_param) < 1e-4:
+        if np.abs(reg_update / reg_param) < 1e-2:
             reg_every = reg_every_target
         else:
             reg_every = 1
