@@ -28,6 +28,7 @@ class Discriminator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.labs = nn.Linear(self.lat_size, n_labels)
+        nn.init.xavier_normal_(self.labs.weight, 0.1)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))

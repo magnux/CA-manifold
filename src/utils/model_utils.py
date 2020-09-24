@@ -8,6 +8,12 @@ def count_parameters(network):
     return sum(p.numel() for p in network.parameters() if p.requires_grad)
 
 
+def init_all_xavier_normal(network, gain):
+    for p in network.parameters():
+        if p.dtype == torch.FloatTensor:
+            torch.nn.init.xavier_normal_(p, gain)
+
+
 def toggle_grad(network, requires_grad):
     network.train(requires_grad)
     for p in network.parameters():

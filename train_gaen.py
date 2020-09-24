@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params
-from src.utils.model_utils import compute_inception_score, get_grad_norm
+from src.utils.model_utils import compute_inception_score, get_grad_norm, init_all_xavier_normal
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -67,6 +67,10 @@ decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
 dis_encoder = model_manager.get_network('dis_encoder')
 discriminator = model_manager.get_network('discriminator')
+
+init_all_xavier_normal(encoder, 1e-3)
+init_all_xavier_normal(decoder, 1e-3)
+init_all_xavier_normal(dis_encoder, 1e-3)
 
 model_manager.print()
 
