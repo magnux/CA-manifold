@@ -87,7 +87,6 @@ def get_inputs(trainiter, batch_size, device):
         images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
     images = images.detach().requires_grad_()
-    labels = labels.detach().requires_grad_()
     z_gen = F.normalize(zdist.sample((images.size(0),)))
     z_gen.detach_().requires_grad_()
     return images, labels, z_gen, trainiter
@@ -240,7 +239,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
                             if alt_reg:
-                                reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, [z_enc, labels], pl_mean_enc, alt_pl=0.1)
+                                reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, z_enc, pl_mean_enc, alt_pl=0.1)
                                 z_norm = z_enc.norm(dim=1)
                                 reg_gen_enc = reg_gen_enc + F.mse_loss(z_norm, torch.ones_like(z_norm))
                             else:
@@ -260,7 +259,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                             if alt_reg:
-                                reg_gen_dec, pl_mean_dec = compute_pl_reg(lat_gen, [z_gen, labels], pl_mean_dec, alt_pl=0.1)
+                                reg_gen_dec, pl_mean_dec = compute_pl_reg(lat_gen, z_gen, pl_mean_dec, alt_pl=0.1)
                             else:
                                 reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * reg_gen_dec
