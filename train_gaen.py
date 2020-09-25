@@ -240,8 +240,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
                             if alt_reg:
                                 reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, z_enc, pl_mean_enc)
-                                lat_norm = lat_enc.norm(dim=1)
-                                reg_gen_enc = reg_gen_enc + F.mse_loss(lat_norm, torch.ones_like(lat_norm))
+                                z_norm = z_enc.norm(dim=1)
+                                reg_gen_enc = reg_gen_enc + F.mse_loss(z_norm, torch.ones_like(z_norm))
                             else:
                                 reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
                             reg_gen_enc = (1 / batch_mult) * reg_gen_enc
