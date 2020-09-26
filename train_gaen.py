@@ -130,7 +130,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_gen = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-        reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
+        reg_dis_target = 1e-4 * ((1 + 1e-2) - (epoch / config['training']['n_epochs']))
         it = epoch * (len(trainloader) // batch_split)
 
         t = trange(len(trainloader) // batch_split)
@@ -214,9 +214,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                        d_reg_ratio = (reg_dis_enc_sum + 1e-8) / (reg_dis_dec_sum + 1e-8)
-                        reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
+                    if it > 0 and d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                        d_reg_ratio = (enc_grad_norm + 1e-8) / (dec_grad_norm + 1e-8)
+                        reg_dis_mean = (enc_grad_norm + dec_grad_norm) / 2
                         loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
