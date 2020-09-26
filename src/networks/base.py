@@ -48,7 +48,9 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
+        nn.init.xavier_normal_(self.embedding_fc.weight, 10)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 10)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -59,10 +61,8 @@ class Generator(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
-        yembed = F.normalize(yembed)
-        z = F.normalize(z)
+        # yembed = F.normalize(yembed)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
-        lat = F.normalize(lat) * 10
 
         return lat
 
@@ -73,7 +73,9 @@ class LabsEncoder(nn.Module):
         self.lat_size = lat_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
+        nn.init.xavier_normal_(self.embedding_fc.weight, 10)
         self.embed_to_lat = nn.Linear(embed_size, self.lat_size, bias=False)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 10)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -82,9 +84,8 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
-        yembed = F.normalize(yembed)
+        # yembed = F.normalize(yembed)
         lat = self.embed_to_lat(yembed)
-        lat = F.normalize(lat) * 10
 
         return lat
 
@@ -106,11 +107,10 @@ class UnconditionalGenerator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.embed_to_lat = nn.Linear(z_dim, self.lat_size, bias=False)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 10)
 
     def forward(self, z):
-        z = F.normalize(z)
         lat = self.embed_to_lat(z)
-        lat = F.normalize(lat) * 10
 
         return lat
 
