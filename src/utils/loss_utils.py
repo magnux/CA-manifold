@@ -50,6 +50,8 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
         grad_dout = -1 * grad_dout.abs()
 
     reg = grad_dout.view(batch_size, -1)
+    if norm_type == 'sqrt':
+        reg = reg / reg.size(1)
     if margin > 0:
         reg = torch.relu(reg - margin)
     reg = reg.sum(1).mean()
