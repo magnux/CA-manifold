@@ -276,13 +276,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         g_reg_every_enc = g_reg_every_enc_next
                         g_reg_every_enc_next, g_reg_param_enc = update_reg_params(g_reg_every_enc_next, g_reg_every,
                                                                                   g_reg_param_enc, d_reg_param,
-                                                                                  enc_grad_norm, reg_dis_target)
+                                                                                  enc_grad_norm, reg_dis_target, maximize=False)
 
                     if alt_reg and g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                         g_reg_every_dec = g_reg_every_dec_next
                         g_reg_every_dec_next, g_reg_param_dec = update_reg_params(g_reg_every_dec_next, g_reg_every,
                                                                                   g_reg_param_dec, d_reg_param,
-                                                                                  dec_grad_norm, reg_dis_target)
+                                                                                  dec_grad_norm, reg_dis_target, maximize=False)
 
                 # Streaming Images
                 with torch.no_grad():
