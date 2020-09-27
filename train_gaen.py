@@ -239,7 +239,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
                             if alt_reg:
-                                reg_gen_enc = compute_grad_reg(labs_enc, lat_enc)
+                                reg_gen_enc = F.mse_loss(lat_enc.norm(), images.norm())
                             else:
                                 reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
                             reg_gen_enc = (1 / batch_mult) * g_reg_factor_enc * reg_gen_enc
@@ -255,11 +255,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
-                            if alt_reg:
-                                reg_gen_dec = compute_grad_reg(labs_dec, images_dec)
-                            else:
-                                reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
+                        if not alt_reg and g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
+                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_factor_dec * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_factor_dec
@@ -274,11 +271,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                                                                   g_reg_param_enc, d_reg_param,
                                                                                   reg_gen_enc_sum, reg_dis_target)
 
-                    if alt_reg and g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
-                        g_reg_every_dec = g_reg_every_dec_next
-                        g_reg_every_dec_next, g_reg_param_dec = update_reg_params(g_reg_every_dec_next, g_reg_every,
-                                                                                  g_reg_param_dec, d_reg_param,
-                                                                                  reg_gen_dec_sum, reg_dis_target)
+                    # if alt_reg and g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
+                    #     g_reg_every_dec = g_reg_every_dec_next
+                    #     g_reg_every_dec_next, g_reg_param_dec = update_reg_params(g_reg_every_dec_next, g_reg_every,
+                    #                                                               g_reg_param_dec, d_reg_param,
+                    #                                                               reg_gen_dec_sum, reg_dis_target)
 
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
