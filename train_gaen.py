@@ -112,11 +112,11 @@ d_reg_ratio = 1
 
 g_reg_every_enc = model_manager.log_manager.get_last('regs', 'g_reg_every_enc', 1 if g_reg_every > 0 else 0)
 g_reg_every_enc_next = g_reg_every_enc
-g_reg_param_enc = model_manager.log_manager.get_last('regs', 'g_reg_param_enc', d_reg_param)
+g_reg_param_enc = model_manager.log_manager.get_last('regs', 'g_reg_param_enc', 1e9)
 
 g_reg_every_dec = model_manager.log_manager.get_last('regs', 'g_reg_every_dec', 1 if g_reg_every > 0 else 0)
 g_reg_every_dec_next = g_reg_every_dec
-g_reg_param_dec = model_manager.log_manager.get_last('regs', 'g_reg_param_dec', d_reg_param)
+g_reg_param_dec = model_manager.log_manager.get_last('regs', 'g_reg_param_dec', 1e9)
 
 pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
 pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
