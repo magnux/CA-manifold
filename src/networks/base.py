@@ -50,7 +50,7 @@ class Generator(nn.Module):
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         nn.init.xavier_normal_(self.embedding_fc.weight, 10)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
-        nn.init.xavier_normal_(self.embed_to_lat.weight, 10)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -75,7 +75,7 @@ class LabsEncoder(nn.Module):
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         nn.init.xavier_normal_(self.embedding_fc.weight, 10)
         self.embed_to_lat = nn.Linear(embed_size, self.lat_size, bias=False)
-        nn.init.xavier_normal_(self.embed_to_lat.weight, 10)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -107,7 +107,7 @@ class UnconditionalGenerator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.embed_to_lat = nn.Linear(z_dim, self.lat_size, bias=False)
-        nn.init.xavier_normal_(self.embed_to_lat.weight, 10)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 0.1)
 
     def forward(self, z):
         lat = self.embed_to_lat(z)
