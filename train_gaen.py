@@ -239,7 +239,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
                             if alt_reg:
-                                reg_gen_enc = compute_grad_reg(lat_enc, [images, lat_labs], 'sqrt')
+                                reg_gen_enc = compute_grad_reg(lat_enc, images, 'sqrt')
                             else:
                                 reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
                             reg_gen_enc = (1 / batch_mult) * g_reg_factor_enc * reg_gen_enc
