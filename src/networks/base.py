@@ -50,7 +50,7 @@ class Generator(nn.Module):
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         nn.init.xavier_normal_(self.embedding_fc.weight, 10)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
-        nn.init.xavier_normal_(self.embed_to_lat.weight, 1e-3)
+        nn.init.xavier_normal_(self.embed_to_lat.weight, 10)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
