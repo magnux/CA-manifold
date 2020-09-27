@@ -268,21 +268,21 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                    enc_grad_norm = get_grad_norm(encoder).item()
-                    dec_grad_norm = get_grad_norm(decoder).item()
-                    gen_grad_norm = get_grad_norm(generator).item()
-
                     if alt_reg and g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
                         g_reg_every_enc = g_reg_every_enc_next
                         g_reg_every_enc_next, g_reg_param_enc = update_reg_params(g_reg_every_enc_next, g_reg_every,
                                                                                   g_reg_param_enc, d_reg_param,
-                                                                                  enc_grad_norm, reg_dis_target, maximize=False)
+                                                                                  reg_gen_enc_sum, reg_dis_target ** (1/4), maximize=False)
 
                     if alt_reg and g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                         g_reg_every_dec = g_reg_every_dec_next
                         g_reg_every_dec_next, g_reg_param_dec = update_reg_params(g_reg_every_dec_next, g_reg_every,
                                                                                   g_reg_param_dec, d_reg_param,
-                                                                                  dec_grad_norm, reg_dis_target, maximize=False)
+                                                                                  reg_gen_dec_sum, reg_dis_target ** (1/4), maximize=False)
+
+                    enc_grad_norm = get_grad_norm(encoder).item()
+                    dec_grad_norm = get_grad_norm(decoder).item()
+                    gen_grad_norm = get_grad_norm(generator).item()
 
                 # Streaming Images
                 with torch.no_grad():
