@@ -130,7 +130,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_gen = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-        reg_dis_target = 1e-4 * ((1 + 1e-2) - (epoch / config['training']['n_epochs']))
+        reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
         it = epoch * (len(trainloader) // batch_split)
 
         t = trange(len(trainloader) // batch_split)
@@ -214,9 +214,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    if it > 0 and d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                        d_reg_ratio = (enc_grad_norm + 1e-8) / (dec_grad_norm + 1e-8)
-                        reg_dis_mean = (enc_grad_norm + dec_grad_norm) / 2
+                    if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                        d_reg_ratio = (reg_dis_enc_sum + 1e-8) / (reg_dis_dec_sum + 1e-8)
+                        reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
                         loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
@@ -239,12 +239,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
                             if alt_reg:
-                                reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, z_enc, pl_mean_enc)
+                                reg_gen_enc = compute_grad_reg(lat_enc, [images, lat_labs], 'sqrt')
                             else:
                                 reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
-                            reg_gen_enc = (1 / batch_mult) * reg_gen_enc
-                            model_manager.loss_backward(reg_gen_enc, nets_to_train, retain_graph=True)
-                            reg_gen_enc_sum += reg_gen_enc.item()
+                            reg_gen_enc = (1 / batch_mult) * g_reg_factor_enc * reg_gen_enc
+                            model_manager.loss_backward(reg_gen_enc if not alt_reg else -reg_gen_enc, nets_to_train, retain_graph=True)
+                            reg_gen_enc_sum += reg_gen_enc.item() / g_reg_factor_enc
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
@@ -257,34 +257,32 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                             if alt_reg:
-                                reg_gen_dec, pl_mean_dec = compute_pl_reg(lat_gen, z_gen, pl_mean_dec)
+                                reg_gen_dec = compute_grad_reg(images_dec, z_gen, 'sqrt')
                             else:
                                 reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
-                            reg_gen_dec = (1 / batch_mult) * reg_gen_dec
-                            model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
-                            reg_gen_dec_sum += reg_gen_dec.item()
+                            reg_gen_dec = (1 / batch_mult) * g_reg_factor_dec * reg_gen_dec
+                            model_manager.loss_backward(reg_gen_dec if not alt_reg else -reg_gen_dec, nets_to_train, retain_graph=True)
+                            reg_gen_dec_sum += reg_gen_dec.item() / g_reg_factor_dec
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                    if not alt_reg and g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
-                        g_reg_every_enc = g_reg_every_enc_next
-                        g_reg_every_enc_next, g_reg_param_enc = update_reg_params(g_reg_every_enc_next, g_reg_every,
-                                                                                  g_reg_param_enc, d_reg_param,
-                                                                                  pl_mean_enc, 1e-2,
-                                                                                  maximize=False)
-
-                    if not alt_reg and g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
-                        g_reg_every_dec = g_reg_every_dec_next
-                        g_reg_every_dec_next, g_reg_param_dec = update_reg_params(g_reg_every_dec_next, g_reg_every,
-                                                                                  g_reg_param_dec, d_reg_param,
-                                                                                  pl_mean_dec, 1e-2,
-                                                                                  maximize=False)
-
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
                     gen_grad_norm = get_grad_norm(generator).item()
+
+                    if alt_reg and g_reg_every_enc > 0 and it % g_reg_every_enc == 0:
+                        g_reg_every_enc = g_reg_every_enc_next
+                        g_reg_every_enc_next, g_reg_param_enc = update_reg_params(g_reg_every_enc_next, g_reg_every,
+                                                                                  g_reg_param_enc, d_reg_param,
+                                                                                  enc_grad_norm, reg_dis_target)
+
+                    if alt_reg and g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
+                        g_reg_every_dec = g_reg_every_dec_next
+                        g_reg_every_dec_next, g_reg_param_dec = update_reg_params(g_reg_every_dec_next, g_reg_every,
+                                                                                  g_reg_param_dec, d_reg_param,
+                                                                                  dec_grad_norm, reg_dis_target)
 
                 # Streaming Images
                 with torch.no_grad():
