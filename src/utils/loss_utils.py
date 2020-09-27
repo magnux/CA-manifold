@@ -41,7 +41,7 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     elif norm_type == 2:
         grad_dout = grad_dout.pow(2)
     elif norm_type == 'sqrt':
-        grad_dout = (grad_dout.abs() + 1e-16).sqrt()
+        grad_dout = (grad_dout.abs() + 1e-8).sqrt()
     elif norm_type == 'log':
         grad_dout = (grad_dout.abs() + 1.).log()
     elif norm_type == 'exp':
