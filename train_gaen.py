@@ -254,7 +254,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
                             if alt_reg:
-                                reg_gen_enc = F.mse_loss(lat_gen.norm(), images.norm())
+                                reg_gen_dec = F.mse_loss(lat_gen.norm(), images.norm())
                             else:
                                 reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_factor_dec * reg_gen_dec
