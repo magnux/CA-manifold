@@ -41,7 +41,7 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, image_size, channels, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
@@ -50,8 +50,13 @@ class Generator(nn.Module):
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         nn.init.normal_(self.embedding_fc.weight)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
-        nn.init.normal_(self.embed_to_lat.weight, (1 / ((z_dim + embed_size) ** 0.5)) *  # Recovering std == 1
-                                                  ((channels * image_size * image_size) ** 0.5) / (self.lat_size ** 0.5)) # Renormalizing to expected norm
+        nn.init.normal_(self.embed_to_lat.weight, (1 / ((z_dim + embed_size) ** 0.5)))  # *  # Recovering std == 1
+        # ((channels * image_size * image_size) ** 0.5) / (self.lat_size ** 0.5))  # Renormalizing to expected norm
+    #     self.scale_factor = 1.
+    #     self.scale_factor_m = 0.9
+    #
+    # def update_scale(self, new_scale):
+    #     self.scale_factor = self.scale_factor * self.scale_factor_m + (1. - self.scale_factor_m) * new_scale
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -64,20 +69,20 @@ class Generator(nn.Module):
         yembed = self.embedding_fc(yembed)
         # yembed = F.normalize(yembed)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
+        # lat = lat * self.scale_factor
 
         return lat
 
 
 class LabsEncoder(nn.Module):
-    def __init__(self, n_labels, lat_size, embed_size, image_size, channels, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         nn.init.normal_(self.embedding_fc.weight)
         self.embed_to_lat = nn.Linear(embed_size, self.lat_size, bias=False)
-        nn.init.normal_(self.embed_to_lat.weight, (1 / (embed_size ** 0.5)) *
-                                                  ((channels * image_size * image_size) ** 0.5) / (self.lat_size ** 0.5))
+        nn.init.normal_(self.embed_to_lat.weight, (1 / (embed_size ** 0.5)))
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -105,12 +110,11 @@ class UnconditionalDiscriminator(nn.Module):
 
 
 class UnconditionalGenerator(nn.Module):
-    def __init__(self, lat_size, z_dim, image_size, channels, **kwargs):
+    def __init__(self, lat_size, z_dim, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.embed_to_lat = nn.Linear(z_dim, self.lat_size, bias=False)
-        nn.init.normal_(self.embed_to_lat.weight, (1 / ((z_dim) ** 0.5)) *
-                                                  ((channels * image_size * image_size) ** 0.5) / (self.lat_size ** 0.5))
+        nn.init.normal_(self.embed_to_lat.weight, (1 / (z_dim ** 0.5)))
 
     def forward(self, z):
         lat = self.embed_to_lat(z)
