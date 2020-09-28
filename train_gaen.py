@@ -165,7 +165,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 else:
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
-                g_loss_ratio = 0.99 * g_loss_ratio + 0.01 * (dec_grad_norm + 1e-8) / (enc_grad_norm + 1e-8)
+                g_loss_ratio = 0.99 * g_loss_ratio + 0.01 * (enc_grad_norm + 1e-8) / (dec_grad_norm + 1e-8)
 
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
