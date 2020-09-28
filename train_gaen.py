@@ -121,6 +121,9 @@ g_reg_param_dec = model_manager.log_manager.get_last('regs', 'g_reg_param_dec', 
 pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
 pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
 
+enc_grad_norm = model_manager.log_manager.get_last('norms', 'enc_grad_norm', 0.)
+dec_grad_norm = model_manager.log_manager.get_last('norms', 'dec_grad_norm', 0.)
+
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
