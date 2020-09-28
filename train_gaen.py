@@ -278,6 +278,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     dec_grad_norm = get_grad_norm(decoder).item()
                     gen_grad_norm = get_grad_norm(generator).item()
 
+                    if isinstance(generator, torch.nn.DataParallel):
+                        generator.module.update_scale(dec_grad_norm - enc_grad_norm)
+                    else:
+                        generator.update_scale(dec_grad_norm - enc_grad_norm)
+
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
