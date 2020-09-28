@@ -52,11 +52,6 @@ class Generator(nn.Module):
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
         nn.init.normal_(self.embed_to_lat.weight, (1 / ((z_dim + embed_size) ** 0.5)))  # *  # Recovering std == 1
         # ((channels * image_size * image_size) ** 0.5) / (self.lat_size ** 0.5))  # Renormalizing to expected norm
-        self.register_buffer('scale_factor', torch.ones([]))
-        self.scale_factor_m = 0.1
-
-    def update_scale(self, scale_grad):
-        self.scale_factor = self.scale_factor + self.scale_factor_m * scale_grad
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -69,7 +64,6 @@ class Generator(nn.Module):
         yembed = self.embedding_fc(yembed)
         # yembed = F.normalize(yembed)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
-        lat = lat * self.scale_factor
 
         return lat
 

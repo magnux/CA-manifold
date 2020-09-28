@@ -252,8 +252,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        if not alt_reg and g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
-                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
+                        if g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
+                            if alt_reg:
+                                reg_gen_dec = lat_gen.norm(dim=1).mean() * (enc_grad_norm - dec_grad_norm)
+                            else:
+                                reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_factor_dec * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_factor_dec
@@ -277,11 +280,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
                     gen_grad_norm = get_grad_norm(generator).item()
-
-                    if isinstance(generator, torch.nn.DataParallel):
-                        generator.module.update_scale(dec_grad_norm - enc_grad_norm)
-                    else:
-                        generator.update_scale(dec_grad_norm - enc_grad_norm)
 
                 # Streaming Images
                 with torch.no_grad():
