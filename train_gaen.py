@@ -215,7 +215,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                        d_reg_ratio = 0.99 * d_reg_ratio + 0.01 * (reg_dis_dec_sum + 1e-8) / (reg_dis_enc_sum + 1e-8)
+                        d_reg_ratio = 0.99 * d_reg_ratio + 0.01 * (reg_dis_enc_sum + 1e-8) / (reg_dis_dec_sum + 1e-8)
                         reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
                         loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
                         d_reg_every_mean = d_reg_every_mean_next
