@@ -108,7 +108,7 @@ total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', 1 if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
-d_reg_ratio = 1
+d_reg_ratio = model_manager.log_manager.get_last('regs', 'd_reg_ratio', 1.)
 
 g_reg_every_enc = model_manager.log_manager.get_last('regs', 'g_reg_every_enc', 1 if g_reg_every > 0 else 0)
 g_reg_every_enc_next = g_reg_every_enc
@@ -123,6 +123,7 @@ pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
 
 enc_grad_norm = model_manager.log_manager.get_last('norms', 'enc_grad_norm', 0.)
 dec_grad_norm = model_manager.log_manager.get_last('norms', 'dec_grad_norm', 0.)
+g_loss_ratio = model_manager.log_manager.get_last('regs', 'g_loss_ratio', 1.)
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
@@ -309,6 +310,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'd_reg_every_mean', d_reg_every_mean, it=it)
                 model_manager.log_manager.add_scalar('regs', 'd_reg_param_mean', d_reg_param_mean, it=it)
+                model_manager.log_manager.add_scalar('regs', 'd_reg_ratio', d_reg_ratio, it=it)
+                model_manager.log_manager.add_scalar('regs', 'g_loss_ratio', g_loss_ratio, it=it)
 
                 if g_reg_every > 0:
                     model_manager.log_manager.add_scalar('regs', 'g_reg_every', g_reg_every, it=it)
