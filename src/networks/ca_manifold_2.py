@@ -57,8 +57,8 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_norm = nn.InstanceNorm2d(self.n_filter)
-        self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
+        self.out_norm = nn.InstanceNorm2d(self.n_filter // (2 if self.complex else 1))
+        self.out_conv = ResidualBlock(self.n_filter // (2 if self.complex else 1), sum(self.split_sizes), None, 1, 1, 0)
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -104,6 +104,8 @@ class InjectedEncoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
+        if self.complex:
+            out = out[:, :self.n_filter // 2, :, :]
         out = self.out_norm(out)
         out = self.out_conv(out)
         if self.multi_cut:
@@ -158,9 +160,9 @@ class Decoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_norm = nn.InstanceNorm2d(self.n_filter)
+        self.out_norm = nn.InstanceNorm2d(self.n_filter // (2 if self.complex else 1))
         self.out_conv = nn.Sequential(
-            ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
+            ResidualBlock(self.n_filter // (2 if self.complex else 1), self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
             *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
             nn.Conv2d(self.n_filter, 10 * ((self.out_chan * 3) + 1) if self.log_mix_out else self.out_chan, 3, 1, 1),
@@ -207,6 +209,8 @@ class Decoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
+        if self.complex:
+            out = out[:, :self.n_filter // 2, :, :]
         out = self.out_norm(out)
         out = self.out_conv(out)
         out_raw = out
