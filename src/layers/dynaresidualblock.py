@@ -24,10 +24,10 @@ class DynaResidualBlock(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.k_in_size = self.fhidden * self.fin * (kernel_size ** dim) // (2 if self.complex else 1)
-        self.k_mid_size = self.fhidden * self.fhidden * (kernel_size ** dim) // (2 if self.complex else 1)
-        self.k_out_size = self.fout * self.fhidden * (kernel_size ** dim) // (2 if self.complex else 1)
-        self.k_short_size = self.fout * self.fin * (kernel_size ** dim) // (2 if self.complex else 1)
+        self.k_in_size = self.fhidden * self.fin * (kernel_size ** dim) // (2 if complex else 1)
+        self.k_mid_size = self.fhidden * self.fhidden * (kernel_size ** dim) // (2 if complex else 1)
+        self.k_out_size = self.fout * self.fhidden * (kernel_size ** dim) // (2 if complex else 1)
+        self.k_short_size = self.fout * self.fin * (kernel_size ** dim) // (2 if complex else 1)
         
         self.b_in_size = self.fhidden if not (norm_weights or complex) else 0
         self.b_mid_size = self.fhidden if not (norm_weights or complex) else 0
