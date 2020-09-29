@@ -48,7 +48,6 @@ class Centroids(nn.Module):
 
         # centroids_loss = F.mse_loss(x, x_quantized.detach())
         if x.requires_grad:
-            print(x.requires_grad)
             cent_grad = - (2 / x.numel()) * (x_quantized - x)
             cent_grad.detach_()
             x.register_hook(lambda grad: grad + cent_grad)
