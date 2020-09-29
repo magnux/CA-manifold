@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class Centroids(nn.Module):
-    def __init__(self, n_features, n_centroids, decay=0.99, eps=1e-5):
+    def __init__(self, n_features, n_centroids, decay=0.99, eps=1e-5, centroids_scale=1.):
         super(Centroids, self).__init__()
 
         self.n_features = n_features
@@ -12,7 +12,7 @@ class Centroids(nn.Module):
         self.decay = decay
         self.eps = eps
 
-        centroids = torch.randn([n_features, n_centroids])
+        centroids = centroids_scale * torch.randn([n_features, n_centroids])
         self.register_buffer('centroids', centroids)
         self.register_buffer('cluster_size', torch.zeros(n_centroids))
         self.register_buffer('centroids_avg', centroids.clone())
