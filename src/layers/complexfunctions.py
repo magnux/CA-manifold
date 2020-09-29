@@ -42,10 +42,13 @@ complex_conv2d = partial(_complex_conv, conv_func=conv2d)
 complex_conv3d = partial(_complex_conv, conv_func=conv3d)
 
 
-def _complex_conv_sc(input, weight, bias, stride=1, padding=0, dilation=1, groups=1, conv_func=None):
+def _complex_conv_sc(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1, conv_func=None):
     input_r, input_i = torch.split(input, input.size(1) // 2, dim=1)
     weight_r, weight_i = torch.split(weight, weight.size(1) // 2, dim=1)
-    bias_r, bias_i = torch.split(bias, bias.size(0) // 2, dim=1)
+    if bias is not None:
+        bias_r, bias_i = torch.split(bias, bias.size(0) // 2, dim=1)
+    else:
+        bias_r, bias_i = None, None
     return torch.cat(_complex_conv(input_r, input_i, weight_r, weight_i, bias_r, bias_i,
                                    stride, padding, dilation, groups, conv_func), dim=1)
 
