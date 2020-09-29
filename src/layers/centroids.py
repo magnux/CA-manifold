@@ -16,7 +16,7 @@ class Centroids(nn.Module):
         self.register_buffer('centroids', centroids)
         self.register_buffer('cluster_size', torch.zeros(n_centroids))
         self.register_buffer('centroids_avg', centroids.clone())
-        self.register_buffer('onehot_mat', torch.eye(self.n_centroids))
+        self.register_buffer('onehot_matrix', torch.eye(self.n_centroids))
 
     def forward(self, x):
 
@@ -26,30 +26,28 @@ class Centroids(nn.Module):
             x_flat_size = x_flat.size()
             x_flat = x_flat.view(-1, self.n_features)
 
-        dist = x_flat.pow(2).sum(1, keepdim=True) - 2 * x_flat @ self.centroids + self.centroids.pow(2).sum(0, keepdim=True)
+        x_flat_sq = x_flat.pow(2).sum(1, keepdim=True)
+        centroids_sq = self.centroids.pow(2).sum(0, keepdim=True)
+        dist = torch.addmm(centroids_sq + x_flat_sq, x_flat, self.centroids, alpha=-2.0, beta=1.0)
         _, centroids_ind = (-dist).max(1)
 
         if self.training:
-            centroids_onehot = self.onehot_mat[centroids_ind].type(x_flat.dtype)
-
-            self.cluster_size.data.mul_(self.decay).add_(
-                1 - self.decay, centroids_onehot.sum(0)
-            )
+            centroids_onehot = self.onehot_matrix[centroids_ind].type(x_flat.dtype)
+            self.cluster_size.data.mul_(self.decay).add_(1 - self.decay, centroids_onehot.sum(0))
             centroids_sum = x_flat.transpose(0, 1) @ centroids_onehot
             self.centroids_avg.data.mul_(self.decay).add_(1 - self.decay, centroids_sum)
             n = self.cluster_size.sum()
-            cluster_size = (
-                    (self.cluster_size + self.eps) / (n + self.n_centroids * self.eps) * n
-            )
+            cluster_size = (self.cluster_size + self.eps) / (n + self.n_centroids * self.eps) * n
             centroids_normalized = self.centroids_avg / cluster_size.unsqueeze(0)
             self.centroids.data.copy_(centroids_normalized)
 
-        quantize = F.embedding(centroids_ind, self.centroids.transpose(0, 1))
+        x_quantized = F.embedding(centroids_ind, self.centroids.transpose(0, 1))
         if x.dim() > 2:
-            quantize = quantize.view(x_flat_size)
-            quantize = quantize.transpose(-1, 1).contiguous()
+            x_quantized = x_quantized.view(x_flat_size)
+            x_quantized = x_quantized.transpose(-1, 1).contiguous()
 
-        loss_cent = (quantize.detach() - x).pow(2).mean()
-        x_quant = x + (quantize - x).detach()
+        centroids_loss = F.mse_loss(x, x_quantized.detach())
+        x_quantized_st = x + (x_quantized - x).detach()
 
-        return x_quant, loss_cent
+        return x_quantized_st, centroids_loss
+
