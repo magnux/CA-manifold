@@ -46,8 +46,12 @@ class Centroids(nn.Module):
             x_quantized = x_quantized.view(x_flat_size)
             x_quantized = x_quantized.transpose(-1, 1).contiguous()
 
-        centroids_loss = F.mse_loss(x, x_quantized.detach())
+        # centroids_loss = F.mse_loss(x, x_quantized.detach())
+        cent_grad = - (2 / x.numel()) * (x_quantized - x)
+        cent_grad.detach_()
+        x.register_hook(lambda grad: grad + cent_grad)
+
         x_quantized_st = x + (x_quantized - x).detach()
 
-        return x_quantized_st, centroids_loss
+        return x_quantized_st  #, centroids_loss
 
