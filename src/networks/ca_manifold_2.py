@@ -9,6 +9,7 @@ from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.complexlayers import ComplexInstanceNorm2d
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
@@ -50,7 +51,14 @@ class InjectedEncoder(nn.Module):
         )
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        if not complex:
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        else:
+            self.frac_norm = nn.Sequential(
+                LambdaLayer(lambda x: torch.split(x, x.size(1) // 2, dim=1)),
+                ComplexInstanceNorm2d((self.n_filter // 2) * 3),
+                LambdaLayer(lambda x: torch.cat(x, dim=1)),
+            )
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter, complex=complex)
 
         if self.skip_fire:
@@ -149,7 +157,14 @@ class Decoder(nn.Module):
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        if not complex:
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        else:
+            self.frac_norm = nn.Sequential(
+                LambdaLayer(lambda x: torch.split(x, x.size(1) // 2, dim=1)),
+                ComplexInstanceNorm2d((self.n_filter // 2) * 3),
+                LambdaLayer(lambda x: torch.cat(x, dim=1)),
+            )
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter, complex=complex)
 
         if self.skip_fire:
