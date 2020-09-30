@@ -36,6 +36,7 @@ class InjectedEncoder(nn.Module):
         self.gated = gated
         self.env_feedback = env_feedback
         self.multi_cut = multi_cut
+        self.z_out = z_out
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
@@ -112,6 +113,8 @@ class InjectedEncoder(nn.Module):
         else:
             conv_state = out.mean(dim=(2, 3))
         lat = self.out_to_lat(conv_state)
+        if self.z_out:
+            lat = F.normalize(lat)
 
         return lat, out_embs, None
 

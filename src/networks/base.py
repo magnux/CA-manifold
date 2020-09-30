@@ -48,7 +48,6 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
-        nn.init.normal_(self.embedding_fc.weight)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
         nn.init.normal_(self.embed_to_lat.weight, (1 / ((z_dim + embed_size) ** 0.5)))  # *  # Recovering std == 1
         # ((channels * image_size * image_size) ** 0.5) / (self.lat_size ** 0.5))  # Renormalizing to expected norm
@@ -62,7 +61,7 @@ class Generator(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
-        # yembed = F.normalize(yembed)
+        yembed = F.normalize(yembed)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
@@ -74,7 +73,6 @@ class LabsEncoder(nn.Module):
         self.lat_size = lat_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
-        nn.init.normal_(self.embedding_fc.weight)
         self.embed_to_lat = nn.Linear(embed_size, self.lat_size, bias=False)
         nn.init.normal_(self.embed_to_lat.weight, (1 / (embed_size ** 0.5)))
 
@@ -85,7 +83,7 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
-        # yembed = F.normalize(yembed)
+        yembed = F.normalize(yembed)
         lat = self.embed_to_lat(yembed)
 
         return lat
