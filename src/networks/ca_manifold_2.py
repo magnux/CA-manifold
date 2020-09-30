@@ -9,7 +9,6 @@ from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.complexlayers import ComplexBatchNorm2d
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
@@ -18,7 +17,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, complex=True, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -37,7 +36,6 @@ class InjectedEncoder(nn.Module):
         self.gated = gated
         self.env_feedback = env_feedback
         self.multi_cut = multi_cut
-        self.complex = complex
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
@@ -51,8 +49,8 @@ class InjectedEncoder(nn.Module):
         )
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3) if not complex else ComplexBatchNorm2d((self.n_filter // 2) * 3)
-        self.frac_dyna_conv = DynaResidualBlock(lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter, complex=complex)
+        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        self.frac_dyna_conv = DynaResidualBlock(lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -86,10 +84,7 @@ class InjectedEncoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            if not self.complex:
-                out_new = self.frac_norm(out_new)
-            else:
-                out_new = torch.cat(self.frac_norm(*list(torch.split(out_new, (self.n_filter // 2) * 3, dim=1))), dim=1)
+            out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -129,7 +124,7 @@ class ZInjectedEncoder(InjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, complex=True, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -146,15 +141,14 @@ class Decoder(nn.Module):
         self.causal = causal
         self.gated = gated
         self.env_feedback = env_feedback
-        self.complex = complex
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3) if not complex else ComplexBatchNorm2d((self.n_filter // 2) * 3)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter, complex=complex)
+        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -190,10 +184,7 @@ class Decoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            if not self.complex:
-                out_new = self.frac_norm(out_new)
-            else:
-                out_new = torch.cat(self.frac_norm(*list(torch.split(out_new, (self.n_filter // 2) * 3, dim=1))), dim=1)
+            out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
