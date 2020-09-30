@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.complexfunctions import complex_conv1d_sc, complex_conv2d_sc, complex_conv3d_sc
 
 
 class DynaResidualBlock(nn.Module):
@@ -16,11 +15,11 @@ class DynaResidualBlock(nn.Module):
         self.dim = dim
 
         if dim == 1:
-            self.f_conv = F.conv1d if not complex else complex_conv1d_sc
+            self.f_conv = F.conv1d
         elif dim == 2:
-            self.f_conv = F.conv2d if not complex else complex_conv2d_sc
+            self.f_conv = F.conv2d
         elif dim == 3:
-            self.f_conv = F.conv3d if not complex else complex_conv3d_sc
+            self.f_conv = F.conv3d
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
@@ -50,7 +49,6 @@ class DynaResidualBlock(nn.Module):
         self.stride = stride
         self.padding = padding
         self.norm_weights = norm_weights
-        self.complex = complex
 
     def forward(self, x, lat):
         batch_size = x.size(0)
