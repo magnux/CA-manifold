@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class Centroids(nn.Module):
-    def __init__(self, n_features, n_centroids, decay=0.99, eps=1e-5, centroids_scale=1., loss_mode='grad_mse'):
+    def __init__(self, n_features, n_centroids, decay=0.99, eps=1e-5, centroids_scale=1., loss_mode='grad_soft'):
         super(Centroids, self).__init__()
 
         self.n_features = n_features

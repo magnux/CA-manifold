@@ -50,7 +50,7 @@ class InjectedEncoder(nn.Module):
         )
         self.in_norm = nn.Sequential(
             nn.InstanceNorm2d(self.n_filter),
-            Centroids(self.n_filter, 2 ** 10, loss_mode='grad_soft'),
+            Centroids(self.n_filter, 2 ** 10),
         )
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
@@ -161,7 +161,7 @@ class Decoder(nn.Module):
 
         self.out_norm = nn.Sequential(
             nn.InstanceNorm2d(self.n_filter),
-            Centroids(self.n_filter, 2 ** 10, loss_mode='grad_soft'),
+            Centroids(self.n_filter, 2 ** 10),
         )
         self.out_conv = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
