@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class Centroids(nn.Module):
-    def __init__(self, n_features, n_centroids, decay=0.99, eps=1e-5, centroids_scale=1., loss_mode='grad_soft'):
+    def __init__(self, n_features, n_centroids, decay=0.99, eps=1e-5, centroids_scale=1., loss_mode='grad_mse'):
         super(Centroids, self).__init__()
 
         self.n_features = n_features
@@ -58,7 +58,7 @@ class Centroids(nn.Module):
                 if self.loss_mode == 'grad_mse':
                     cent_grad = - (2 / x.numel()) * (x_quantized - x)
                 elif self.loss_mode == 'grad_soft':
-                    cent_grad = - (1 / x.numel()) * ((x_quantized - x) / 2).tanh_()
+                    cent_grad = - (0.1 / x.numel()) * ((x_quantized - x) / 2).tanh_()
                 cent_grad.detach_()
                 x.register_hook(lambda grad: grad + cent_grad)
 
