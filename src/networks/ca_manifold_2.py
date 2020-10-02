@@ -47,9 +47,6 @@ class InjectedEncoder(nn.Module):
             *([DownScale(self.n_filter, self.n_filter, self.image_size, self.ds_size)] if self.ds_size < self.image_size else []),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
-        )
-        self.in_norm = nn.Sequential(
-            nn.InstanceNorm2d(self.n_filter),
             Centroids(self.n_filter, 2 ** 10),
         )
 
@@ -60,7 +57,6 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_norm = nn.InstanceNorm2d(self.n_filter)
         self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
@@ -75,7 +71,6 @@ class InjectedEncoder(nn.Module):
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
 
         out = self.in_conv(x)
-        out = self.in_norm(out)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -107,7 +102,6 @@ class InjectedEncoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
-        out = self.out_norm(out)
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
