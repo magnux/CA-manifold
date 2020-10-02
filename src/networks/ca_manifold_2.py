@@ -49,7 +49,7 @@ class InjectedEncoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
         )
         self.in_norm = nn.Sequential(
-            LambdaLayer(lambda x: F.normalize(x)),
+            nn.InstanceNorm2d(self.n_filter),
             Centroids(self.n_filter, 2 ** 10),
         )
 
@@ -160,7 +160,7 @@ class Decoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_norm = nn.Sequential(
-            LambdaLayer(lambda x: F.normalize(x)),
+            nn.InstanceNorm2d(self.n_filter),
             Centroids(self.n_filter, 2 ** 10),
         )
         self.out_conv = nn.Sequential(
