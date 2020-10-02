@@ -159,6 +159,7 @@ class Decoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
+        self.out_norm = nn.InstanceNorm2d(self.n_filter)
         self.out_conv = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
@@ -206,6 +207,7 @@ class Decoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
+        out = self.out_norm(out)
         out = self.out_conv(out)
         out_raw = out
         if self.log_mix_out:
