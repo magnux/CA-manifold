@@ -48,7 +48,6 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
-        nn.init.normal_(self.embed_to_lat.weight, (1 / ((z_dim + embed_size) ** 0.5)))  # Recovering std == 1
         self.centroids = Centroids(1, 2 ** 10)
 
     def forward(self, z, y):
@@ -74,7 +73,6 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         self.embed_to_lat = nn.Linear(embed_size, self.lat_size, bias=False)
-        nn.init.normal_(self.embed_to_lat.weight, (1 / (embed_size ** 0.5)))  # Recovering std == 1
         self.centroids = Centroids(1, 2 ** 10)
 
     def forward(self, y):
@@ -108,7 +106,6 @@ class UnconditionalGenerator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.embed_to_lat = nn.Linear(z_dim, self.lat_size, bias=False)
-        nn.init.normal_(self.embed_to_lat.weight, (1 / (z_dim ** 0.5)))  # Recovering std == 1
         self.centroids = Centroids(1, 2 ** 10)
 
     def forward(self, z):
