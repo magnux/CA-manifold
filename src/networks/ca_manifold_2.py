@@ -48,7 +48,10 @@ class InjectedEncoder(nn.Module):
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
         )
-        self.in_norm = Centroids(self.n_filter, 2 ** 10)
+        self.in_norm = nn.Sequential(
+            LambdaLayer(lambda x: F.normalize(x)),
+            Centroids(self.n_filter, 2 ** 10),
+        )
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
@@ -156,7 +159,10 @@ class Decoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_norm = Centroids(self.n_filter, 2 ** 10)
+        self.out_norm = nn.Sequential(
+            LambdaLayer(lambda x: F.normalize(x)),
+            Centroids(self.n_filter, 2 ** 10),
+        )
         self.out_conv = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
