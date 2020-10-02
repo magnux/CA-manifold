@@ -61,7 +61,6 @@ class Generator(nn.Module):
 
         yembed = self.embedding_fc(yembed)
         yembed = F.instance_norm(yembed.unsqueeze(1)).squeeze(1)
-        z = F.instance_norm(z.unsqueeze(1)).squeeze(1)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
         lat = self.centroids(lat.unsqueeze(1)).squeeze(1)
 
@@ -113,7 +112,6 @@ class UnconditionalGenerator(nn.Module):
         self.centroids = Centroids(1, 2 ** 10)
 
     def forward(self, z):
-        z = F.instance_norm(z.unsqueeze(1)).squeeze(1)
         lat = self.embed_to_lat(z)
         lat = self.centroids(lat.unsqueeze(1)).squeeze(1)
 
