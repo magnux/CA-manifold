@@ -60,7 +60,7 @@ class Generator(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
-        yembed = F.instance_norm(yembed.unsqueeze(1)).squeeze(1)
+        yembed = F.normalize(yembed)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
         lat = self.centroids(lat.unsqueeze(1)).squeeze(1)
 
@@ -84,7 +84,7 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
-        yembed = F.instance_norm(yembed.unsqueeze(1)).squeeze(1)
+        yembed = F.normalize(yembed)
         lat = self.embed_to_lat(yembed)
         lat = self.centroids(lat.unsqueeze(1)).squeeze(1)
 
