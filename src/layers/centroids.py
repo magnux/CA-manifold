@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class Centroids(nn.Module):
-    def __init__(self, n_features, n_centroids, decay=0.99, eps=1e-5, centroids_scale=1., loss_mode='grad_soft', normed_init=False):
+    def __init__(self, n_features, n_centroids, decay=0.99, eps=1e-5, centroids_scale=1., loss_mode='grad_snap', loss_factor=0.1, normed_init=False):
         super(Centroids, self).__init__()
 
         self.n_features = n_features
@@ -20,6 +20,7 @@ class Centroids(nn.Module):
         self.register_buffer('centroids_avg', centroids.clone())
         self.register_buffer('onehot_matrix', torch.eye(self.n_centroids))
         self.loss_mode = loss_mode
+        self.loss_factor = loss_factor
 
     def forward(self, x):
 
@@ -52,15 +53,19 @@ class Centroids(nn.Module):
         x_quantized_st = x + (x_quantized - x).detach()
 
         if self.loss_mode == 'loss_mse':
-            centroids_loss = F.mse_loss(x, x_quantized.detach())
+            centroids_loss = self.loss_factor * F.mse_loss(x, x_quantized.detach())
 
             return x_quantized_st, centroids_loss
         else:
             if x.requires_grad:
+                cent_grad = x_quantized - x
                 if self.loss_mode == 'grad_mse':
-                    cent_grad = - (2 / x.numel()) * (x_quantized - x)
+                    cent_grad = - (2 / x.numel()) * cent_grad
                 elif self.loss_mode == 'grad_soft':
-                    cent_grad = - (0.1 / x.numel()) * ((x_quantized - x) / 2).tanh_()
+                    cent_grad = - (1 / x.numel()) * (cent_grad / 2).tanh_()
+                elif self.loss_mode == 'grad_snap':
+                    cent_grad = - (1 / x.numel()) * (cent_grad / (2 * (cent_grad.abs() + 1e-2).pow(3/2)))
+                cent_grad = self.loss_factor * cent_grad
                 cent_grad.detach_()
                 x.register_hook(lambda grad: grad + cent_grad)
 
