@@ -36,6 +36,7 @@ class Discriminator(nn.Module):
         assert(lat.size(0) == y.size(0))
         batch_size = lat.size(0)
 
+        lat = F.normalize(lat)
         labs = self.labs(lat)
         index = torch.arange(0, batch_size, device=lat.device)
         labs = labs[index, y]
@@ -104,6 +105,7 @@ class UnconditionalDiscriminator(nn.Module):
         )
 
     def forward(self, lat):
+        lat = F.normalize(lat)
         labs = self.labs(lat)
 
         return labs
