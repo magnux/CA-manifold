@@ -26,7 +26,7 @@ def compute_gan_loss(d_out, target, gan_type='mse'):
         loss = F.relu((2*target - 1) * d_out).mean()
     elif gan_type == 'mse':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
-        loss = F.mse_loss(d_out.clamp(-1., 1.), (2 * target - 1) * 1e-3)
+        loss = F.mse_loss(d_out.clamp(-1e-3, 1e-3), (2 * target - 1) * 1e-3)
     else:
         raise NotImplementedError
 
