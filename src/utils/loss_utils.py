@@ -26,14 +26,14 @@ def compute_gan_loss(d_out, target, gan_type='mse'):
         loss = F.relu((2*target - 1) * d_out).mean()
     elif gan_type == 'mse':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
-        loss = F.mse_loss(d_out.clamp(-1e-3, 1e-3), (2 * target - 1) * 1e-3)
+        loss = F.mse_loss(d_out.clamp(-1., 1.), 2 * target - 1)
     else:
         raise NotImplementedError
 
     return loss
 
 
-def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
+def compute_grad_reg(d_out, d_in, norm_type=4, margin=0):
     batch_size = d_in.size(0)
     grad_dout = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
@@ -43,6 +43,8 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
         grad_dout = grad_dout.abs()
     elif norm_type == 2:
         grad_dout = grad_dout.pow(2)
+    elif norm_type == 2:
+        grad_dout = grad_dout.pow(4)
     elif norm_type == 'sqrt':
         grad_dout = (grad_dout.abs() + 1e-8).sqrt()
     elif norm_type == 'log':
