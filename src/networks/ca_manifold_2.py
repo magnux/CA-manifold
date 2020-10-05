@@ -59,13 +59,12 @@ class InjectedEncoder(nn.Module):
 
         self.out_norm = nn.InstanceNorm2d(self.n_filter)
         self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
-        # self.out_to_lat = nn.Sequential(
-        #     LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-        #     LinearResidualBlock(self.lat_size, self.lat_size),
-        #     # *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
-        #     nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
-        # )
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Sequential(
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            # *([] if lat_size > 3 else [nn.Linear(self.lat_size, lat_size)]),
+            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -156,7 +155,6 @@ class Decoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_norm = nn.InstanceNorm2d(self.n_filter)
         self.out_conv = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
@@ -204,7 +202,6 @@ class Decoder(nn.Module):
                 out = out[:, :, 2:, 2:]
             out_embs.append(out)
 
-        out = self.out_norm(out)
         out = self.out_conv(out)
         out_raw = out
         if self.log_mix_out:
