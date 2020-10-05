@@ -111,7 +111,6 @@ class InjectedEncoder(nn.Module):
                                     conv_state_hw.view(batch_size, -1)], dim=1)
         else:
             conv_state = out.mean(dim=(2, 3))
-        conv_state = F.normalize(conv_state)
         lat = self.out_to_lat(conv_state)
 
         return lat, out_embs, None
