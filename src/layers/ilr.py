@@ -52,5 +52,5 @@ class ILRConv(nn.Module):
                 compressed_block = self.block[0].weight.view(self.fin, self.fin).t()
                 for l in self.block[1:]:
                     compressed_block = compressed_block @ l.weight.view(self.fin, self.fin).t()
-                self.compressed_block = compressed_block.view(self.fin, self.fin, 1, 1).t()
+                self.compressed_block = compressed_block.t().view(self.fin, self.fin, 1, 1)
             return self.conv_fn(x, self.compressed_block)
