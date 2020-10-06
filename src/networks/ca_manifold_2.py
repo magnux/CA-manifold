@@ -48,7 +48,6 @@ class InjectedEncoder(nn.Module):
             *([DownScale(self.n_filter, self.n_filter, self.image_size, self.ds_size)] if self.ds_size < self.image_size else []),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
-            ILRConv(self.n_filter),
             Centroids(self.n_filter, 2 ** 10),
         )
 

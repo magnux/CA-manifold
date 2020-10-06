@@ -9,7 +9,7 @@ class ILRLinear(nn.Module):
         self.fin = fin
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
         for l in self.block:
-            nn.init.normal_(l.weight, 0, 0.421696503 / self.fin ** 0.5)
+            nn.init.normal_(l.weight, 0, 1 / self.fin ** 0.5)
         self.compressed_block = None
 
     def forward(self, x):
@@ -46,7 +46,7 @@ class ILRConv(nn.Module):
 
         self.block = nn.Sequential(*[conv_mod(fin, fin, 1, 1, 0, bias=False) for _ in range(n_layers)])
         for l in self.block:
-            nn.init.normal_(l.weight, 0, 0.421696503 / self.fin ** 0.5)
+            nn.init.normal_(l.weight, 0, 1 / self.fin ** 0.5)
         self.compressed_block = None
 
     def forward(self, x):
