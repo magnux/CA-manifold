@@ -27,6 +27,7 @@ class ILRConv(nn.Module):
     def __init__(self, fin, n_layers=16, dim=2):
         super(ILRConv, self).__init__()
         self.fin = fin
+        self.dim = dim
         if self.dim == 1:
             self.conv_fn = F.conv1d
             conv_mod = nn.Conv1d
