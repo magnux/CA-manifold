@@ -49,7 +49,7 @@ class InjectedEncoder(nn.Module):
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             ILRConv(self.n_filter),
-            Centroids(self.n_filter, 2 ** 10),
+            # Centroids(self.n_filter, 2 ** 10),
         )
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
@@ -156,7 +156,7 @@ class Decoder(nn.Module):
 
         self.out_conv = nn.Sequential(
             ILRConv(self.n_filter),
-            Centroids(self.n_filter, 2 ** 10),
+            # Centroids(self.n_filter, 2 ** 10),
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
             *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
