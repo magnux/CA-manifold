@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class ILRLinear(nn.Module):
-    def __init__(self, fin, n_layers=16):
+    def __init__(self, fin, n_layers=8):
         super(ILRLinear, self).__init__()
         self.fin = fin
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
@@ -28,7 +28,7 @@ class ILRLinear(nn.Module):
 
 
 class ILRConv(nn.Module):
-    def __init__(self, fin, n_layers=16, dim=2):
+    def __init__(self, fin, n_layers=8, dim=2):
         super(ILRConv, self).__init__()
         self.fin = fin
         self.dim = dim
