@@ -48,7 +48,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
-        # self.centroids = Centroids(1, 2 ** 10)
+        self.centroids = Centroids(1, 2 ** 10)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -61,7 +61,7 @@ class Generator(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
-        # lat = self.centroids(lat.unsqueeze(1)).squeeze(1)
+        lat = self.centroids(lat.unsqueeze(1)).squeeze(1)
 
         return lat
 
@@ -73,7 +73,7 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
         self.embed_to_lat = nn.Linear(embed_size, self.lat_size, bias=False)
-        # self.centroids = Centroids(1, 2 ** 10)
+        self.centroids = Centroids(1, 2 ** 10)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -84,7 +84,7 @@ class LabsEncoder(nn.Module):
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
         lat = self.embed_to_lat(yembed)
-        # lat = self.centroids(lat.unsqueeze(1)).squeeze(1)
+        lat = self.centroids(lat.unsqueeze(1)).squeeze(1)
 
         return lat
 
