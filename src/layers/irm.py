@@ -22,7 +22,7 @@ class IRMLinear(nn.Module):
         #             compressed_block = self.block[0].weight.t()
         #             for l in self.block[1:]:
         #                 compressed_block = compressed_block @ l.weight.t()
-        #         self.compressed_block = compressed_block.t().requires_grad_()
+        #             self.compressed_block = compressed_block.t()
         #     return F.linear(x, self.compressed_block)
         return self.block(x)
 
@@ -59,6 +59,6 @@ class IRMConv(nn.Module):
         #             compressed_block = self.block[0].weight.view(self.fin, self.fin).t()
         #             for l in self.block[1:]:
         #                 compressed_block = compressed_block @ l.weight.view(self.fin, self.fin).t()
-        #         self.compressed_block = compressed_block.t().view(self.fin, self.fin, 1, 1).requires_grad_()
+        #             self.compressed_block = compressed_block.t().view(self.fin, self.fin, 1, 1)
         #     return self.conv_fn(x, self.compressed_block)
         return self.block(x)
