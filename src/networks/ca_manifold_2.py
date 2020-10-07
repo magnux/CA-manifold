@@ -48,7 +48,6 @@ class InjectedEncoder(nn.Module):
             *([DownScale(self.n_filter, self.n_filter, self.image_size, self.ds_size)] if self.ds_size < self.image_size else []),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
-            Centroids(self.n_filter, 2 ** 10),
         )
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
@@ -58,10 +57,13 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
+        self.out_conv = nn.Sequential(
+            Centroids(self.n_filter, 2 ** 10),
+            ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0),
+        )
         self.out_to_lat = nn.Sequential(
-            nn.Linear(sum(self.conv_state_size), self.lat_size),
-            ILRLinear(self.lat_size),
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
         )
 
