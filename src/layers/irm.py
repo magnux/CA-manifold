@@ -3,13 +3,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class ILRLinear(nn.Module):
+class IRMLinear(nn.Module):
     def __init__(self, fin, n_layers=8):
-        super(ILRLinear, self).__init__()
+        super(IRMLinear, self).__init__()
         self.fin = fin
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
-        for l in self.block:
-            nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
+        # for l in self.block:
+        #     nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
         self.compressed_block = None
 
     def forward(self, x):
@@ -27,9 +27,9 @@ class ILRLinear(nn.Module):
         return self.block(x)
 
 
-class ILRConv(nn.Module):
+class IRMConv(nn.Module):
     def __init__(self, fin, n_layers=8, dim=2):
-        super(ILRConv, self).__init__()
+        super(IRMConv, self).__init__()
         self.fin = fin
         self.dim = dim
         if self.dim == 1:
@@ -45,8 +45,8 @@ class ILRConv(nn.Module):
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
         self.block = nn.Sequential(*[conv_mod(fin, fin, 1, 1, 0, bias=False) for _ in range(n_layers)])
-        for l in self.block:
-            nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
+        # for l in self.block:
+        #     nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
         self.compressed_block = None
 
     def forward(self, x):
