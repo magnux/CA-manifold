@@ -13,18 +13,17 @@ class IRMLinear(nn.Module):
         self.compressed_block = None
 
     def forward(self, x):
-        # if self.training:
-        #     self.compressed_block = None
-        #     return self.block(x)
-        # else:
-        #     if self.compressed_block is None:
-        #         with torch.no_grad():
-        #             compressed_block = self.block[0].weight.t()
-        #             for l in self.block[1:]:
-        #                 compressed_block = compressed_block @ l.weight.t()
-        #             self.compressed_block = compressed_block.t()
-        #     return F.linear(x, self.compressed_block)
-        return self.block(x)
+        if self.training:
+            self.compressed_block = None
+            return self.block(x)
+        else:
+            if self.compressed_block is None:
+                with torch.no_grad():
+                    compressed_block = self.block[0].weight.t()
+                    for l in self.block[1:]:
+                        compressed_block = compressed_block @ l.weight.t()
+                    self.compressed_block = compressed_block.t()
+            return F.linear(x, self.compressed_block)
 
 
 class IRMConv(nn.Module):
@@ -50,15 +49,14 @@ class IRMConv(nn.Module):
         self.compressed_block = None
 
     def forward(self, x):
-        # if self.training:
-        #     self.compressed_block = None
-        #     return self.block(x)
-        # else:
-        #     if self.compressed_block is None:
-        #         with torch.no_grad():
-        #             compressed_block = self.block[0].weight.view(self.fin, self.fin).t()
-        #             for l in self.block[1:]:
-        #                 compressed_block = compressed_block @ l.weight.view(self.fin, self.fin).t()
-        #             self.compressed_block = compressed_block.t().view(self.fin, self.fin, 1, 1)
-        #     return self.conv_fn(x, self.compressed_block)
-        return self.block(x)
+        if self.training:
+            self.compressed_block = None
+            return self.block(x)
+        else:
+            if self.compressed_block is None:
+                with torch.no_grad():
+                    compressed_block = self.block[0].weight.view(self.fin, self.fin).t()
+                    for l in self.block[1:]:
+                        compressed_block = compressed_block @ l.weight.view(self.fin, self.fin).t()
+                    self.compressed_block = compressed_block.t().view(self.fin, self.fin, 1, 1)
+            return self.conv_fn(x, self.compressed_block)
