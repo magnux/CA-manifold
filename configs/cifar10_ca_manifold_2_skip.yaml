@@ -22,7 +22,7 @@ network:
     fire_rate: 1.0
     skip_fire: True
 z_dist:
-  type: uniform
+  type: gauss
   z_dim: 256
 training:
   out_dir: save/cifar10_ca_manifold_2_skip

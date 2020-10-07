@@ -19,7 +19,7 @@ network:
     dyncin: True
     letter_encoding: False
 z_dist:
-  type: uniform
+  type: gauss
   z_dim: 256
 training:
   out_dir: save/cifar10_conv_ae
