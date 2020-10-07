@@ -21,7 +21,7 @@ network:
     perception_noise: False
     fire_rate: 1.0
 z_dist:
-  type: gauss
+  type: uniform
   z_dim: 3
 training:
   out_dir: save/emoji_s_ca_manifold_2_alt_lat3

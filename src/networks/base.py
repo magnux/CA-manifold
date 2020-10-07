@@ -23,14 +23,10 @@ class Classifier(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
-        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_size = lat_size
         self.z_dim = z_dim
         self.embed_size = embed_size
-        self.labs = nn.Sequential(
-            nn.Linear(lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, n_labels),
-        )
+        self.labs = nn.Linear(self.lat_size, n_labels)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -92,12 +88,8 @@ class LabsEncoder(nn.Module):
 class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
-        self.lat_size = lat_size if lat_size > 3 else 512
-        self.labs = nn.Sequential(
-            nn.Linear(lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, 1),
-        )
+        self.lat_size = lat_size
+        self.labs = nn.Linear(self.lat_size, 1)
 
     def forward(self, lat):
         labs = self.labs(lat)

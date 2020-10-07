@@ -19,7 +19,7 @@ network:
     perception_noise: False
     fire_rate: 0.5
 z_dist:
-  type: gauss
+  type: uniform
   z_dim: 256
 training:
   out_dir: save/emoji_ca_manifold_sto

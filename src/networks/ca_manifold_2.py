@@ -50,7 +50,7 @@ class InjectedEncoder(nn.Module):
         )
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        self.frac_norm = Centroids(self.n_filter * 3, 2 ** 12)  # nn.InstanceNorm2d(self.n_filter * 3)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
@@ -60,7 +60,11 @@ class InjectedEncoder(nn.Module):
             Centroids(self.n_filter, 2 ** 10),
             ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0),
         )
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Sequential(
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -109,8 +113,10 @@ class InjectedEncoder(nn.Module):
         else:
             conv_state = out.mean(dim=(2, 3))
         lat = self.out_to_lat(conv_state)
+        lat_raw = lat
+        lat = lat.clamp(-1., 1.)
 
-        return lat, out_embs, None
+        return lat, out_embs, lat_raw
 
 
 class ZInjectedEncoder(InjectedEncoder):
@@ -144,7 +150,7 @@ class Decoder(nn.Module):
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+        self.frac_norm = Centroids(self.n_filter * 3, 2 ** 12)  # nn.InstanceNorm2d(self.n_filter * 3)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
