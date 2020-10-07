@@ -50,7 +50,7 @@ class InjectedEncoder(nn.Module):
         )
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = Centroids(self.n_filter * 3, 2 ** 12)  # nn.InstanceNorm2d(self.n_filter * 3)
+        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
@@ -150,7 +150,7 @@ class Decoder(nn.Module):
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
         self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = Centroids(self.n_filter * 3, 2 ** 12)  # nn.InstanceNorm2d(self.n_filter * 3)
+        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:

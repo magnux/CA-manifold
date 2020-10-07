@@ -58,15 +58,16 @@ class Centroids(nn.Module):
             return x_quantized_st, centroids_loss
         else:
             if x.requires_grad:
-                cent_grad = x_quantized - x
-                if self.loss_mode == 'grad_mse':
-                    cent_grad = - (2 / x.numel()) * cent_grad
-                elif self.loss_mode == 'grad_soft':
-                    cent_grad = - (1 / x.numel()) * (cent_grad / 2).tanh_()
-                elif self.loss_mode == 'grad_snap':
-                    cent_grad = - (1 / x.numel()) * (cent_grad / (2 * (cent_grad.abs() + 1e-2).pow(3/2)))
-                cent_grad = self.loss_factor * cent_grad
-                cent_grad.detach_()
+                with torch.no_grad():
+                    cent_grad = x_quantized - x
+                    if self.loss_mode == 'grad_mse':
+                        cent_grad = - (2 / x.numel()) * cent_grad
+                    elif self.loss_mode == 'grad_soft':
+                        cent_grad = - (1 / x.numel()) * (cent_grad / 2).tanh_()
+                    elif self.loss_mode == 'grad_snap':
+                        cent_grad = - (1 / x.numel()) * (cent_grad / (2 * (cent_grad.abs() + 1e-2).pow(3/2)))
+                    cent_grad = self.loss_factor * cent_grad
+                    cent_grad.detach_()
                 x.register_hook(lambda grad: grad + cent_grad)
 
             return x_quantized_st
