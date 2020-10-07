@@ -60,7 +60,11 @@ class InjectedEncoder(nn.Module):
             IRMConv(self.n_filter),
             ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0),
         )
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Sequential(
+            nn.Linear(sum(self.conv_state_size), self.lat_size),
+            IRMLinear(self.lat_size),
+            nn.Linear(self.lat_size, lat_size if not z_out else z_dim),
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
