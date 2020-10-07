@@ -109,7 +109,7 @@ def make_grad_safe(params, min, max):
 def compute_inception_score(generator, decoder, inception_sample_size, fid_sample_size, batch_size, zdist, ydist, fid_real_samples, device):
     imgs = []
     while len(imgs) < inception_sample_size:
-        ztest = zdist.sample((batch_size,))
+        ztest = zdist.sample((batch_size,)).clamp(-1, 1)
         ytest = ydist.sample((batch_size,))
 
         qlat_gen = generator(ztest, ytest)
