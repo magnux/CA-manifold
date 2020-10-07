@@ -6,10 +6,10 @@ import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.imagescaling import DownScale, UpScale
-from src.layers.irm import IRMLinear, IRMConv
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.centroids import Centroids
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
@@ -57,14 +57,10 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Sequential(
-            IRMConv(self.n_filter),
+            Centroids(self.n_filter, 2 ** 10),
             ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0),
         )
-        self.out_to_lat = nn.Sequential(
-            nn.Linear(sum(self.conv_state_size), self.lat_size),
-            IRMLinear(self.lat_size),
-            nn.Linear(self.lat_size, lat_size if not z_out else z_dim),
-        )
+        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -155,7 +151,7 @@ class Decoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Sequential(
-            IRMConv(self.n_filter),
+            Centroids(self.n_filter, 2 ** 10),
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
             *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
