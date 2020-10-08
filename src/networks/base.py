@@ -26,17 +26,28 @@ class Discriminator(nn.Module):
         self.lat_size = lat_size
         self.z_dim = z_dim
         self.embed_size = embed_size
-        self.labs = nn.Linear(self.lat_size, n_labels)
+        self.register_buffer('embedding_mat', torch.eye(n_labels))
+        self.labs_to_weight = nn.Sequential(
+            nn.Linear(n_labels, embed_size),
+            LinearResidualBlock(embed_size, embed_size),
+            LinearResidualBlock(embed_size, lat_size, embed_size * 2),
+        )
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
         batch_size = lat.size(0)
 
-        labs = self.labs(lat)
-        index = torch.arange(0, batch_size, device=lat.device)
-        labs = labs[index, y]
+        if y.dtype is torch.int64:
+            yembed = self.embedding_mat[y]
+        else:
+            yembed = y
 
-        return labs
+        lat_weight = self.labs_to_weight(yembed)
+        lat_weight = lat_weight.view(batch_size, self.lat_size, 1)
+        lat = lat.view(batch_size, 1, self.lat_size)
+        score = torch.bmm(lat, lat_weight).squeeze(1)
+
+        return score
 
 
 class Generator(nn.Module):
@@ -46,21 +57,25 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
-        self.embed_to_lat = nn.Linear(z_dim + embed_size, self.lat_size, bias=False)
+        self.labs_to_weight = nn.Sequential(
+            nn.Linear(n_labels, embed_size),
+            LinearResidualBlock(embed_size, embed_size),
+            LinearResidualBlock(embed_size, z_dim * lat_size, embed_size * 2),
+        )
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
+        batch_size = z.size(0)
 
         if y.dtype is torch.int64:
             yembed = self.embedding_mat[y]
         else:
             yembed = y
 
-        yembed = self.embedding_fc(yembed)
-        yembed = F.normalize(yembed)
-        z = z.clamp(-3, 3)
-        lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
+        lat_weight = self.labs_to_weight(yembed)
+        lat_weight = lat_weight.view(batch_size, self.z_dim, self.lat_size)
+        z = z.clamp(-3, 3).view(batch_size, 1, self.z_dim)
+        lat = torch.bmm(z, lat_weight).squeeze(1)
 
         return lat
 
@@ -71,7 +86,6 @@ class LabsEncoder(nn.Module):
         self.lat_size = lat_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
-        self.embed_to_lat = nn.Linear(embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -81,9 +95,8 @@ class LabsEncoder(nn.Module):
 
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
-        lat = self.embed_to_lat(yembed)
 
-        return lat
+        return yembed
 
 
 class UnconditionalDiscriminator(nn.Module):
