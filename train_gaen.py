@@ -8,8 +8,8 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, cross_entropy_distance
-from src.utils.model_utils import compute_inception_score, get_grad_norm
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params
+from src.utils.model_utils import compute_inception_score, get_grad_norm, zero_grad
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -140,7 +140,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
-                loss_gen_reenc_sum = 0
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
@@ -246,6 +245,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
+                        zero_grad(generator)
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
@@ -260,12 +260,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
-
-                        lat_labs = labs_encoder(labels)
-                        z_reenc, _, _ = encoder(images_dec.detach(), lat_labs)
-                        loss_gen_reenc = (1 / batch_mult) * cross_entropy_distance(z_reenc, z_gen)
-                        model_manager.loss_backward(loss_gen_reenc, nets_to_train)
-                        loss_gen_reenc_sum += loss_gen_reenc.item()
 
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
@@ -292,7 +286,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'loss_gen_reenc', loss_gen_reenc_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
