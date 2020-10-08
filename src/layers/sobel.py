@@ -77,12 +77,12 @@ class SinSobel(nn.Module):
         super(SinSobel, self).__init__()
 
         if isinstance(kernel_sizes, int):
-            kernel_sizes = [kernel_sizes]
             assert isinstance(paddings, int), 'if kernel_sizes is in paddings should be int too'
+            kernel_sizes = [kernel_sizes]
             paddings = [paddings]
         else:
             kernel_sizes = sorted(list(kernel_sizes))
-            paddings = sorted(list(kernel_sizes))
+            paddings = sorted(list(paddings))
             assert len(kernel_sizes) == len(paddings), 'there should be equal number of kernel_sizes and paddings'
 
         for i, kernel_size in enumerate(kernel_sizes):
