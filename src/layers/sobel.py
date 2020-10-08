@@ -128,6 +128,7 @@ if __name__ == '__main__':
     c_size = 64
     # c_size = 128
     n_calls = 64
+    # n_calls = 4
 
     canvas = torch.zeros([1, 1, c_size, c_size])
     canvas[:, :, c_size // 2, c_size // 2] = 1.0
@@ -137,14 +138,23 @@ if __name__ == '__main__':
     plt.show()
     canvas_l = [canvas.view(c_size, c_size)]
 
-    sobel_f, pad_f = get_sobel_kernel_2d(1), 1
+    # sobel_f, pad_f = get_sobel_kernel_2d(1), 1
     # sobel_f, pad_f = get_sin_sobel_kernel_nd(1, 7, 2), 3
+    kernel_sizes = [3, 31, 63]
+    kernels = []
+    for i, kernel_size in enumerate(kernel_sizes):
+        kernels.append(get_sin_sobel_kernel_nd(1, kernel_size, 2))
+    paddings = [1, 15, 31]
     # plt.imshow(sobel_f[0, 0, ...].t())
     # plt.show()
 
     for _ in range(n_calls):
-        canvas_sob = F.conv2d(canvas, weight=sobel_f, stride=1, padding=pad_f)
-        canvas = torch.cat([canvas, canvas_sob], dim=1)
+        # canvas_sob = F.conv2d(canvas, weight=sobel_f, stride=1, padding=pad_f)
+        # canvas = torch.cat([canvas, canvas_sob], dim=1)
+        canvas_sob = [canvas]
+        for sobel_f, pad_f in zip(kernels, paddings):
+            canvas_sob.append(F.conv2d(canvas, weight=sobel_f, stride=1, padding=pad_f))
+        canvas = torch.cat(canvas_sob, dim=1)
         canvas = F.instance_norm(canvas)
         canvas = canvas.mean(dim=1, keepdim=True)
         plt.imshow(canvas.view(c_size, c_size))
