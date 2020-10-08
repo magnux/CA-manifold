@@ -245,10 +245,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        zero_grad(generator)
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen.detach())
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if not alt_reg and g_reg_every_dec > 0 and it % g_reg_every_dec == 0:
