@@ -59,7 +59,7 @@ class Generator(nn.Module):
 
         yembed = self.embedding_fc(yembed)
         yembed = F.normalize(yembed)
-        z = z / (self.z_dim ** 0.5)
+        z = z.clamp(-3, 3)
         lat = self.embed_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
@@ -106,7 +106,7 @@ class UnconditionalGenerator(nn.Module):
         self.embed_to_lat = nn.Linear(z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
-        z = z / (self.z_dim ** 0.5)
+        z = z.clamp(-3, 3)
         lat = self.embed_to_lat(z)
 
         return lat

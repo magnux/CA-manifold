@@ -12,11 +12,11 @@ def get_zdist(dist_name, dim, device=None, mu=None, cov=None):
         zdist = distributions.Uniform(low, high)
     elif dist_name == 'gauss':
         mu = torch.zeros(dim, device=device)
-        scale = torch.ones(dim, device=device) * 0.3
+        scale = torch.ones(dim, device=device)
         zdist = distributions.Normal(mu, scale)
     elif dist_name == 'multigauss':
         mu = torch.zeros(dim, device=device) if mu is None else mu
-        cov = torch.eye(dim, device=device) * 0.3 if cov is None else cov
+        cov = torch.eye(dim, device=device) if cov is None else cov
         zdist = distributions.MultivariateNormal(mu, cov)
     else:
         raise NotImplementedError

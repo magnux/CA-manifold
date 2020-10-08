@@ -9,7 +9,6 @@ from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.centroids import Centroids
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
@@ -27,7 +26,7 @@ class InjectedEncoder(nn.Module):
         self.in_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
-        self.n_calls = n_calls * 4
+        self.n_calls = n_calls
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
         self.skip_fire = skip_fire
@@ -49,15 +48,15 @@ class InjectedEncoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
         )
 
-        self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
-        self.frac_dyna_conv = DynaResidualBlock(lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
+        self.frac_sobel = SinSobel(self.n_filter, [3, (ds_size//2)-1, ds_size-1], 2, left_sided=causal)
+        self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+        self.frac_dyna_conv = DynaResidualBlock(lat_size + (n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Sequential(
-            Centroids(self.n_filter, 2 ** 10),
+            nn.InstanceNorm2d(self.n_filter),
             ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0),
         )
         self.out_to_lat = nn.Sequential(
@@ -113,10 +112,8 @@ class InjectedEncoder(nn.Module):
         else:
             conv_state = out.mean(dim=(2, 3))
         lat = self.out_to_lat(conv_state)
-        lat_raw = lat
-        lat = lat.clamp(-1., 1.)
 
-        return lat, out_embs, lat_raw
+        return lat, out_embs, None
 
 
 class ZInjectedEncoder(InjectedEncoder):
@@ -135,7 +132,7 @@ class Decoder(nn.Module):
         self.ds_size = ds_size
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls * 4
+        self.n_calls = n_calls
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
         self.skip_fire = skip_fire
@@ -149,15 +146,15 @@ class Decoder(nn.Module):
 
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
-        self.frac_sobel = SinSobel(self.n_filter, 5, 2, left_sided=causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * 3 if self.env_feedback else 0), self.n_filter * 3, self.n_filter * (2 if self.gated else 1), self.n_filter)
+        self.frac_sobel = SinSobel(self.n_filter, [3, (ds_size//2)-1, ds_size-1], 2, left_sided=causal)
+        self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Sequential(
-            Centroids(self.n_filter, 2 ** 10),
+            nn.InstanceNorm2d(self.n_filter),
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
             *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),

@@ -73,10 +73,20 @@ def get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided=False):
 
 
 class SinSobel(nn.Module):
-    def __init__(self, channels, kernel_size, padding, dim=2, left_sided=False):
+    def __init__(self, channels, kernel_sizes, padding, dim=2, left_sided=False):
         super(SinSobel, self).__init__()
 
-        self.register_buffer('weight', get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided))
+        if isinstance(kernel_sizes, int):
+            kernel_sizes = [kernel_sizes]
+        else:
+            kernel_sizes = list(kernel_sizes)
+
+        weight = []
+        for kernel_size in kernel_sizes:
+            weight.append(get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided))
+        weight = torch.cat(weight, dim=0)
+
+        self.register_buffer('weight', weight)
         self.groups = channels
         self.padding = padding
         self.dim = dim
@@ -91,6 +101,7 @@ class SinSobel(nn.Module):
             raise RuntimeError(
                 'Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim)
             )
+        self.c_factor = 1 + (len(kernel_sizes) * dim)
 
     def forward(self, input):
         s_out = self.conv(input, weight=self.weight, stride=1, padding=self.padding, groups=self.groups)
