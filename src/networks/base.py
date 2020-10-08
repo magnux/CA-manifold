@@ -94,7 +94,6 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.embedding_fc(yembed)
-        yembed = F.normalize(yembed)
 
         return yembed
 
@@ -103,7 +102,7 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.labs = nn.Linear(self.lat_size, 1)
+        self.labs = nn.Linear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
         labs = self.labs(lat)
