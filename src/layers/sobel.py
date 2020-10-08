@@ -78,8 +78,12 @@ class SinSobel(nn.Module):
 
         if isinstance(kernel_sizes, int):
             kernel_sizes = [kernel_sizes]
+            assert isinstance(paddings, int), 'if kernel_sizes is in paddings should be int too'
+            paddings = [paddings]
         else:
             kernel_sizes = sorted(list(kernel_sizes))
+            paddings = sorted(list(kernel_sizes))
+            assert len(kernel_sizes) == len(paddings), 'there should be equal number of kernel_sizes and paddings'
 
         for i, kernel_size in enumerate(kernel_sizes):
             self.register_buffer('weight%d' % i, get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided))
