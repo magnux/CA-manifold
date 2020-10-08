@@ -42,11 +42,11 @@ class Sobel(nn.Module):
                 'Only 1 and 2 dimensions are supported. Received {}.'.format(dim)
             )
 
-    def forward(self, input):
-        s_input = [input]
+    def forward(self, x):
+        s_out = [x]
         for i in range(1, self.n_pass + 1):
-            s_input.append(self.conv(s_input[i-1], weight=self.weight, stride=1, padding=1, groups=self.groups))
-        return torch.cat(s_input, dim=1)
+            s_out.append(self.conv(s_out[i-1], weight=self.weight, stride=1, padding=1, groups=self.groups))
+        return torch.cat(s_out, dim=1)
 
 
 def get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided=False):
@@ -73,7 +73,7 @@ def get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided=False):
 
 
 class SinSobel(nn.Module):
-    def __init__(self, channels, kernel_sizes, padding, dim=2, left_sided=False):
+    def __init__(self, channels, kernel_sizes, paddings, dim=2, left_sided=False):
         super(SinSobel, self).__init__()
 
         if isinstance(kernel_sizes, int):
@@ -81,18 +81,11 @@ class SinSobel(nn.Module):
         else:
             kernel_sizes = sorted(list(kernel_sizes))
 
-        weight = []
-        for kernel_size in kernel_sizes:
-            new_weight = get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided)
-            if kernel_size < kernel_sizes[-1]:
-                pad_size = (kernel_sizes[-1] - kernel_size) // 2
-                new_weight = F.pad(new_weight, (pad_size, pad_size, pad_size, pad_size))
-            weight.append(new_weight)
-        weight = torch.cat(weight, dim=0)
+        for i, kernel_size in enumerate(kernel_sizes):
+            self.register_buffer('weight%d' % i, get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided))
 
-        self.register_buffer('weight', weight)
         self.groups = channels
-        self.padding = padding
+        self.paddings = paddings
         self.dim = dim
 
         if dim == 1:
@@ -107,9 +100,12 @@ class SinSobel(nn.Module):
             )
         self.c_factor = 1 + (len(kernel_sizes) * dim)
 
-    def forward(self, input):
-        s_out = self.conv(input, weight=self.weight, stride=1, padding=self.padding, groups=self.groups)
-        return torch.cat([input, s_out], dim=1)
+    def forward(self, x):
+        s_out = [x]
+        for i, padding in enumerate(self.paddings):
+            weight = getattr(self, 'weight%d' % i)
+            s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+        return torch.cat(s_out, dim=1)
 
 
 if __name__ == '__main__':
