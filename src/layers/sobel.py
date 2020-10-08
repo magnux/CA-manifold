@@ -79,11 +79,15 @@ class SinSobel(nn.Module):
         if isinstance(kernel_sizes, int):
             kernel_sizes = [kernel_sizes]
         else:
-            kernel_sizes = list(kernel_sizes)
+            kernel_sizes = sorted(list(kernel_sizes))
 
         weight = []
         for kernel_size in kernel_sizes:
-            weight.append(get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided))
+            new_weight = get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided)
+            if kernel_size < kernel_sizes[-1]:
+                pad_size = (kernel_sizes[-1] - kernel_size) // 2
+                new_weight = F.pad(new_weight, (pad_size, pad_size, pad_size, pad_size))
+            weight.append(new_weight)
         weight = torch.cat(weight, dim=0)
 
         self.register_buffer('weight', weight)
