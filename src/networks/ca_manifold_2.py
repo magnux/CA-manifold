@@ -123,7 +123,7 @@ class ZInjectedEncoder(InjectedEncoder):
 
 
 class ZEncoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, z_out, z_dim,
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate, z_dim,
                  skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, **kwargs):
         super().__init__()
         self.n_labels = n_labels
@@ -173,7 +173,7 @@ class ZEncoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1, nn.Conv1d),
             nn.Conv1d(self.n_filter, 1, 3, 1, 1),
         )
-        self.out_to_lat = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Linear(self.lat_size, z_dim)
 
     def forward(self, x):
         batch_size = x.size(0)
