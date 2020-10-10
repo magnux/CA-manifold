@@ -132,6 +132,7 @@ if __name__ == '__main__':
 
     canvas = torch.zeros([1, 1, c_size, c_size])
     canvas[:, :, c_size // 2, c_size // 2] = 1.0
+    canvas[:, :, c_size // 2, c_size // 4] = 1.0
 
     plt.imshow(canvas.view(c_size, c_size))
     timer.start()
@@ -140,13 +141,20 @@ if __name__ == '__main__':
 
     # sobel_f, pad_f = get_sobel_kernel_2d(1), 1
     # sobel_f, pad_f = get_sin_sobel_kernel_nd(1, 7, 2), 3
-    kernel_sizes = [3, 31, 63]
+    # kernel_sizes = [3, 31, 63]
+    # kernel_sizes = [(2 ** i) + 1 for i in range(1, 5)]
+    # kernel_sizes = [i + 1 for i in range(2, 10, 2)]
+    kernel_sizes = [(2 ** i) + 1 for i in range(1, 7, 2)]
     kernels = []
     for i, kernel_size in enumerate(kernel_sizes):
         kernels.append(get_sin_sobel_kernel_nd(1, kernel_size, 2))
-    paddings = [1, 15, 31]
+    # paddings = [1, 15, 31]
+    # paddings = [2 ** (i - 1) for i in range(1, 5)]
+    # paddings = [i // 2 for i in range(2, 10, 2)]
+    paddings = [2 ** (i - 1) for i in range(1, 7, 2)]
     # plt.imshow(sobel_f[0, 0, ...].t())
     # plt.show()
+    print(kernel_sizes, paddings)
 
     for _ in range(n_calls):
         # canvas_sob = F.conv2d(canvas, weight=sobel_f, stride=1, padding=pad_f)
