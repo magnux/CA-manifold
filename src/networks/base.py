@@ -30,7 +30,7 @@ class Discriminator(nn.Module):
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, lat_size, embed_size ** 0.5),
+            LinearResidualBlock(embed_size, lat_size, int(embed_size ** 0.5)),
         )
 
     def forward(self, lat, y):
@@ -60,7 +60,7 @@ class Generator(nn.Module):
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, z_dim * lat_size, embed_size ** 0.5),
+            LinearResidualBlock(embed_size, z_dim * lat_size, int(embed_size ** 0.5)),
         )
 
     def forward(self, z, y):
