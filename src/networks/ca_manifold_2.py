@@ -130,7 +130,7 @@ class ZEncoder(nn.Module):
         self.image_size = image_size
         self.ds_size = ds_size
         self.in_chan = channels
-        self.n_filter = n_filter // 4
+        self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
         self.n_calls = n_calls
         self.perception_noise = perception_noise
@@ -161,7 +161,7 @@ class ZEncoder(nn.Module):
             LinearResidualBlock(self.lat_size, self.lat_size),
         )
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, 15, 2)], [2 ** (i - 1) for i in range(1, 15, 2)], left_sided=causal, dim=1)
+        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, 11, 2)], [2 ** (i - 1) for i in range(1, 11, 2)], left_sided=causal, dim=1)
         self.frac_norm = nn.InstanceNorm1d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, dim=1)
 
