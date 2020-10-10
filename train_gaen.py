@@ -257,7 +257,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_dis1_dec, nets_to_train, retain_graph=True)
                             reg_dis1_dec_sum += reg_dis1_dec.item() / d_reg_factor
 
-                        model_manager.loss_backward(loss_dis0_dec, nets_to_train)
+                        model_manager.loss_backward(loss_dis1_dec, nets_to_train)
                         loss_dis1_dec_sum += loss_dis1_dec.item()
 
                     if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
