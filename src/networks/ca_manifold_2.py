@@ -166,7 +166,7 @@ class ZEncoder(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, dim=1)
 
         if self.skip_fire:
-            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
+            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Sequential(
             nn.InstanceNorm1d(self.n_filter),
@@ -211,7 +211,7 @@ class ZEncoder(nn.Module):
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
-                out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=x.device) <= self.fire_rate).to(float_type)
+                out_new = out_new * (torch.rand([batch_size, 1, out.size(2)], device=x.device) <= self.fire_rate).to(float_type)
             if self.skip_fire:
                 if c % 2 == 0:
                     out_new = out_new * self.skip_fire_mask.to(device=x.device).to(float_type)
