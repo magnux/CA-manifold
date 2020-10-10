@@ -156,8 +156,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
                 else:
-                    reg_dis0_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis0_enc')
-                    reg_dis0_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis0_dec')
+                    reg_dis0_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
+                    reg_dis0_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
                     reg_dis1_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis1_enc')
                     reg_dis1_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis1_dec')
 
@@ -335,13 +335,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Log progress
                 model_manager.log_manager.add_scalar('learning_rates', 'all', model_manager.lr, it=it)
 
-                model_manager.log_manager.add_scalar('losses', 'loss_dis0_enc', loss_dis0_enc_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'loss_dis0_dec', loss_dis0_dec_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'loss_gen0_enc', loss_gen0_enc_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'loss_gen0_dec', loss_gen0_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis0_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis0_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_dis1_enc', loss_dis1_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_dis1_dec', loss_dis1_dec_sum, it=it)
 
-                model_manager.log_manager.add_scalar('regs', 'reg_dis0_enc', reg_dis0_enc_sum, it=it)
-                model_manager.log_manager.add_scalar('regs', 'reg_dis0_dec', reg_dis0_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen0_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen0_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen1_enc', loss_gen1_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen1_dec', loss_gen1_dec_sum, it=it)
+
+                model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis0_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis0_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis1_enc', reg_dis1_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis1_dec', reg_dis1_dec_sum, it=it)
                 
