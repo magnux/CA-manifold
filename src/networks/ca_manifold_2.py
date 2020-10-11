@@ -48,8 +48,8 @@ class InjectedEncoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         )
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size) + 1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size) + 1), 1)], left_sided=causal)
+        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)), 1)],
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)), 1)], left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
@@ -147,8 +147,8 @@ class Decoder(nn.Module):
 
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size) + 1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size) + 1), 1)], left_sided=causal)
+        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)), 1)],
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)), 1)], left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
