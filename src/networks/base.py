@@ -248,7 +248,7 @@ class IRMGenerator(nn.Module):
 
         lat_weight = self.labs_to_weight(yembed)
         lat_weight = lat_weight.view(batch_size, self.z_dim, self.lat_size)
-        z = self.irm_layer(z)
+        z = self.irm_layer(z).view(batch_size, 1, self.z_dim)
         lat = torch.bmm(z, lat_weight).squeeze(1)
 
         return lat
