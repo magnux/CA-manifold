@@ -115,7 +115,6 @@ window_size = math.ceil((len(trainloader) // batch_split) / 10)
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
 
-        running_loss_cent = np.zeros(window_size)
         running_loss_dec = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
@@ -128,7 +127,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             with model_manager.on_batch():
 
-                loss_cent_sum, loss_dec_sum = 0, 0
+                loss_dec_sum = 0
 
                 with model_manager.on_step(['labs_encoder', 'encoder', 'decoder', 'irm_generator', 'letter_encoder', 'letter_decoder']):
 
@@ -150,11 +149,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec.backward(retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
-                        loss_cent = loss_cent.mean()
-                        loss_cent = (1 / batch_mult) * 1e-1 * loss_cent
-                        loss_cent.backward()
-                        loss_cent_sum += loss_cent.item()
-
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
@@ -163,16 +157,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 stream_images(images_gen, config_name + '/irmae', config['training']['out_dir'] + '/irmae')
 
                 # Print progress
-                running_loss_cent[batch % window_size] = loss_cent_sum
                 running_loss_dec[batch % window_size] = loss_dec_sum
                 running_factor = window_size if batch > window_size else batch + 1
-                t.set_postfix(loss_cent='%.2e' % (np.sum(running_loss_cent) / running_factor),
-                              loss_dec='%.2e' % (np.sum(running_loss_dec) / running_factor))
+                t.set_postfix(loss_dec='%.2e' % (np.sum(running_loss_dec) / running_factor))
 
                 # Log progress
                 model_manager.log_manager.add_scalar('learning_rates', 'all', model_manager.lr, it=it)
-
-                model_manager.log_manager.add_scalar('losses', 'loss_cent', loss_cent_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 it += 1
