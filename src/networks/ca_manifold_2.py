@@ -44,7 +44,6 @@ class InjectedEncoder(nn.Module):
             nn.Conv2d(self.in_chan, self.n_filter, 1, 1, 0),
             *([DownScale(self.n_filter, self.n_filter, self.image_size, self.ds_size)] if self.ds_size < self.image_size else []),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
-            nn.InstanceNorm2d(self.n_filter),
         )
 
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)), 1)],
@@ -55,7 +54,10 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
+        self.out_conv = nn.Sequential(
+            nn.InstanceNorm2d(self.n_filter),
+            nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
+        )
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
