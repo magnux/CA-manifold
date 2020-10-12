@@ -233,7 +233,7 @@ class IRMGenerator(nn.Module):
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, z_dim * lat_size, int(embed_size ** 0.5)),
+            LinearResidualBlock(embed_size, lat_size * lat_size, int(embed_size ** 0.5)),
         )
         self.irm_layer = IRMLinear(lat_size)
 
@@ -247,8 +247,8 @@ class IRMGenerator(nn.Module):
             yembed = y
 
         lat_weight = self.labs_to_weight(yembed)
-        lat_weight = lat_weight.view(batch_size, self.z_dim, self.lat_size)
-        z = self.irm_layer(z).view(batch_size, 1, self.z_dim)
+        lat_weight = lat_weight.view(batch_size, self.lat_size, self.lat_size)
+        z = self.irm_layer(z).view(batch_size, 1, self.lat_size)
         lat = torch.bmm(z, lat_weight).squeeze(1)
 
         return lat
