@@ -141,7 +141,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_enc_let = letter_encoder(lat_enc)
                         lat_enc_let = rand_change_letters(lat_enc_let)
-                        lat_dec = letter_decoder(lat_enc_let, labels)
+                        lat_dec = letter_decoder(lat_enc_let)
                         lat_dec = irm_generator(lat_dec, labels)
 
                         images_dec, _, images_dec_raw = decoder(lat_dec)
