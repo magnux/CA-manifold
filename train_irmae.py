@@ -177,7 +177,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             lat_labs = labs_encoder(labels)
             lat_enc, out_embs, _ = encoder(images, lat_labs)
             lat_enc_let = letter_encoder(lat_enc)
-            lat_dec, _ = letter_decoder(lat_enc_let, labels)
+            lat_dec, _ = letter_decoder(lat_enc_let)
             lat_dec = irm_generator(lat_dec, labels)
             images_dec, _, _ = decoder(lat_dec)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
