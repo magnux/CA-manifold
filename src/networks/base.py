@@ -234,16 +234,17 @@ class IRMTranslator(nn.Module):
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, lat_size * self.lat_size, int(embed_size ** 0.5)),
+            LinearResidualBlock(embed_size, self.lat_size * lat_size, int(embed_size ** 0.5)),
         )
         self.irm_layer = nn.Sequential(
-            IRMLinear(self.lat_size),
-            LinearResidualBlock(self.lat_size, lat_size),
+            LinearResidualBlock(lat_size, self.lat_size),
+            IRMLinear(self.lat_size)
         )
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
         batch_size = z.size(0)
+        lat_size = z.size(1)
 
         if y.dtype is torch.int64:
             yembed = self.embedding_mat[y]
@@ -251,7 +252,7 @@ class IRMTranslator(nn.Module):
             yembed = y
 
         lat_weight = self.labs_to_weight(yembed)
-        lat_weight = lat_weight.view(batch_size, self.lat_size, self.lat_size)
+        lat_weight = lat_weight.view(batch_size, self.lat_size, lat_size)
 
         z = self.irm_layer(z).view(batch_size, 1, self.lat_size)
 
@@ -270,21 +271,18 @@ class IRMGenerator(nn.Module):
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, lat_size * self.lat_size, int(embed_size ** 0.5)),
+            LinearResidualBlock(embed_size, self.lat_size * lat_size, int(embed_size ** 0.5)),
         )
         self.z_to_z = nn.Sequential(
             LinearResidualBlock(z_dim, self.lat_size),
-            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(2)]),
-            LinearResidualBlock(self.lat_size, lat_size),
+            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(3)]),
         )
-        self.irm_layer = nn.Sequential(
-            IRMLinear(self.lat_size),
-            LinearResidualBlock(self.lat_size, lat_size),
-        )
+        self.irm_layer = IRMLinear(self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
         batch_size = z.size(0)
+        lat_size = z.size(1)
 
         if y.dtype is torch.int64:
             yembed = self.embedding_mat[y]
@@ -292,7 +290,7 @@ class IRMGenerator(nn.Module):
             yembed = y
 
         lat_weight = self.labs_to_weight(yembed)
-        lat_weight = lat_weight.view(batch_size, self.lat_size, self.lat_size)
+        lat_weight = lat_weight.view(batch_size, self.lat_size, lat_size)
 
         z = self.z_to_z(z.clamp(-3, 3))
         z = self.irm_layer(z).view(batch_size, 1, self.lat_size)
