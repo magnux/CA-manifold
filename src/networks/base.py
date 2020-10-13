@@ -270,7 +270,7 @@ class IRMGenerator(nn.Module):
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(self.lat_size)), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(self.lat_size)), 1)], dim=1)
         self.frac_norm = nn.InstanceNorm1d(self.n_filter * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + self.z_dim, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter, dim=1)
+        self.frac_dyna_conv = DynaResidualBlock(self.z_dim + self.embed_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter, dim=1)
 
         self.out_conv = nn.Sequential(
             nn.InstanceNorm1d(self.n_filter),
