@@ -264,11 +264,14 @@ class IRMGenerator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
 
-        self.embed_to_lat = nn.Sequential(
-            LinearResidualBlock(z_dim + embed_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
+        self.labs_to_weight = nn.Sequential(
+            nn.Linear(n_labels, embed_size),
+            LinearResidualBlock(embed_size, embed_size),
+            LinearResidualBlock(embed_size, lat_size * lat_size, int(embed_size ** 0.5)),
+        )
+        self.z_to_z = nn.Sequential(
+            LinearResidualBlock(z_dim, self.lat_size),
+            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(3)])
         )
         self.irm_layer = IRMLinear(lat_size)
 
@@ -281,12 +284,14 @@ class IRMGenerator(nn.Module):
         else:
             yembed = y
 
-        z = z.clamp(-3, 3)
         yembed = self.embedding_fc(yembed)
-        lat = torch.cat([z, yembed], dim=1)
+        lat_weight = self.labs_to_weight(yembed)
+        lat_weight = lat_weight.view(batch_size, self.lat_size, self.lat_size)
 
-        lat = self.embed_to_lat(lat)
-        lat = self.irm_layer(lat)
+        z = self.z_to_z(z.clamp(-3, 3))
+        z = self.irm_layer(z).view(batch_size, 1, self.lat_size)
+
+        lat = torch.bmm(z, lat_weight).squeeze(1)
 
         return lat
 
@@ -295,12 +300,7 @@ class LatEncoder(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
+        self.lat_to_lat = nn.Sequential(*([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(8)]))
 
     def forward(self, lat):
         lat = self.lat_to_lat(lat)
