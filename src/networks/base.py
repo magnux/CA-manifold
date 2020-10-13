@@ -262,6 +262,7 @@ class IRMGenerator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
+        self.embedding_fc = nn.Linear(n_labels, lat_size, bias=False)
         self.n_filter = n_filter
         self.n_calls = n_calls * 4
 
@@ -288,6 +289,7 @@ class IRMGenerator(nn.Module):
             yembed = y
 
         z = z.clamp(-3, 3)
+        yembed = self.embedding_fc(yembed)
         lat = torch.cat([z, yembed], dim=1)
 
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
