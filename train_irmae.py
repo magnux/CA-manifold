@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, cross_entropy_distance
+from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, cross_entropy_distance, compute_pl_reg
 from src.utils.model_utils import compute_inception_score
 from src.utils.media_utils import rand_erase_images, rand_change_letters
 from src.model_manager import ModelManager
@@ -117,6 +117,8 @@ d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean'
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
 
+pl_mean = model_manager.log_manager.get_last('regs', 'pl_mean', 0.)
+
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
@@ -135,10 +137,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             with model_manager.on_batch():
 
-                loss_dec_sum = 0
+                loss_dec_sum, reg_dec_sum = 0, 0
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
+
+                dec_reg_factor = (1 / d_reg_param)
 
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
@@ -160,7 +164,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         # lat_enc = letter_decoder(lat_enc_let)
 
                         lat_dec = irm_translator(lat_enc, labels)
-                        _, _, images_dec_raw = decoder(lat_dec)
+                        images_dec, _, images_dec_raw = decoder(lat_dec)
+
+                        reg_dec, pl_mean = compute_pl_reg(images_dec, lat_dec, pl_mean, noise_mode='dct', out_mode='add')
+                        reg_dec = (1 / batch_mult) * dec_reg_factor * reg_dec
+                        model_manager.loss_backward(reg_dec, nets_to_train, retain_graph=True)
+                        reg_dec_sum += reg_dec.item() / dec_reg_factor
 
                         loss_dec = (1 / batch_mult) * cross_entropy_distance(images_dec_raw, images)
                         model_manager.loss_backward(loss_dec, nets_to_train)
@@ -247,6 +256,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Log progress
                 model_manager.log_manager.add_scalar('learning_rates', 'all', model_manager.lr, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('regs', 'reg_dec', reg_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)

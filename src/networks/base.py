@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
-from src.layers.centroids import Centroids
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.utils.model_utils import ca_seed
@@ -238,7 +237,6 @@ class IRMTranslator(nn.Module):
             LinearResidualBlock(embed_size, lat_size * lat_size, int(embed_size ** 0.5)),
         )
         self.irm_layer = IRMLinear(lat_size)
-        self.centroids = Centroids(1, 2 ** 10)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -254,8 +252,7 @@ class IRMTranslator(nn.Module):
 
         z = self.irm_layer(z).view(batch_size, 1, self.lat_size)
 
-        lat = torch.bmm(z, lat_weight)
-        lat = self.centroids(lat).squeeze(1)
+        lat = torch.bmm(z, lat_weight).squeeze(1)
 
         return lat
 
@@ -277,7 +274,6 @@ class IRMGenerator(nn.Module):
             *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(3)])
         )
         self.irm_layer = IRMLinear(lat_size)
-        self.centroids = Centroids(1, 2 ** 10)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -294,8 +290,7 @@ class IRMGenerator(nn.Module):
         z = self.z_to_z(z.clamp(-3, 3))
         z = self.irm_layer(z).view(batch_size, 1, self.lat_size)
 
-        lat = torch.bmm(z, lat_weight)
-        lat = self.centroids(lat).squeeze(1)
+        lat = torch.bmm(z, lat_weight).squeeze(1)
 
         return lat
 
