@@ -262,8 +262,6 @@ class IRMGenerator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.embedding_fc = nn.Linear(n_labels, embed_size, bias=False)
-
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
@@ -284,7 +282,6 @@ class IRMGenerator(nn.Module):
         else:
             yembed = y
 
-        yembed = self.embedding_fc(yembed)
         lat_weight = self.labs_to_weight(yembed)
         lat_weight = lat_weight.view(batch_size, self.lat_size, self.lat_size)
 
