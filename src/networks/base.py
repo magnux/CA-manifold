@@ -227,16 +227,19 @@ class LetterDecoder(nn.Module):
 class IRMTranslator(nn.Module):
     def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
-        self.lat_size = lat_size
+        self.lat_size = lat_size if lat_size > 3 else 512
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, lat_size * lat_size, int(embed_size ** 0.5)),
+            LinearResidualBlock(embed_size, lat_size * self.lat_size, int(embed_size ** 0.5)),
         )
-        self.irm_layer = IRMLinear(lat_size)
+        self.irm_layer = nn.Sequential(
+            IRMLinear(self.lat_size),
+            LinearResidualBlock(self.lat_size, lat_size),
+        )
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -260,20 +263,24 @@ class IRMTranslator(nn.Module):
 class IRMGenerator(nn.Module):
     def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
-        self.lat_size = lat_size
+        self.lat_size = lat_size if lat_size > 3 else 512
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, lat_size * lat_size, int(embed_size ** 0.5)),
+            LinearResidualBlock(embed_size, lat_size * self.lat_size, int(embed_size ** 0.5)),
         )
         self.z_to_z = nn.Sequential(
             LinearResidualBlock(z_dim, self.lat_size),
-            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(3)])
+            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(2)]),
+            LinearResidualBlock(self.lat_size, lat_size),
         )
-        self.irm_layer = IRMLinear(lat_size)
+        self.irm_layer = nn.Sequential(
+            IRMLinear(self.lat_size),
+            LinearResidualBlock(self.lat_size, lat_size),
+        )
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -298,8 +305,12 @@ class IRMGenerator(nn.Module):
 class LatEncoder(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
-        self.lat_size = lat_size
-        self.lat_to_lat = nn.Sequential(*([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(8)]))
+        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_to_lat = nn.Sequential(
+            LinearResidualBlock(lat_size, self.lat_size),
+            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(6)]),
+            LinearResidualBlock(self.lat_size, lat_size),
+        )
 
     def forward(self, lat):
         lat = self.lat_to_lat(lat)
