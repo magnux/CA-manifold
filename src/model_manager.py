@@ -121,6 +121,7 @@ class ModelManager(object):
         pass
 
     def on_batch_end(self):
+        #TODO: Check all networks_dict are trained
         pass
 
     @contextmanager
@@ -138,6 +139,7 @@ class ModelManager(object):
                 toggle_grad(self.networks_dict[net_name]['net'], False)
 
     def on_step_end(self, nets_to_train):
+        #TODO: Check all nets_to_train are trained
         for net_name in self.networks_dict.keys():
             if net_name in nets_to_train:
                 try:
