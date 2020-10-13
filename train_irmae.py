@@ -166,7 +166,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_dec = irm_translator(lat_enc, labels)
                         images_dec, _, images_dec_raw = decoder(lat_dec)
 
-                        reg_dec, pl_mean = compute_pl_reg(images_dec, lat_dec, pl_mean)
+                        reg_dec, pl_mean = compute_pl_reg(images_dec, lat_dec, pl_mean, alt_pl=5e-2)
                         reg_dec = (1 / batch_mult) * dec_reg_factor * reg_dec
                         model_manager.loss_backward(reg_dec, nets_to_train, retain_graph=True)
                         reg_dec_sum += reg_dec.item() / dec_reg_factor
