@@ -227,24 +227,24 @@ class LetterDecoder(nn.Module):
 class IRMTranslator(nn.Module):
     def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
-        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_size = lat_size
+        self.fhidden = lat_size if lat_size > 3 else 512
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, self.lat_size * lat_size, int(embed_size ** 0.5)),
+            LinearResidualBlock(embed_size, self.fhidden * self.lat_size, int(embed_size ** 0.5)),
         )
         self.irm_layer = nn.Sequential(
-            LinearResidualBlock(lat_size, self.lat_size),
-            IRMLinear(self.lat_size)
+            LinearResidualBlock(lat_size, self.fhidden),
+            IRMLinear(self.fhidden)
         )
 
-    def forward(self, z, y):
-        assert (z.size(0) == y.size(0))
-        batch_size = z.size(0)
-        lat_size = z.size(1)
+    def forward(self, lat, y):
+        assert (lat.size(0) == y.size(0))
+        batch_size = lat.size(0)
 
         if y.dtype is torch.int64:
             yembed = self.embedding_mat[y]
@@ -252,11 +252,11 @@ class IRMTranslator(nn.Module):
             yembed = y
 
         lat_weight = self.labs_to_weight(yembed)
-        lat_weight = lat_weight.view(batch_size, self.lat_size, lat_size)
+        lat_weight = lat_weight.view(batch_size, self.fhidden, self.lat_size)
 
-        z = self.irm_layer(z).view(batch_size, 1, self.lat_size)
+        lat = self.irm_layer(lat).view(batch_size, 1, self.fhidden)
 
-        lat = torch.bmm(z, lat_weight).squeeze(1)
+        lat = torch.bmm(lat, lat_weight).squeeze(1)
 
         return lat
 
@@ -264,20 +264,21 @@ class IRMTranslator(nn.Module):
 class IRMGenerator(nn.Module):
     def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
-        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_size = lat_size
+        self.fhidden = lat_size if lat_size > 3 else 512
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_weight = nn.Sequential(
             nn.Linear(n_labels, embed_size),
             LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, self.lat_size * lat_size, int(embed_size ** 0.5)),
+            LinearResidualBlock(embed_size, self.fhidden * self.lat_size, int(embed_size ** 0.5)),
         )
         self.z_to_z = nn.Sequential(
-            LinearResidualBlock(z_dim, self.lat_size),
-            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(3)]),
+            LinearResidualBlock(z_dim, self.fhidden),
+            *([LinearResidualBlock(self.fhidden, self.fhidden) for _ in range(3)]),
         )
-        self.irm_layer = IRMLinear(self.lat_size)
+        self.irm_layer = IRMLinear(self.fhidden)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -290,10 +291,10 @@ class IRMGenerator(nn.Module):
             yembed = y
 
         lat_weight = self.labs_to_weight(yembed)
-        lat_weight = lat_weight.view(batch_size, self.lat_size, lat_size)
+        lat_weight = lat_weight.view(batch_size, self.fhidden, self.lat_size)
 
         z = self.z_to_z(z.clamp(-3, 3))
-        z = self.irm_layer(z).view(batch_size, 1, self.lat_size)
+        z = self.irm_layer(z).view(batch_size, 1, self.fhidden)
 
         lat = torch.bmm(z, lat_weight).squeeze(1)
 
