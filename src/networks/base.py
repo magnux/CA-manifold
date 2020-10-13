@@ -301,7 +301,7 @@ class IRMGenerator(nn.Module):
 
             out_new = self.frac_sobel(out_new)
             out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
+            out_new = self.frac_dyna_conv(out_new, lat)
 
             out = out + (leak_factor * out_new)
 
