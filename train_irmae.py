@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, CE_ZERO
+from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, cross_entropy_distance
 from src.utils.model_utils import compute_inception_score
 from src.utils.media_utils import rand_change_letters
 from src.model_manager import ModelManager
@@ -148,6 +148,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 loss_gen_dec_sum = 0
+                loss_dec_sum = 0
 
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
@@ -162,15 +163,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         images_n = images + 1e-2 * torch.randn_like(images)
                         lat_labs = labs_encoder(labels)
-                        if it % 2 == 0:
-                            images_cat_enc = torch.cat([images, images_n], dim=1)
-                        else:
-                            images_cat_enc = torch.cat([images_n, images], dim=1)
-                        lat_top_enc, _, _ = copy_encoder(images_cat_enc, lat_labs)
+                        # if it % 2 == 0:
+                        #     images_cat_enc = torch.cat([images, images_n], dim=1)
+                        # else:
+                        #     images_cat_enc = torch.cat([images_n, images], dim=1)
+                        lat_top_enc, _, _ = copy_encoder(images, lat_labs)
                         labs_enc = copy_discriminator(lat_top_enc, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images_cat_enc)
+                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
@@ -190,15 +191,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_dec)
 
                         images_dec.requires_grad_()
-                        if it % 2 == 0:
-                            images_cat_dec = torch.cat([images, images_dec], dim=1)
-                        else:
-                            images_cat_dec = torch.cat([images_dec, images], dim=1)
-                        lat_top_dec, _, _ = copy_encoder(images_cat_dec, lat_labs)
+                        # if it % 2 == 0:
+                        #     images_cat_dec = torch.cat([images, images_dec], dim=1)
+                        # else:
+                        #     images_cat_dec = torch.cat([images_dec, images], dim=1)
+                        lat_top_dec, _, _ = copy_encoder(images_dec, lat_labs)
                         labs_dec = copy_discriminator(lat_top_dec, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_cat_dec)
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
@@ -230,11 +231,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_dec = irm_translator(lat_enc, labels)
                         images_dec, _, _ = decoder(lat_dec)
 
-                        if it % 2 == 0:
-                            images_cat_dec = torch.cat([images, images_dec], dim=1)
-                        else:
-                            images_cat_dec = torch.cat([images_dec, images], dim=1)
-                        lat_top_dec, _, _ = copy_encoder(images_cat_dec, lat_labs)
+                        loss_dec = (1 / batch_mult) * cross_entropy_distance(images_dec, images)
+                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
+                        loss_dec_sum += loss_dec.item()
+
+                        # if it % 2 == 0:
+                        #     images_cat_dec = torch.cat([images, images_dec], dim=1)
+                        # else:
+                        #     images_cat_dec = torch.cat([images_dec, images], dim=1)
+                        lat_top_dec, _, _ = copy_encoder(images_dec, lat_labs)
                         labs_dec = copy_discriminator(lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
@@ -337,6 +342,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)

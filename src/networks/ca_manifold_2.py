@@ -124,10 +124,10 @@ class ZInjectedEncoder(InjectedEncoder):
         super().__init__(**kwargs)
 
 
-class CopyInjectedEncoder(InjectedEncoder):
-    def __init__(self, **kwargs):
-        kwargs['channels'] = kwargs['channels'] * 2
-        super().__init__(**kwargs)
+# class CopyInjectedEncoder(InjectedEncoder):
+#     def __init__(self, **kwargs):
+#         kwargs['channels'] = kwargs['channels'] * 2
+#         super().__init__(**kwargs)
 
 
 class Decoder(nn.Module):
