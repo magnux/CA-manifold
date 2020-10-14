@@ -66,7 +66,7 @@ networks_dict = {
     'irm_generator': {'class': 'base', 'sub_class': 'IRMGenerator'},
     'lat_encoder': {'class': 'base', 'sub_class': 'LatEncoder'},
     'irm_discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
-    'copy_encoder': {'class': config['network']['class'], 'sub_class': 'CopyInjectedEncoder'},
+    'copy_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
     'copy_discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
 }
 model_manager = ModelManager('irmae', networks_dict, config)
