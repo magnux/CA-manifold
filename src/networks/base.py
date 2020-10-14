@@ -28,11 +28,10 @@ class Discriminator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_weight = nn.Sequential(
-            nn.Linear(n_labels, embed_size),
-            LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, lat_size, int(embed_size ** 0.5)),
-        )
+        self.labs_to_proj = nn.Linear(n_labels, self.lat_size)
+        nn.init.xavier_uniform_(self.labs_to_proj.weight)
+        self.lat_to_score = nn.Linear(self.lat_size, 1)
+        nn.init.xavier_uniform_(self.lat_to_score.weight)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -43,10 +42,10 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        lat_weight = self.labs_to_weight(yembed)
-        lat_weight = lat_weight.view(batch_size, self.lat_size, 1)
-        lat = lat.view(batch_size, 1, self.lat_size)
-        score = torch.bmm(lat, lat_weight).squeeze(1)
+        labs_proj = self.labs_to_proj(yembed)
+        labs_proj = F.normalize(labs_proj)
+
+        score = self.lat_to_score(lat) + (labs_proj * lat).sum(1, keepdim=True)
 
         return score
 
@@ -58,11 +57,11 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_weight = nn.Sequential(
-            nn.Linear(n_labels, embed_size),
-            LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, z_dim * lat_size, int(embed_size ** 0.5)),
-        )
+        self.labs_to_proj = nn.Linear(n_labels, self.lat_size)
+        nn.init.xavier_uniform_(self.labs_to_proj.weight)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size)
+        self.lat_to_lat = nn.Linear(self.lat_size, self.lat_size)
+        nn.init.xavier_uniform_(self.lat_to_lat.weight)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -73,10 +72,12 @@ class Generator(nn.Module):
         else:
             yembed = y
 
-        lat_weight = self.labs_to_weight(yembed)
-        lat_weight = lat_weight.view(batch_size, self.z_dim, self.lat_size)
-        z = z.clamp(-3, 3).view(batch_size, 1, self.z_dim)
-        lat = torch.bmm(z, lat_weight).squeeze(1)
+        labs_proj = self.labs_to_proj(yembed)
+        labs_proj = F.normalize(labs_proj)
+
+        z = z.clamp(-3, 3)
+        lat = self.z_to_lat(z)
+        lat = self.lat_to_lat(lat) + (labs_proj * lat)
 
         return lat
 
@@ -116,11 +117,11 @@ class UnconditionalGenerator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
-        self.embed_to_lat = nn.Linear(z_dim, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         z = z.clamp(-3, 3)
-        lat = self.embed_to_lat(z)
+        lat = self.z_to_lat(z)
 
         return lat
 
@@ -232,15 +233,15 @@ class IRMTranslator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_weight = nn.Sequential(
-            nn.Linear(n_labels, embed_size),
-            LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, self.fhidden * self.lat_size, int(embed_size ** 0.5)),
-        )
+        self.labs_to_proj = nn.Linear(n_labels, self.fhidden)
+        nn.init.xavier_uniform_(self.labs_to_proj.weight)
+        self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
+        nn.init.xavier_uniform_(self.lat_to_lat.weight)
         self.irm_layer = nn.Sequential(
             LinearResidualBlock(lat_size, self.fhidden),
             IRMLinear(self.fhidden)
         )
+        self.lat_out = nn.Linear(self.fhidden, self.lat_size)
 
     def forward(self, lat, y):
         assert (lat.size(0) == y.size(0))
@@ -251,12 +252,12 @@ class IRMTranslator(nn.Module):
         else:
             yembed = y
 
-        lat_weight = self.labs_to_weight(yembed)
-        lat_weight = lat_weight.view(batch_size, self.fhidden, self.lat_size)
+        labs_proj = self.labs_to_proj(yembed)
+        labs_proj = F.normalize(labs_proj)
 
-        lat = self.irm_layer(lat).view(batch_size, 1, self.fhidden)
-
-        lat = torch.bmm(lat, lat_weight).squeeze(1)
+        lat = self.irm_layer(lat)
+        lat = self.lat_to_lat(lat) + (labs_proj * lat)
+        lat = self.lat_out(lat)
 
         return lat
 
@@ -269,16 +270,13 @@ class IRMGenerator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_weight = nn.Sequential(
-            nn.Linear(n_labels, embed_size),
-            LinearResidualBlock(embed_size, embed_size),
-            LinearResidualBlock(embed_size, self.fhidden * self.lat_size, int(embed_size ** 0.5)),
-        )
-        self.z_to_z = nn.Sequential(
-            LinearResidualBlock(z_dim, self.fhidden),
-            *([LinearResidualBlock(self.fhidden, self.fhidden) for _ in range(3)]),
-        )
+        self.labs_to_proj = nn.Linear(n_labels, self.fhidden)
+        nn.init.xavier_uniform_(self.labs_to_proj.weight)
+        self.z_to_lat = nn.Linear(self.z_dim, self.fhidden)
+        self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
+        nn.init.xavier_uniform_(self.lat_to_lat.weight)
         self.irm_layer = IRMLinear(self.fhidden)
+        self.lat_out = nn.Linear(self.fhidden, self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -290,13 +288,14 @@ class IRMGenerator(nn.Module):
         else:
             yembed = y
 
-        lat_weight = self.labs_to_weight(yembed)
-        lat_weight = lat_weight.view(batch_size, self.fhidden, self.lat_size)
+        labs_proj = self.labs_to_proj(yembed)
+        labs_proj = F.normalize(labs_proj)
 
-        z = self.z_to_z(z.clamp(-3, 3))
-        z = self.irm_layer(z).view(batch_size, 1, self.fhidden)
-
-        lat = torch.bmm(z, lat_weight).squeeze(1)
+        z = z.clamp(-3, 3)
+        lat = self.z_to_lat(z)
+        lat = self.irm_layer(lat)
+        lat = self.lat_to_lat(lat) + (labs_proj * lat)
+        lat = self.lat_out(lat)
 
         return lat
 
