@@ -129,7 +129,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_gen = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-        reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
+        # reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
         it = epoch * (len(trainloader) // batch_split)
 
         t = trange(len(trainloader) // batch_split)
@@ -218,7 +218,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
-                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
+                                                                                    loss_dis_mean + np.log(0.5), 0., loss_dis_mean, maximize=False)
 
                     dis_grad_norm = get_grad_norm(discriminator).item()
                     dis_enc_grad_norm = get_grad_norm(dis_encoder).item()

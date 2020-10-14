@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params
+from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, CE_ZERO
 from src.utils.model_utils import compute_inception_score
 from src.utils.media_utils import rand_change_letters
 from src.model_manager import ModelManager
@@ -133,7 +133,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_dec = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-        reg_dis_target = 1e-4 * ((1 + 1e-2) - (epoch / config['training']['n_epochs']))
+        # reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
 
         it = (epoch * (len(trainloader) // batch_split))
 
@@ -206,7 +206,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
-                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
+                                                                                    loss_dis_mean + np.log(0.5), 0., loss_dis_mean, maximize=False)
 
                 with model_manager.on_step(['encoder', 'decoder', 'irm_translator']) as nets_to_train:
 
@@ -296,7 +296,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_irm_dis_mean = (loss_irm_dis_enc_sum + loss_irm_dis_dec_sum) / 2
                         d_reg_every_mean_irm = d_reg_every_mean_irm_next
                         d_reg_every_mean_irm_next, d_reg_param_mean_irm = update_reg_params(d_reg_every_mean_irm_next, d_reg_every, d_reg_param_mean_irm, d_reg_param,
-                                                                                            reg_irm_dis_mean, reg_dis_target, loss_irm_dis_mean)
+                                                                                            loss_dis_mean + np.log(0.5), 0., loss_dis_mean, maximize=False)
 
                 with model_manager.on_step(['irm_generator']) as nets_to_train:
 
