@@ -206,7 +206,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
-                                                                                    loss_dis_mean + np.log(0.5), 0., loss_dis_mean, maximize=False)
+                                                                                    loss_dis_mean, -np.log(0.5), loss_dis_mean)
 
                 with model_manager.on_step(['encoder', 'decoder', 'irm_translator']) as nets_to_train:
 
@@ -296,7 +296,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_irm_dis_mean = (loss_irm_dis_enc_sum + loss_irm_dis_dec_sum) / 2
                         d_reg_every_mean_irm = d_reg_every_mean_irm_next
                         d_reg_every_mean_irm_next, d_reg_param_mean_irm = update_reg_params(d_reg_every_mean_irm_next, d_reg_every, d_reg_param_mean_irm, d_reg_param,
-                                                                                            loss_dis_mean + np.log(0.5), 0., loss_dis_mean, maximize=False)
+                                                                                            loss_irm_dis_mean, -np.log(0.5), loss_irm_dis_mean)
 
                 with model_manager.on_step(['irm_generator']) as nets_to_train:
 
