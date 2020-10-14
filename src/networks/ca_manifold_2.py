@@ -127,8 +127,8 @@ class ZInjectedEncoder(InjectedEncoder):
 
 class LabsInjectedEncoder(InjectedEncoder):
     def __init__(self, **kwargs):
-        self.labs_encoder = LabsEncoder(**kwargs)
         super().__init__(**kwargs)
+        self.labs_encoder = LabsEncoder(**kwargs)
 
     def forward(self, x, labels):
         inj_lat = self.labs_encoder(labels)
