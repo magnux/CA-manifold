@@ -63,10 +63,7 @@ class Generator(nn.Module):
         self.z_to_lat = nn.Linear(self.z_dim, self.fhidden)
         self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
         nn.init.xavier_uniform_(self.lat_to_lat.weight)
-        self.irm_layer = nn.Sequential(
-            LinearResidualBlock(lat_size, self.fhidden),
-            IRMLinear(self.fhidden)
-        )
+        self.irm_layer = IRMLinear(self.fhidden)
         self.lat_out = nn.Linear(self.fhidden, self.lat_size)
 
     def forward(self, z, y):
@@ -246,7 +243,7 @@ class IRMTranslator(nn.Module):
         self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
         nn.init.xavier_uniform_(self.lat_to_lat.weight)
         self.irm_layer = nn.Sequential(
-            LinearResidualBlock(lat_size, self.fhidden),
+            LinearResidualBlock(self.lat_size, self.fhidden),
             IRMLinear(self.fhidden)
         )
         self.lat_out = nn.Linear(self.fhidden, self.lat_size)
