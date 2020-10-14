@@ -119,12 +119,6 @@ class InjectedEncoder(nn.Module):
         return lat, out_embs, None
 
 
-class ZInjectedEncoder(InjectedEncoder):
-    def __init__(self, **kwargs):
-        kwargs['z_out'] = True
-        super().__init__(**kwargs)
-
-
 class LabsInjectedEncoder(InjectedEncoder):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -133,6 +127,12 @@ class LabsInjectedEncoder(InjectedEncoder):
     def forward(self, x, labels):
         inj_lat = self.labs_encoder(labels)
         return super().forward(x, inj_lat)
+
+
+class ZInjectedEncoder(LabsInjectedEncoder):
+    def __init__(self, **kwargs):
+        kwargs['z_out'] = True
+        super().__init__(**kwargs)
 
 
 class Decoder(nn.Module):
