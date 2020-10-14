@@ -227,7 +227,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         images_cat_dec = torch.cat([images, images_dec], dim=1)
                         lat_top_dec, _, _ = copy_encoder(images_cat_dec, lat_labs)
-                        labs_dec = irm_discriminator(lat_top_dec, labels)
+                        labs_dec = copy_discriminator(lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
