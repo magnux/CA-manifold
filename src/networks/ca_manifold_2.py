@@ -9,6 +9,7 @@ from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
@@ -124,10 +125,14 @@ class ZInjectedEncoder(InjectedEncoder):
         super().__init__(**kwargs)
 
 
-# class CopyInjectedEncoder(InjectedEncoder):
-#     def __init__(self, **kwargs):
-#         kwargs['channels'] = kwargs['channels'] * 2
-#         super().__init__(**kwargs)
+class LabsInjectedEncoder(InjectedEncoder):
+    def __init__(self, **kwargs):
+        self.labs_encoder = LabsEncoder(**kwargs)
+        super().__init__(**kwargs)
+
+    def forward(self, x, labels):
+        inj_lat = self.labs_encoder(labels)
+        super().forward(x, inj_lat)
 
 
 class Decoder(nn.Module):
