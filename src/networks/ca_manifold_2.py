@@ -8,7 +8,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
-from src.layers.centroids import Centroids
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -27,7 +26,7 @@ class InjectedEncoder(nn.Module):
         self.in_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
-        self.n_calls = n_calls * 4
+        self.n_calls = n_calls * 2
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
         self.skip_fire = skip_fire
@@ -58,8 +57,7 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Sequential(
-            # nn.InstanceNorm2d(self.n_filter),
-            Centroids(self.n_filter, 2 ** 10),
+            nn.InstanceNorm2d(self.n_filter),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
@@ -126,6 +124,12 @@ class ZInjectedEncoder(InjectedEncoder):
         super().__init__(**kwargs)
 
 
+class CopyInjectedEncoder(InjectedEncoder):
+    def __init__(self, **kwargs):
+        kwargs['channels'] = kwargs['channels'] * 2
+        super().__init__(**kwargs)
+
+
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
                  skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, **kwargs):
@@ -136,7 +140,7 @@ class Decoder(nn.Module):
         self.ds_size = ds_size
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls * 4
+        self.n_calls = n_calls * 2
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
         self.skip_fire = skip_fire
@@ -159,8 +163,7 @@ class Decoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Sequential(
-            # nn.InstanceNorm2d(self.n_filter),
-            Centroids(self.n_filter, 2 ** 10),
+            nn.InstanceNorm2d(self.n_filter),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
             *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
