@@ -54,14 +54,20 @@ class Generator(nn.Module):
     def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
+        self.fhidden = lat_size if lat_size > 3 else 512
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Linear(n_labels, self.lat_size)
+        self.labs_to_proj = nn.Linear(n_labels, self.fhidden)
         nn.init.xavier_uniform_(self.labs_to_proj.weight)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size)
-        self.lat_to_lat = nn.Linear(self.lat_size, self.lat_size)
+        self.z_to_lat = nn.Linear(self.z_dim, self.fhidden)
+        self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
         nn.init.xavier_uniform_(self.lat_to_lat.weight)
+        self.irm_layer = nn.Sequential(
+            LinearResidualBlock(lat_size, self.fhidden),
+            IRMLinear(self.fhidden)
+        )
+        self.lat_out = nn.Linear(self.fhidden, self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -77,7 +83,9 @@ class Generator(nn.Module):
 
         z = z.clamp(-3, 3)
         lat = self.z_to_lat(z)
+        lat = self.irm_layer(lat)
         lat = self.lat_to_lat(lat) + (labs_proj * lat)
+        lat = self.lat_out(lat)
 
         return lat
 
