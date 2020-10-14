@@ -162,8 +162,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         images_n = images + 1e-2 * torch.randn_like(images)
                         lat_labs = labs_encoder(labels)
-
-                        images_cat_enc = torch.cat([images, images_n], dim=1)
+                        if it % 2 == 0:
+                            images_cat_enc = torch.cat([images, images_n], dim=1)
+                        else:
+                            images_cat_enc = torch.cat([images_n, images], dim=1)
                         lat_top_enc, _, _ = copy_encoder(images_cat_enc, lat_labs)
                         labs_enc = copy_discriminator(lat_top_enc, labels)
 
@@ -188,7 +190,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_dec)
 
                         images_dec.requires_grad_()
-                        images_cat_dec = torch.cat([images, images_dec], dim=1)
+                        if it % 2 == 0:
+                            images_cat_dec = torch.cat([images, images_dec], dim=1)
+                        else:
+                            images_cat_dec = torch.cat([images_dec, images], dim=1)
                         lat_top_dec, _, _ = copy_encoder(images_cat_dec, lat_labs)
                         labs_dec = copy_discriminator(lat_top_dec, labels)
 
@@ -225,7 +230,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_dec = irm_translator(lat_enc, labels)
                         images_dec, _, _ = decoder(lat_dec)
 
-                        images_cat_dec = torch.cat([images, images_dec], dim=1)
+                        if it % 2 == 0:
+                            images_cat_dec = torch.cat([images, images_dec], dim=1)
+                        else:
+                            images_cat_dec = torch.cat([images_dec, images], dim=1)
                         lat_top_dec, _, _ = copy_encoder(images_cat_dec, lat_labs)
                         labs_dec = copy_discriminator(lat_top_dec, labels)
 
