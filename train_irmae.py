@@ -307,6 +307,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with torch.no_grad():
                     lat_gen = irm_generator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
+                    lat_enc, _, _ = encoder(images_test, labels_test)
+                    # lat_enc_let = letter_encoder(lat_enc)
+                    # lat_enc = letter_decoder(lat_enc_let)
+                    lat_dec = irm_translator(lat_enc, labels_test)
+                    images_dec, _, _ = decoder(lat_dec)
+                    images_gen = torch.cat([images_dec, images_gen], dim=3)
 
                 stream_images(images_gen, config_name + '/irmae', config['training']['out_dir'] + '/irmae')
 
