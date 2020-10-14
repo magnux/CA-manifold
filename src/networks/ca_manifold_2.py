@@ -132,7 +132,7 @@ class LabsInjectedEncoder(InjectedEncoder):
 
     def forward(self, x, labels):
         inj_lat = self.labs_encoder(labels)
-        super().forward(x, inj_lat)
+        return super().forward(x, inj_lat)
 
 
 class Decoder(nn.Module):
