@@ -32,9 +32,7 @@ class Discriminator(nn.Module):
             LinearResidualBlock(n_labels, self.fhidden),
             LinearResidualBlock(self.fhidden, self.fhidden),
         )
-        nn.init.xavier_uniform_(self.labs_to_proj.weight)
         self.lat_to_score = nn.Linear(self.lat_size, 1)
-        nn.init.xavier_uniform_(self.lat_to_score.weight)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -63,9 +61,7 @@ class Generator(nn.Module):
             LinearResidualBlock(n_labels, self.fhidden),
             LinearResidualBlock(self.fhidden, self.fhidden),
         )
-        nn.init.xavier_uniform_(self.labs_to_proj.weight)
         self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
-        nn.init.xavier_uniform_(self.lat_to_lat.weight)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.z_dim, self.fhidden),
             IRMLinear(self.fhidden),
@@ -247,9 +243,7 @@ class IRMTranslator(nn.Module):
             LinearResidualBlock(n_labels, self.fhidden),
             LinearResidualBlock(self.fhidden, self.fhidden),
         )
-        nn.init.xavier_uniform_(self.labs_to_proj.weight)
         self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
-        nn.init.xavier_uniform_(self.lat_to_lat.weight)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.z_dim, self.fhidden),
             IRMLinear(self.fhidden),
@@ -286,9 +280,7 @@ class IRMGenerator(nn.Module):
             LinearResidualBlock(n_labels, self.fhidden),
             LinearResidualBlock(self.fhidden, self.fhidden),
         )
-        nn.init.xavier_uniform_(self.labs_to_proj.weight)
         self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
-        nn.init.xavier_uniform_(self.lat_to_lat.weight)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.z_dim, self.fhidden),
             IRMLinear(self.fhidden),
