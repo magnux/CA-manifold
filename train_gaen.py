@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, cross_entropy_distance
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params
 from src.utils.model_utils import compute_inception_score, get_grad_norm
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -263,7 +263,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         # lat_enc = generator(z_enc, labels)
                         # images_dec, _, _ = decoder(lat_enc)
                         #
-                        # loss_dec = (1 / batch_mult) * cross_entropy_distance(images_dec, images)
+                        # loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         # model_manager.loss_backward(loss_dec, nets_to_train)
                         # loss_dec_sum += loss_dec.item()
 

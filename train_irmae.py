@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, cross_entropy_distance
+from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params
 from src.utils.model_utils import compute_inception_score
 from src.utils.media_utils import rand_change_letters
 from src.model_manager import ModelManager
@@ -216,7 +216,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_dec = irm_translator(lat_enc, labels)
                         images_dec, _, _ = decoder(lat_dec)
 
-                        loss_dec = (1 / batch_mult) * cross_entropy_distance(images_dec, images)
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
