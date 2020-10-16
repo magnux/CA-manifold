@@ -157,7 +157,14 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
+        self.in_conv = nn.Sequential(
+            nn.Conv2d(self.out_chan, self.n_filter, 1, 1, 0),
+            *([DownScale(self.n_filter, self.n_filter, self.image_size, self.ds_size)] if self.ds_size < self.image_size else []),
+            # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
+            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
+        )
+
+        self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)), 1)], left_sided=causal)
@@ -180,10 +187,10 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
-            # out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
+            # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+            out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
         else:
-            out = ca_init
+            out = self.in_conv(ca_init)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))

@@ -180,13 +180,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             lat_dec = irm_translator(lat_enc, labels)
                             images_dec, _, _ = decoder(lat_dec)
+                            images_redec, _, _ = decoder(lat_dec, images_dec)
 
-                        images_dec.requires_grad_()
-                        lat_top_dec, _, _ = copy_encoder(images_dec, labels)
+                        images_redec.requires_grad_()
+                        lat_top_dec, _, _ = copy_encoder(images_redec, labels)
                         labs_dec = copy_discriminator(lat_top_dec, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_redec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
@@ -219,7 +220,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
-                        lat_top_dec, _, _ = copy_encoder(images_dec, labels)
+                        images_redec, _, _ = decoder(lat_dec.detach(), images_dec.detach())
+
+                        lat_top_dec, _, _ = copy_encoder(images_redec, labels)
                         labs_dec = copy_discriminator(lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
@@ -307,12 +310,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with torch.no_grad():
                     lat_gen = irm_generator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
-                    lat_enc, _, _ = encoder(images_test, labels_test)
-                    # lat_enc_let = letter_encoder(lat_enc)
-                    # lat_enc = letter_decoder(lat_enc_let)
-                    lat_dec = irm_translator(lat_enc, labels_test)
-                    images_dec, _, _ = decoder(lat_dec)
-                    images_gen = torch.cat([images_dec, images_gen], dim=3)
+                    images_regen, _, _ = decoder(lat_gen, images_gen)
+                    images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/irmae', config['training']['out_dir'] + '/irmae')
 
@@ -352,6 +351,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = irm_generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
+            images_regen, _, _ = decoder(lat_gen, images_gen)
             lat_enc, _, _ = encoder(images, labels)
             # lat_enc_let = letter_encoder(lat_enc)
             # lat_enc = letter_decoder(lat_enc_let)
@@ -359,12 +359,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images_dec, _, _ = decoder(lat_dec)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
+            model_manager.log_manager.add_imgs(images_regen, 'all_regen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
                 fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
                 lat_gen = irm_generator(z_test, fixed_lab)
                 images_gen, _, _ = decoder(lat_gen)
-                model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
+                images_regen, _, _ = decoder(lat_gen, images_gen)
+                model_manager.log_manager.add_imgs(images_gen, 'gen_class_%04d' % lab, it)
+                model_manager.log_manager.add_imgs(images_regen, 'regen_class_%04d' % lab, it)
 
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
