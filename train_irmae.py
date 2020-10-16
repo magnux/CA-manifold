@@ -217,7 +217,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec, _, _ = decoder(lat_dec)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
+                        model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
                         images_redec, _, _ = decoder(lat_dec.detach(), images_dec.detach())
@@ -352,6 +352,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             lat_gen = irm_generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
             images_regen, _, _ = decoder(lat_gen, images_gen)
+            images_gen = torch.cat([images_gen, images_regen], dim=3)
             lat_enc, _, _ = encoder(images, labels)
             # lat_enc_let = letter_encoder(lat_enc)
             # lat_enc = letter_decoder(lat_enc_let)
@@ -359,15 +360,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images_dec, _, _ = decoder(lat_dec)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
-            model_manager.log_manager.add_imgs(images_regen, 'all_regen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
                 fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
                 lat_gen = irm_generator(z_test, fixed_lab)
                 images_gen, _, _ = decoder(lat_gen)
                 images_regen, _, _ = decoder(lat_gen, images_gen)
-                model_manager.log_manager.add_imgs(images_gen, 'gen_class_%04d' % lab, it)
-                model_manager.log_manager.add_imgs(images_regen, 'regen_class_%04d' % lab, it)
+                images_gen = torch.cat([images_gen, images_regen], dim=3)
+                model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
