@@ -271,11 +271,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen)
-                    z_enc, _, _ = encoder(images_test, labels_test)
-                    lat_enc = generator(z_enc, labels_test)
-                    images_dec, _, _ = decoder(lat_enc)
-                    images_gen = torch.cat([images_dec, images_gen], dim=3)
+                    images_gen, out_embs, _ = decoder(lat_gen)
+                    images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                    images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/gaen', config['training']['out_dir'] + '/gaen')
 
@@ -326,17 +324,23 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             t.write('Creating samples...')
             images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen)
+            images_gen, out_embs, _ = decoder(lat_gen)
+            images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+            images_gen = torch.cat([images_gen, images_regen], dim=3)
             z_enc, _, _ = encoder(images, labels)
             lat_enc = generator(z_enc, labels)
-            images_dec, _, _ = decoder(lat_enc)
+            images_dec, out_embs, _ = decoder(lat_enc)
+            images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+            images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
                 fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
                 lat_gen = generator(z_test, fixed_lab)
-                images_gen, _, _ = decoder(lat_gen)
+                images_gen, out_embs, _ = decoder(lat_gen)
+                images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
