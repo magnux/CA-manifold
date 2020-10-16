@@ -138,7 +138,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
-                # loss_dec_sum = 0
+                loss_dec_sum = 0
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
@@ -239,11 +239,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_enc_sum += reg_gen_enc.item() / g_reg_factor_enc
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
-                        model_manager.loss_backward(loss_gen_enc, nets_to_train)
+                        model_manager.loss_backward(loss_gen_enc, nets_to_train, retain_graph=True)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
+                        images_dec, out_embs, _ = decoder(lat_enc)
+                        images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_redec, images)
+                        model_manager.loss_backward(loss_dec, nets_to_train)
+                        loss_dec_sum += loss_dec.item()
+
                         lat_gen = generator(z_gen, labels)
-                        images_dec, _, _ = decoder(lat_gen)
+                        images_dec, out_embs, _ = decoder(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen.detach())
                         labs_dec = discriminator(lat_top_dec, labels)
 
@@ -256,16 +263,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
-
-                        # images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-                        #
-                        # z_enc, _, _ = encoder(images, labels)
-                        # lat_enc = generator(z_enc, labels)
-                        # images_dec, _, _ = decoder(lat_enc)
-                        #
-                        # loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        # model_manager.loss_backward(loss_dec, nets_to_train)
-                        # loss_dec_sum += loss_dec.item()
 
                     enc_grad_norm = get_grad_norm(encoder).item()
                     dec_grad_norm = get_grad_norm(decoder).item()
