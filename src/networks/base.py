@@ -25,12 +25,13 @@ class Discriminator(nn.Module):
     def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
+        self.fhidden = lat_size if lat_size > 3 else 512
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
             LinearResidualBlock(n_labels, self.fhidden),
-            LinearResidualBlock(self.fhidden, self.fhidden),
+            LinearResidualBlock(self.fhidden, self.lat_size),
         )
         self.lat_to_score = nn.Linear(self.lat_size, 1)
 
