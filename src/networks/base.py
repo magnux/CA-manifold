@@ -246,7 +246,7 @@ class IRMTranslator(nn.Module):
         )
         self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
         self.irm_layer = nn.Sequential(
-            nn.Linear(self.z_dim, self.fhidden),
+            nn.Linear(self.lat_size, self.fhidden),
             IRMLinear(self.fhidden),
         )
         self.lat_out = nn.Linear(self.fhidden, self.lat_size)
