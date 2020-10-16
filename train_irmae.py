@@ -220,7 +220,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
-                        images_redec, _, _ = decoder(lat_dec.detach(), images_dec.detach())
+                        images_redec, _, _ = decoder(lat_dec.clone().detach(), images_dec.clone().detach())
 
                         lat_top_dec, _, _ = copy_encoder(images_redec, labels)
                         labs_dec = copy_discriminator(lat_top_dec, labels)
