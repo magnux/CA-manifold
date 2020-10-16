@@ -28,7 +28,10 @@ class Discriminator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Linear(n_labels, self.lat_size)
+        self.labs_to_proj = nn.Sequential(
+            LinearResidualBlock(n_labels, self.fhidden),
+            LinearResidualBlock(self.fhidden, self.fhidden),
+        )
         nn.init.xavier_uniform_(self.labs_to_proj.weight)
         self.lat_to_score = nn.Linear(self.lat_size, 1)
         nn.init.xavier_uniform_(self.lat_to_score.weight)
@@ -43,8 +46,6 @@ class Discriminator(nn.Module):
             yembed = y
 
         labs_proj = self.labs_to_proj(yembed)
-        labs_proj = F.normalize(labs_proj)
-
         score = self.lat_to_score(lat) + (labs_proj * lat).sum(1, keepdim=True)
 
         return score
@@ -58,12 +59,17 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Linear(n_labels, self.fhidden)
+        self.labs_to_proj = nn.Sequential(
+            LinearResidualBlock(n_labels, self.fhidden),
+            LinearResidualBlock(self.fhidden, self.fhidden),
+        )
         nn.init.xavier_uniform_(self.labs_to_proj.weight)
-        self.z_to_lat = nn.Linear(self.z_dim, self.fhidden)
         self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
         nn.init.xavier_uniform_(self.lat_to_lat.weight)
-        self.irm_layer = IRMLinear(self.fhidden)
+        self.irm_layer = nn.Sequential(
+            nn.Linear(self.z_dim, self.fhidden),
+            IRMLinear(self.fhidden),
+        )
         self.lat_out = nn.Linear(self.fhidden, self.lat_size)
 
     def forward(self, z, y):
@@ -76,7 +82,6 @@ class Generator(nn.Module):
             yembed = y
 
         labs_proj = self.labs_to_proj(yembed)
-        labs_proj = F.normalize(labs_proj)
 
         z = z.clamp(-3, 3)
         lat = self.z_to_lat(z)
@@ -238,13 +243,16 @@ class IRMTranslator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Linear(n_labels, self.fhidden)
+        self.labs_to_proj = nn.Sequential(
+            LinearResidualBlock(n_labels, self.fhidden),
+            LinearResidualBlock(self.fhidden, self.fhidden),
+        )
         nn.init.xavier_uniform_(self.labs_to_proj.weight)
         self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
         nn.init.xavier_uniform_(self.lat_to_lat.weight)
         self.irm_layer = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.fhidden),
-            IRMLinear(self.fhidden)
+            nn.Linear(self.z_dim, self.fhidden),
+            IRMLinear(self.fhidden),
         )
         self.lat_out = nn.Linear(self.fhidden, self.lat_size)
 
@@ -258,7 +266,6 @@ class IRMTranslator(nn.Module):
             yembed = y
 
         labs_proj = self.labs_to_proj(yembed)
-        labs_proj = F.normalize(labs_proj)
 
         lat = self.irm_layer(lat)
         lat = self.lat_to_lat(lat) + (labs_proj * lat)
@@ -275,12 +282,17 @@ class IRMGenerator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Linear(n_labels, self.fhidden)
+        self.labs_to_proj = nn.Sequential(
+            LinearResidualBlock(n_labels, self.fhidden),
+            LinearResidualBlock(self.fhidden, self.fhidden),
+        )
         nn.init.xavier_uniform_(self.labs_to_proj.weight)
-        self.z_to_lat = nn.Linear(self.z_dim, self.fhidden)
         self.lat_to_lat = nn.Linear(self.fhidden, self.fhidden)
         nn.init.xavier_uniform_(self.lat_to_lat.weight)
-        self.irm_layer = IRMLinear(self.fhidden)
+        self.irm_layer = nn.Sequential(
+            nn.Linear(self.z_dim, self.fhidden),
+            IRMLinear(self.fhidden),
+        )
         self.lat_out = nn.Linear(self.fhidden, self.lat_size)
 
     def forward(self, z, y):
@@ -294,11 +306,9 @@ class IRMGenerator(nn.Module):
             yembed = y
 
         labs_proj = self.labs_to_proj(yembed)
-        labs_proj = F.normalize(labs_proj)
 
         z = z.clamp(-3, 3)
-        lat = self.z_to_lat(z)
-        lat = self.irm_layer(lat)
+        lat = self.irm_layer(z)
         lat = self.lat_to_lat(lat) + (labs_proj * lat)
         lat = self.lat_out(lat)
 
