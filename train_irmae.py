@@ -179,8 +179,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             # lat_enc = letter_decoder(lat_enc_let)
 
                             lat_dec = irm_translator(lat_enc, labels)
-                            images_dec, _, _ = decoder(lat_dec)
-                            images_redec, _, _ = decoder(lat_dec, images_dec)
+                            images_dec, out_embs, _ = decoder(lat_dec)
+                            images_redec, _, _ = decoder(lat_dec, out_embs[-1])
 
                         images_redec.requires_grad_()
                         lat_top_dec, _, _ = copy_encoder(images_redec, labels)
@@ -214,13 +214,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         # lat_enc = letter_decoder(lat_enc_let)
 
                         lat_dec = irm_translator(lat_enc, labels)
-                        images_dec, _, _ = decoder(lat_dec)
+                        images_dec, out_embs, _ = decoder(lat_dec)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
-                        images_redec, _, _ = decoder(lat_dec.clone().detach(), images_dec.clone().detach())
+                        images_redec, _, _ = decoder(lat_dec.clone().detach(), out_embs[-1].clone().detach())
 
                         lat_top_dec, _, _ = copy_encoder(images_redec, labels)
                         labs_dec = copy_discriminator(lat_top_dec, labels)
@@ -247,7 +247,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
-                            lat_enc, out_embs, _ = encoder(images, labels)
+                            lat_enc, _, _ = encoder(images, labels)
 
                             # lat_enc_let = letter_encoder(lat_enc)
                             # lat_enc_let = rand_change_letters(lat_enc_let)
@@ -309,8 +309,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = irm_generator(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen)
-                    images_regen, _, _ = decoder(lat_gen, images_gen)
+                    images_gen, out_embs, _ = decoder(lat_gen)
+                    images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/irmae', config['training']['out_dir'] + '/irmae')
@@ -350,22 +350,24 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = irm_generator(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen)
-            images_regen, _, _ = decoder(lat_gen, images_gen)
+            images_gen, out_embs, _ = decoder(lat_gen)
+            images_regen, _, _ = decoder(lat_gen, out_embs[-1])
             images_gen = torch.cat([images_gen, images_regen], dim=3)
             lat_enc, _, _ = encoder(images, labels)
             # lat_enc_let = letter_encoder(lat_enc)
             # lat_enc = letter_decoder(lat_enc_let)
             lat_dec = irm_translator(lat_enc, labels)
-            images_dec, _, _ = decoder(lat_dec)
+            images_dec, out_embs, _ = decoder(lat_dec)
+            images_redec, _, _ = decoder(lat_dec, out_embs[-1])
+            images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
                 fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
                 lat_gen = irm_generator(z_test, fixed_lab)
-                images_gen, _, _ = decoder(lat_gen)
-                images_regen, _, _ = decoder(lat_gen, images_gen)
+                images_gen, out_embs, _ = decoder(lat_gen)
+                images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
