@@ -81,8 +81,7 @@ class Generator(nn.Module):
         labs_proj = self.labs_to_proj(yembed)
 
         z = z.clamp(-3, 3)
-        lat = self.z_to_lat(z)
-        lat = self.irm_layer(lat)
+        lat = self.irm_layer(z)
         lat = self.lat_to_lat(lat) + (labs_proj * lat)
         lat = self.lat_out(lat)
 
