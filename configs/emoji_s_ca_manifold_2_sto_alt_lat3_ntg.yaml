@@ -10,7 +10,7 @@ network:
   class: ca_manifold_2
   kwargs:
     ds_size: 32
-    n_filter: 64
+    n_filter: 32
     embed_size: 256
     lat_size: 3
     n_calls: 4
@@ -24,11 +24,11 @@ z_dist:
   type: gauss
   z_dim: 3
 training:
-  out_dir: save/emoji_s_ca_manifold_2_sto_alt_lat3_64
+  out_dir: save/emoji_s_ca_manifold_2_sto_alt_lat3_ntg
   persistence: False
   regeneration: False
   batch_size: 64
-  batch_split: 4
+  batch_split: 2
   batch_mult_steps: 8
   n_workers: 2
   optimizer: adamp
@@ -45,5 +45,5 @@ training:
   d_reg_every: 16
   g_reg_every: 0
   alt_reg: True
-  through_grads: True
+  through_grads: False
   inception_every: 0

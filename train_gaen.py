@@ -239,11 +239,17 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_enc_sum += reg_gen_enc.item() / g_reg_factor_enc
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
-                        model_manager.loss_backward(loss_gen_enc, nets_to_train, retain_graph=True)
+                        model_manager.loss_backward(loss_gen_enc, nets_to_train, retain_graph=config['training']['through_grads'])
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        images_dec, out_embs, _ = decoder(lat_enc)
-                        images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+                        if config['training']['through_grads']:
+                            images_dec, out_embs, _ = decoder(lat_enc)
+                            images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+                        else:
+                            with torch.no_grad():
+                                images_dec, out_embs, _ = decoder(lat_enc)
+                            out_embs[-1].require_grads_()
+                            images_redec, _, _ = decoder(lat_enc.clone().detach(), out_embs[-1].clone().detach())
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_redec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train)

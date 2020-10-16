@@ -43,4 +43,5 @@ training:
   d_reg_every: 16
   g_reg_every: 0
   alt_reg: True
+  through_grads: True
   inception_every: 0
