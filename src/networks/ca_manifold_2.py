@@ -157,7 +157,10 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        self.in_norm = nn.InstanceNorm2d(self.n_filter)
+        self.in_conv = nn.Sequential(
+            nn.InstanceNorm2d(self.n_filter),
+            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
+        )
 
         # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
 
@@ -185,7 +188,7 @@ class Decoder(nn.Module):
             out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             # out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
         else:
-            out = self.in_norm(ca_init)
+            out = self.in_conv(ca_init)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
