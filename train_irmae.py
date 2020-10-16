@@ -217,10 +217,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec, out_embs, _ = decoder(lat_dec)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        model_manager.loss_backward(loss_dec, nets_to_train)
+                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
-                        images_redec, _, _ = decoder(lat_dec.clone().detach(), out_embs[-1].clone().detach())
+                        images_redec, _, _ = decoder(lat_dec, out_embs[-1])
 
                         lat_top_dec, _, _ = copy_encoder(images_redec, labels)
                         labs_dec = copy_discriminator(lat_top_dec, labels)
