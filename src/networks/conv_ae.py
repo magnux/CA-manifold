@@ -8,6 +8,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 
@@ -115,6 +116,22 @@ class InjectedEncoder(Encoder):
         super().__init__(**kwargs)
 
 
+class LabsInjectedEncoder(InjectedEncoder):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.labs_encoder = LabsEncoder(**kwargs)
+
+    def forward(self, x, labels):
+        inj_lat = self.labs_encoder(labels)
+        return super().forward(x, inj_lat)
+
+
+class ZInjectedEncoder(LabsInjectedEncoder):
+    def __init__(self, **kwargs):
+        kwargs['z_out'] = True
+        super().__init__(**kwargs)
+
+
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params,
                  adain=False, dyncin=False, log_mix_out=False, **kwargs):
@@ -131,7 +148,7 @@ class Decoder(nn.Module):
         self.dyncin = dyncin
         self.log_mix_out = log_mix_out
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
+        self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1, self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
@@ -152,7 +169,9 @@ class Decoder(nn.Module):
                 LinearResidualBlock(self.lat_size, self.lat_size),
                 LinearResidualBlock(self.lat_size, sum(self.conv_state_size), self.lat_size * 2),
             )
-            self.in_conv = ResidualBlock(sum(self.merge_sizes), self.n_filter, None, 1, 1, 0)
+
+        self.in_norm = nn.InstanceNorm2d(self.n_filter)
+        self.in_conv = ResidualBlock(self.n_filter if self.adain or self.dyncin else sum(self.merge_sizes), self.n_filter, None, 1, 1, 0)
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
@@ -161,16 +180,19 @@ class Decoder(nn.Module):
             nn.Conv2d(self.n_filter, 10 * ((self.out_chan * 3) + 1) if self.log_mix_out else self.out_chan, 3, 1, 1),
         )
 
-    def forward(self, lat):
+    def forward(self, lat, ca_init=None):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
-        if self.adain:
-            cond_factors = self.lat_to_facts(lat)
-            cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
-            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
-        elif self.dyncin:
-            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+        if self.adain or self.dyncin:
+            if self.adain:
+                cond_factors = self.lat_to_facts(lat)
+                cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
+            if ca_init is None:
+                out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+            else:
+                out = self.in_norm(ca_init)
+                out = self.in_conv(out)
         else:
             conv_state = self.lat_to_out(lat)
             cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
@@ -178,7 +200,11 @@ class Decoder(nn.Module):
             cs_fh = cs_fh.view(batch_size, self.n_filter, self.ds_size, 1).repeat(1, 1, 1, self.ds_size)
             cs_fw = cs_fw.view(batch_size, self.n_filter, 1, self.ds_size).repeat(1, 1, self.ds_size, 1)
             cs_hw = cs_hw.view(batch_size, 1, self.ds_size, self.ds_size)
-            out = torch.cat([cs_f_m, cs_fh, cs_fw, cs_hw], dim=1)
+            if ca_init is None:
+                ca_init = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+            else:
+                ca_init = self.in_norm(ca_init)
+            out = torch.cat([cs_f_m, cs_fh, cs_fw, cs_hw, ca_init], dim=1)
             out = self.in_conv(out)
 
         out_embs = [out]

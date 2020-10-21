@@ -23,6 +23,9 @@ def get_dataset(name, type, data_dir, size=32):
             # Only support normalization for now
             dataset = datasets.DatasetFolder(data_dir, npy_loader, ['npy'])
             # n_labels = len(dataset.classes)
+        elif name == 'mnist':
+            dataset = datasets.MNIST(root=data_dir, train=True, download=True,
+                                     transform=transform)
         elif name == 'cifar10':
             dataset = datasets.CIFAR10(root=data_dir, train=True, download=True,
                                        transform=transform)

@@ -16,7 +16,7 @@ network:
     n_calls: 4
     shared_params: True
     adain: False
-    dyncin: True
+    dyncin: False
     letter_encoding: False
     perception_noise: False
     fire_rate: 0.5
