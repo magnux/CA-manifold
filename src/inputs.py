@@ -26,6 +26,9 @@ def get_dataset(name, type, data_dir, size=32):
         elif name == 'mnist':
             dataset = datasets.MNIST(root=data_dir, train=True, download=True,
                                      transform=transform)
+        elif name == 'celeba':
+            dataset = datasets.CelebA(root=data_dir, split="train", target_type="attr", download=True,
+                                      transform=transform)
         elif name == 'cifar10':
             dataset = datasets.CIFAR10(root=data_dir, train=True, download=True,
                                        transform=transform)
