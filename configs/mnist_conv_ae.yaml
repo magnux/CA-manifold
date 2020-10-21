@@ -20,7 +20,7 @@ network:
     letter_encoding: False
 z_dist:
   type: gauss
-  z_dim: 128
+  z_dim: 64
 training:
   out_dir: save/mnist_conv_ae
   batch_size: 64
