@@ -27,7 +27,7 @@ class Encoder(nn.Module):
         self.in_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls
+        self.n_calls = n_calls * (2 if adain or dyncin else 1)
         self.shared_params = shared_params
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
@@ -142,7 +142,7 @@ class Decoder(nn.Module):
         self.out_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls * (4 if adain or dyncin else 1)
+        self.n_calls = n_calls * (2 if adain or dyncin else 1)
         self.shared_params = shared_params
         self.adain = adain
         self.dyncin = dyncin
