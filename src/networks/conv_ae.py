@@ -9,7 +9,7 @@ from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.networks.base import LabsEncoder
-from src.utils.model_utils import ca_seed
+from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 
 
@@ -157,6 +157,8 @@ class Decoder(nn.Module):
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
                                         ) for _ in range(1 if self.shared_params else self.n_calls)])
 
+        self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.ds_size, 'cpu'))
+
         if self.adain:
             self.lat_to_facts = nn.Sequential(
                 LinearResidualBlock(self.lat_size, self.lat_size),
@@ -189,7 +191,8 @@ class Decoder(nn.Module):
                 cond_factors = self.lat_to_facts(lat)
                 cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
             if ca_init is None:
-                out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+                # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+                out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
             else:
                 out = self.in_norm(ca_init)
                 out = self.in_conv(out)
@@ -201,7 +204,8 @@ class Decoder(nn.Module):
             cs_fw = cs_fw.view(batch_size, self.n_filter, 1, self.ds_size).repeat(1, 1, self.ds_size, 1)
             cs_hw = cs_hw.view(batch_size, 1, self.ds_size, self.ds_size)
             if ca_init is None:
-                ca_init = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+                # ca_init = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+                ca_init = torch.cat([self.seed.to(float_type)] * batch_size, 0)
             else:
                 ca_init = self.in_norm(ca_init)
             out = torch.cat([cs_f_m, cs_fh, cs_fw, cs_hw, ca_init], dim=1)

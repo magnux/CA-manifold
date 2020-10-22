@@ -10,7 +10,7 @@ from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.networks.base import LabsEncoder
-from src.utils.model_utils import ca_seed
+from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
 from itertools import chain
@@ -27,7 +27,7 @@ class InjectedEncoder(nn.Module):
         self.in_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
-        self.n_calls = n_calls * 2
+        self.n_calls = n_calls
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
         self.skip_fire = skip_fire
@@ -145,7 +145,7 @@ class Decoder(nn.Module):
         self.ds_size = ds_size
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls * 2
+        self.n_calls = n_calls
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
         self.skip_fire = skip_fire
@@ -162,7 +162,7 @@ class Decoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         )
 
-        # self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu', all_channels=True))
+        self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.ds_size, 'cpu'))
 
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)), 1)], left_sided=causal)
@@ -185,8 +185,8 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
-            # out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
+            # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+            out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
         else:
             out = self.in_conv(ca_init)
 
