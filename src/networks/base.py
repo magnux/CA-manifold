@@ -40,7 +40,7 @@ class Discriminator(nn.Module):
         batch_size = lat.size(0)
 
         if y.dtype is torch.int64:
-            if y.size(1) == 1:
+            if y.dim(1) == 1:
                 yembed = self.embedding_mat[y]
             else:
                 yembed = y.to(torch.float32)
@@ -77,7 +77,7 @@ class Generator(nn.Module):
         batch_size = z.size(0)
 
         if y.dtype is torch.int64:
-            if y.size(1) == 1:
+            if y.dim(1) == 1:
                 yembed = self.embedding_mat[y]
             else:
                 yembed = y.to(torch.float32)
@@ -103,7 +103,7 @@ class LabsEncoder(nn.Module):
 
     def forward(self, y):
         if y.dtype is torch.int64:
-            if y.size(1) == 1:
+            if y.dim(1) == 1:
                 yembed = self.embedding_mat[y]
             else:
                 yembed = y.to(torch.float32)
@@ -158,7 +158,7 @@ class VarEncoder(nn.Module):
     def forward(self, lat, y):
         assert (lat.size(0) == y.size(0))
         if y.dtype is torch.int64:
-            if y.size(1) == 1:
+            if y.dim(1) == 1:
                 yembed = self.embedding_mat[y]
             else:
                 yembed = y.to(torch.float32)
@@ -189,7 +189,7 @@ class VarDecoder(nn.Module):
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
         if y.dtype is torch.int64:
-            if y.size(1) == 1:
+            if y.dim(1) == 1:
                 yembed = self.embedding_mat[y]
             else:
                 yembed = y.to(torch.float32)
@@ -270,7 +270,7 @@ class IRMTranslator(nn.Module):
         batch_size = lat.size(0)
 
         if y.dtype is torch.int64:
-            if y.size(1) == 1:
+            if y.dim(1) == 1:
                 yembed = self.embedding_mat[y]
             else:
                 yembed = y.to(torch.float32)
@@ -311,7 +311,7 @@ class IRMGenerator(nn.Module):
         lat_size = z.size(1)
 
         if y.dtype is torch.int64:
-            if y.size(1) == 1:
+            if y.dim(1) == 1:
                 yembed = self.embedding_mat[y]
             else:
                 yembed = y.to(torch.float32)
