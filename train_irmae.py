@@ -367,7 +367,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
-                if labels_test.dim(1) == 1:
+                if labels_test.dim() == 1:
                     fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
                 else:
                     fixed_lab = labels_test.clone()
