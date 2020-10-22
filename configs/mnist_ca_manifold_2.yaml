@@ -7,14 +7,14 @@ data:
   channels: 1
   n_labels: 10
 network:
-  class: conv_ae
+  class: ca_manifold_2
   kwargs:
     ds_size: 28
     n_filter: 16
     embed_size: 64
     lat_size: 128
     n_calls: 4
-    shared_params: False
+    shared_params: True
     adain: False
     dyncin: False
     letter_encoding: False
@@ -22,7 +22,7 @@ z_dist:
   type: gauss
   z_dim: 64
 training:
-  out_dir: save/mnist_conv_ae
+  out_dir: save/mnist_ca_manifold_2
   batch_size: 64
   batch_split: 1
   batch_mult_steps: 4

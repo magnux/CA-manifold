@@ -7,14 +7,14 @@ data:
   channels: 4
   n_labels: 9
 network:
-  class: conv_ae
+  class: ca_manifold_2
   kwargs:
     ds_size: 32
     n_filter: 32
     embed_size: 256
     lat_size: 512
     n_calls: 4
-    shared_params: False
+    shared_params: True
     adain: False
     dyncin: False
     letter_encoding: False
@@ -24,11 +24,11 @@ z_dist:
   type: gauss
   z_dim: 256
 training:
-  out_dir: save/emoji_s_conv_ae
+  out_dir: save/emoji_s_ca_manifold_2_alt
   persistence: False
   regeneration: False
   batch_size: 64
-  batch_split: 1
+  batch_split: 2
   batch_mult_steps: 8
   n_workers: 2
   optimizer: adamp
