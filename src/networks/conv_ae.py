@@ -172,7 +172,6 @@ class Decoder(nn.Module):
                 LinearResidualBlock(self.lat_size, sum(self.conv_state_size), self.lat_size * 2),
             )
 
-        self.in_norm = nn.InstanceNorm2d(self.n_filter)
         self.in_conv = ResidualBlock(self.n_filter if self.adain or self.dyncin else sum(self.merge_sizes), self.n_filter, None, 1, 1, 0)
 
         self.conv_img = nn.Sequential(
@@ -194,8 +193,7 @@ class Decoder(nn.Module):
                 # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
                 out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
             else:
-                out = self.in_norm(ca_init)
-                out = self.in_conv(out)
+                out = self.in_conv(ca_init)
         else:
             conv_state = self.lat_to_out(lat)
             cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
@@ -206,8 +204,6 @@ class Decoder(nn.Module):
             if ca_init is None:
                 # ca_init = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
                 ca_init = torch.cat([self.seed.to(float_type)] * batch_size, 0)
-            else:
-                ca_init = self.in_norm(ca_init)
             out = torch.cat([cs_f_m, cs_fh, cs_fw, cs_hw, ca_init], dim=1)
             out = self.in_conv(out)
 
