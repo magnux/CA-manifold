@@ -65,7 +65,7 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
 
 
 def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, reg_loss, reg_loss_target,
-                      loss_dis=None, update_every=False, maximize=True):
+                      loss_dis=None, update_every=True, maximize=True):
     lr = 1e-2 * reg_param_target
 
     # reg_param update
