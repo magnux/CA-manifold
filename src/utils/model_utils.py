@@ -106,14 +106,19 @@ def make_grad_safe(params, min, max):
             p.grad.data.copy_(make_safe(p.grad, min, max))
 
 
-def compute_inception_score(generator, decoder, inception_sample_size, fid_sample_size, batch_size, zdist, ydist, fid_real_samples, device):
+def compute_inception_score(generator, decoder, inception_sample_size, fid_sample_size, batch_size, zdist, ydist, fid_real_samples, device, npass=1):
     imgs = []
     while len(imgs) < inception_sample_size:
         ztest = zdist.sample((batch_size,))
-        ytest = ydist.sample((batch_size,))
-
-        qlat_gen = generator(ztest, ytest)
-        samples, _, _ = decoder(qlat_gen)
+        if ydist is not None:
+            ytest = ydist.sample((batch_size,))
+            lat_gen = generator(ztest, ytest)
+        else:
+            lat_gen = generator(ztest)
+        out_embs = [None]
+        samples = None
+        for _ in npass:
+            samples, out_embs, _ = decoder(lat_gen, out_embs[-1])
         samples = [s.data.cpu().numpy() for s in samples]
         imgs.extend(samples)
 

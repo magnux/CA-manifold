@@ -85,32 +85,28 @@ def cov(m, rowvar=True, inplace=False):
     return fact * m.matmul(mt).squeeze()
 
 
-# def update_dist_params(dim, zdist, zdist_mu, zdist_cov, samples, generator, lr):
-#     with torch.no_grad():
-#         del zdist
-#         for k, v in generator.state_dict().items():
-#             if k[-len('embed_to_lat.weight'):] == 'embed_to_lat.weight':
-#                 weight = v
-#             if k[-len('embed_to_lat.bias'):] == 'embed_to_lat.bias':
-#                 bias = v
-#
-#         inv_samples = torch.matmul(samples - bias, weight.t().inverse())[:, :dim]
-#         zdist_mu += lr * (inv_samples.mean(dim=0) - zdist_mu).clamp_(-1., 1.)
-#         zdist_cov += lr * (cov(inv_samples, False, True) - zdist_cov).clamp_(-1., 1.)
-#         zdist_cov += lr * torch.eye(zdist_cov.size(0), device=zdist_cov.device)
-#         del inv_samples
-#         zdist = get_zdist('multigauss', dim, zdist_cov.device, zdist_mu, zdist_cov)
-#         return zdist, zdist_mu, zdist_cov
+def update_multigauss_params(dim, zdist, zdist_mu, zdist_cov, samples, lr):
+    with torch.no_grad():
+        del zdist
+        zdist_mu += lr * (samples.mean(dim=0) - zdist_mu)
+        zdist_cov += lr * (cov(samples, False, True) - zdist_cov)
+        # zdist_cov += lr * torch.eye(zdist_cov.size(0), device=zdist_cov.device)
+        zdist = get_zdist('multigauss', dim, zdist_cov.device, zdist_mu, zdist_cov)
+        return zdist, zdist_mu, zdist_cov
 
 
-def save_dist_params(zdist_mu, zdist_cov, save_path):
+def save_multigauss_params(zdist_mu, zdist_cov, save_path):
     zdist_mu = zdist_mu.data.cpu().numpy()
     zdist_cov = zdist_cov.data.cpu().numpy()
-    np.save(save_path + '/dist_params_mu.npy', zdist_mu)
-    np.save(save_path + '/dist_params_cov.npy', zdist_cov)
+    np.save(save_path + '/multigauss_params_mu.npy', zdist_mu)
+    np.save(save_path + '/multigauss_params_cov.npy', zdist_cov)
 
 
-def load_dist_params(save_path, device):
-    zdist_mu = torch.tensor(np.load(save_path + '/dist_params_mu.npy'), device=device)
-    zdist_cov = torch.tensor(np.load(save_path + '/dist_params_cov.npy'), device=device)
+def load_multigauss_params(save_path, dim, device):
+    try:
+        zdist_mu = torch.tensor(np.load(save_path + '/multigauss_params_mu.npy'), device=device)
+        zdist_cov = torch.tensor(np.load(save_path + '/multigauss_params_cov.npy'), device=device)
+    except IOError:
+        zdist_mu = torch.zeros(dim, device=device)
+        zdist_cov = 1e-3 * torch.eye(dim, device=device)
     return zdist_mu, zdist_cov

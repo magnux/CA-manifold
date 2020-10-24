@@ -6,12 +6,12 @@ import torch.nn.functional as F
 import argparse
 from tqdm import trange
 from src.config import load_config
-from src.distributions import get_ydist, get_zdist
+from src.distributions import get_zdist, load_multigauss_params, save_multigauss_params, update_multigauss_params
 from src.inputs import get_dataset
 from src.utils.model_utils import compute_inception_score
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
-from os.path import basename, splitext
+from os.path import basename, splitext, join
 
 torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.benchmark = True
@@ -34,6 +34,7 @@ image_size = config['data']['image_size']
 channels = config['data']['channels']
 n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
+lat_size = config['network']['kwargs']['lat_size']
 batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
@@ -46,8 +47,8 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
                                           shuffle=True, num_workers=n_workers, drop_last=True)
 
 # Distributions
-ydist = get_ydist(config['data']['n_labels'], device=device)
-zdist = get_zdist(config['z_dist']['type'], z_dim, device=device)
+zdist_mu, zdist_cov = load_multigauss_params(join(config['training']['out_dir'], 'irmae'), lat_size, device=device)
+zdist = get_zdist('multigauss', lat_size, device=device, mu=zdist_mu, cov=zdist_cov)
 
 
 # Networks
@@ -85,7 +86,7 @@ def get_inputs(trainiter, batch_size, device):
     return images, labels, z_gen, trainiter
 
 
-images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
+images_test, _, _, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
 
 if config['training']['inception_every'] > 0:
@@ -95,9 +96,6 @@ if config['training']['inception_every'] > 0:
         fid_real_samples.append(images)
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
-
-def irm_generator(z, labels):
-    return irm_translator(z)
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
@@ -122,25 +120,32 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with model_manager.on_step(['encoder', 'decoder', 'irm_translator']) as nets_to_train:
 
                     for _ in range(batch_mult):
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+                        images, _, _, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        lat_enc, _, _ = encoder(images, labels)
+                        lat_enc, _, _ = encoder(images)
 
                         lat_dec = irm_translator(lat_enc)
-                        images_dec, out_embs, _ = decoder(lat_dec)
+                        images_dec, _, _ = decoder(lat_dec)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
+                    with torch.no_grad():
+                        images, _, _, trainiter = get_inputs(trainiter, batch_size, device)
+
+                        lat_enc, _, _ = encoder(images_test)
+                        lat_dec = irm_translator(lat_enc)
+
+                        zdist, zdist_mu, zdist_cov = update_multigauss_params(lat_size, zdist, zdist_mu, zdist_cov, lat_dec, config['training']['lr'])
+
                 # Streaming Images
                 with torch.no_grad():
-                    lat_gen = irm_generator(z_test, labels_test)
-                    images_gen, out_embs, _ = decoder(lat_gen)
-                    images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-                    images_gen = torch.cat([images_gen, images_regen], dim=3)
+                    lat_enc, _, _ = encoder(images_test)
+                    lat_dec = irm_translator(lat_enc)
+                    images_dec, _, _ = decoder(lat_dec)
 
-                stream_images(images_gen, config_name + '/irmae', config['training']['out_dir'] + '/irmae')
+                stream_images(images_dec, config_name + '/irmae', config['training']['out_dir'] + '/irmae')
 
                 # Print progress
                 running_loss_dec[batch % window_size] = loss_dec_sum
@@ -154,41 +159,37 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 it += 1
 
+    save_multigauss_params(zdist_mu, zdist_cov, join(config['training']['out_dir'], 'irmae'))
+
     with torch.no_grad():
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen = irm_generator(z_test, labels_test)
-            images_gen, out_embs, _ = decoder(lat_gen)
-            images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-            images_gen = torch.cat([images_gen, images_regen], dim=3)
-            lat_enc, _, _ = encoder(images, labels)
+            images, _, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
+            lat_gen = irm_translator(z_gen)
+            images_gen, _, _ = decoder(lat_gen)
+            lat_enc, _, _ = encoder(images)
             lat_dec = irm_translator(lat_enc)
-            images_dec, out_embs, _ = decoder(lat_dec)
-            images_redec, _, _ = decoder(lat_dec, out_embs[-1])
-            images_dec = torch.cat([images_dec, images_redec], dim=3)
+            images_dec, _, _ = decoder(lat_dec)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
-            for lab in range(config['training']['sample_labels']):
-                if labels_test.dim() == 1:
-                    fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
-                else:
-                    fixed_lab = labels_test.clone()
-                    fixed_lab[:, lab] = 1
-                lat_gen = irm_generator(z_test, fixed_lab)
-                images_gen, out_embs, _ = decoder(lat_gen)
-                images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-                images_gen = torch.cat([images_gen, images_regen], dim=3)
-                model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
+            # for lab in range(config['training']['sample_labels']):
+            #     if labels.dim() == 1:
+            #         fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
+            #     else:
+            #         fixed_lab = labels.clone()
+            #         fixed_lab[:, lab] = 1
+            #     lat_gen = irm_translator(z_gen)
+            #     images_gen, _, _ = decoder(lat_gen)
+            #     model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
             t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(irm_generator, decoder,
+            inception_mean, inception_std, fid = compute_inception_score(irm_translator, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
-                                                                         zdist, ydist, fid_real_samples, device)
+                                                                         zdist, None, fid_real_samples, device)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
             model_manager.log_manager.add_scalar('inception_score', 'stddev', inception_std, it=it)
             model_manager.log_manager.add_scalar('inception_score', 'fid', fid, it=it)
