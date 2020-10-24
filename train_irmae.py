@@ -165,8 +165,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, _, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen = irm_translator(z_gen)
+            images, _, lat_gen, trainiter = get_inputs(trainiter, batch_size, device)
             images_gen, _, _ = decoder(lat_gen)
             lat_enc, _, _ = encoder(images)
             lat_dec = irm_translator(lat_enc)
@@ -187,7 +186,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
             t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(irm_translator, decoder,
+            inception_mean, inception_std, fid = compute_inception_score(None, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
                                                                          zdist, None, fid_real_samples, device)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)

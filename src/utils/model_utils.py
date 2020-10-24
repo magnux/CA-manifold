@@ -114,7 +114,10 @@ def compute_inception_score(generator, decoder, inception_sample_size, fid_sampl
             ytest = ydist.sample((batch_size,))
             lat_gen = generator(ztest, ytest)
         else:
-            lat_gen = generator(ztest)
+            if generator is not None:
+                lat_gen = generator(ztest)
+            else:
+                lat_gen = ztest
         out_embs = [None]
         samples = None
         for _ in npass:
