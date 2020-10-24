@@ -26,13 +26,13 @@ z_dist:
 training:
   out_dir: save/cifar10_cell_ae_sto
   batch_size: 64
-  batch_split: 16
+  batch_split: 4
   batch_mult_steps: 4
   n_workers: 2
   optimizer: adam
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 128
+  n_epochs: 256
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0
