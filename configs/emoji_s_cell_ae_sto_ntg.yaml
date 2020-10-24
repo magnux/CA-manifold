@@ -7,7 +7,7 @@ data:
   channels: 4
   n_labels: 9
 network:
-  class: ca_manifold_2
+  class: cell_ae
   kwargs:
     ds_size: 32
     n_filter: 32
@@ -19,17 +19,17 @@ network:
     dyncin: False
     letter_encoding: False
     perception_noise: False
-    fire_rate: 1.0
+    fire_rate: 0.5
 z_dist:
   type: gauss
   z_dim: 256
 training:
-  out_dir: save/emoji_s_ca_manifold_2
+  out_dir: save/emoji_s_cell_ae_sto_ntg
   persistence: False
   regeneration: False
   batch_size: 64
   batch_split: 2
-  batch_mult_steps: 8
+  batch_mult_steps: 4
   n_workers: 2
   optimizer: adamp
   lr: 0.0001
@@ -44,5 +44,5 @@ training:
   d_reg_param: 10.
   d_reg_every: 16
   g_reg_every: 0
-  through_grads: True
+  through_grads: False
   inception_every: 0

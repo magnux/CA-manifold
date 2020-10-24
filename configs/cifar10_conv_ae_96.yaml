@@ -7,24 +7,22 @@ data:
   channels: 3
   n_labels: 10
 network:
-  class: ca_manifold_2
+  class: conv_ae
   kwargs:
     ds_size: 32
-    n_filter: 80
+    n_filter: 96
     embed_size: 256
     lat_size: 512
     n_calls: 4
-    shared_params: True
+    shared_params: False
     adain: False
     dyncin: False
     letter_encoding: False
-    perception_noise: False
-    fire_rate: 0.5
 z_dist:
   type: gauss
   z_dim: 256
 training:
-  out_dir: save/cifar10_ca_manifold_2_sto_80_alt_fp16
+  out_dir: save/cifar10_conv_ae_96
   batch_size: 64
   batch_split: 4
   batch_mult_steps: 4
@@ -42,7 +40,5 @@ training:
   d_reg_param: 10.
   d_reg_every: 16
   g_reg_every: 0
-  alt_reg: True
   through_grads: True
   inception_every: 0
-  fp16: True

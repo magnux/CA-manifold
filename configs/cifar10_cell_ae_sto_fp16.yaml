@@ -1,49 +1,47 @@
 data:
-  name: emoji
+  name: cifar10
   type: image
-  train_dir: data/emoji
-  test_dir: data/emoji
+  train_dir: data/cifar10
+  test_dir: data/cifar10
   image_size: 32
-  channels: 4
-  n_labels: 9
+  channels: 3
+  n_labels: 10
 network:
-  class: ca_manifold_2
+  class: cell_ae
   kwargs:
     ds_size: 32
-    n_filter: 32
+    n_filter: 64
     embed_size: 256
-    lat_size: 3
+    lat_size: 512
     n_calls: 4
     shared_params: True
     adain: False
     dyncin: False
     letter_encoding: False
     perception_noise: False
-    fire_rate: 1.0
+    fire_rate: 0.5
 z_dist:
   type: gauss
-  z_dim: 3
+  z_dim: 256
 training:
-  out_dir: save/emoji_s_ca_manifold_2_alt_lat3
-  persistence: False
-  regeneration: False
+  out_dir: save/cifar10_cell_ae_sto_fp16
   batch_size: 64
   batch_split: 2
-  batch_mult_steps: 8
+  batch_mult_steps: 4
   n_workers: 2
   optimizer: adamp
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 1024
+  n_epochs: 256
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0
   monitoring: tensorboard
-  sample_every: 16
-  sample_labels: 9
+  sample_every: 1
+  sample_labels: 10
   d_reg_param: 10.
   d_reg_every: 16
   g_reg_every: 0
-  alt_reg: True
   through_grads: True
   inception_every: 0
+  fp16: True

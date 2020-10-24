@@ -7,22 +7,24 @@ data:
   channels: 3
   n_labels: 10
 network:
-  class: conv_ae
+  class: cell_ae
   kwargs:
     ds_size: 32
-    n_filter: 96
+    n_filter: 80
     embed_size: 256
     lat_size: 512
     n_calls: 4
-    shared_params: False
+    shared_params: True
     adain: False
     dyncin: False
     letter_encoding: False
+    perception_noise: False
+    fire_rate: 0.5
 z_dist:
   type: gauss
   z_dim: 256
 training:
-  out_dir: save/cifar10_conv_ae_96_alt
+  out_dir: save/cifar10_cell_ae_sto_80
   batch_size: 64
   batch_split: 4
   batch_mult_steps: 4
@@ -40,6 +42,5 @@ training:
   d_reg_param: 10.
   d_reg_every: 16
   g_reg_every: 0
-  alt_reg: True
   through_grads: True
   inception_every: 0
