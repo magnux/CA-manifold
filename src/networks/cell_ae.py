@@ -49,8 +49,8 @@ class InjectedEncoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         )
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)), 1)], left_sided=causal)
+        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
@@ -58,7 +58,6 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Sequential(
-            nn.InstanceNorm2d(self.n_filter),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
@@ -157,15 +156,12 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        self.in_conv = nn.Sequential(
-            nn.InstanceNorm2d(self.n_filter),
-            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
-        )
+        self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
         self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.ds_size, 'cpu'))
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)), 1)], left_sided=causal)
+        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
@@ -173,7 +169,6 @@ class Decoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Sequential(
-            nn.InstanceNorm2d(self.n_filter),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
             *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
