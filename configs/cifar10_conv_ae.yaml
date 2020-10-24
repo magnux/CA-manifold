@@ -18,6 +18,8 @@ network:
     adain: False
     dyncin: False
     letter_encoding: False
+    perception_noise: False
+    fire_rate: 1.0
 z_dist:
   type: gauss
   z_dim: 256
