@@ -124,7 +124,7 @@ class Decoder(nn.Module):
             if ca_init is None:
                 seed = torch.cat([self.seeds[i].to(float_type)] * batch_size, 0)
             else:
-                seed = self.in_convs(F.interpolate(ca_init, size=2 ** (i + 1)))
+                seed = self.in_convs[i](F.interpolate(ca_init, size=2 ** (i + 1)))
             seed = self.dyna_convs[i](seed, lat)
             out = torch.cat([out, seed], dim=1)
             out = self.conv_block[i](out)
