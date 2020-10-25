@@ -85,13 +85,19 @@ def cov(m, rowvar=True, inplace=False):
     return fact * m.matmul(mt).squeeze()
 
 
+def get_multigauss_params(samples):
+    zdist_mu = samples.mean(dim=0)
+    zdist_cov = cov(samples, False, True)
+    return zdist_mu, zdist_cov
+
+
 def update_multigauss_params(dim, zdist, zdist_mu, zdist_cov, samples, lr):
     with torch.no_grad():
         del zdist
-        zdist_mu += lr * (samples.mean(dim=0) - zdist_mu)
-        zdist_cov += lr * (cov(samples, False, True) - zdist_cov)
-        # zdist_cov += lr * torch.eye(zdist_cov.size(0), device=zdist_cov.device)
-        zdist = get_zdist('multigauss', dim, zdist_cov.device, zdist_mu, zdist_cov)
+        zdist_mu_new, zdist_cov_new = get_multigauss_params(samples)
+        zdist_mu += lr * (zdist_mu_new - zdist_mu)
+        zdist_cov += lr * (zdist_cov_new - zdist_cov)
+        zdist = get_zdist('multigauss', dim, samples.device, zdist_mu, zdist_cov)
         return zdist, zdist_mu, zdist_cov
 
 

@@ -134,10 +134,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     with torch.no_grad():
                         images, _, _, trainiter = get_inputs(trainiter, batch_size, device)
 
-                        lat_enc, _, _ = encoder(images_test)
+                        lat_enc, _, _ = encoder(images)
                         lat_dec = irm_translator(lat_enc)
 
-                        zdist, zdist_mu, zdist_cov = update_multigauss_params(lat_size, zdist, zdist_mu, zdist_cov, lat_dec, config['training']['lr'])
+                        zdist, zdist_mu, zdist_cov = update_multigauss_params(lat_size, zdist, zdist_mu, zdist_cov, lat_dec, 10 / len(trainloader))
 
                 # Streaming Images
                 with torch.no_grad():

@@ -9,11 +9,14 @@ from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
 from itertools import chain
+
+from src.networks.conv_ae import Encoder
 
 
 class InjectedEncoder(nn.Module):
@@ -48,9 +51,10 @@ class InjectedEncoder(nn.Module):
             # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         )
-
+        if self.causal:
+            self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=causal)
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=self.causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
@@ -82,10 +86,12 @@ class InjectedEncoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
             if self.causal:
-                out = F.pad(out, [0, 2, 0, 2])
+                out = F.pad(out, [0, 1, 0, 1])
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
+            if self.causal:
+                out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
             out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
@@ -101,7 +107,7 @@ class InjectedEncoder(nn.Module):
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=x.device).to(float_type))
             out = out + (leak_factor * out_new)
             if self.causal:
-                out = out[:, :, 2:, 2:]
+                out = out[:, :, 1:, 1:]
             out_embs.append(out)
 
         out = self.out_conv(out)
@@ -159,9 +165,10 @@ class Decoder(nn.Module):
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
         self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.ds_size, 'cpu'))
-
+        if self.causal:
+            self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=causal)
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=self.causal)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
@@ -193,10 +200,12 @@ class Decoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         for c in range(self.n_calls):
             if self.causal:
-                out = F.pad(out, [0, 2, 0, 2])
+                out = F.pad(out, [0, 1, 0, 1])
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
+            if self.causal:
+                out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
             out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
@@ -212,7 +221,7 @@ class Decoder(nn.Module):
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
             out = out + (leak_factor * out_new)
             if self.causal:
-                out = out[:, :, 2:, 2:]
+                out = out[:, :, 1:, 1:]
             out_embs.append(out)
 
         out = self.out_conv(out)
