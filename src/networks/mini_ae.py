@@ -95,6 +95,10 @@ class Decoder(nn.Module):
 
         self.seeds = nn.ParameterList([nn.Parameter(checkerboard_seed(1, self.n_filter, 2 ** (i + 1), 'cpu').to(torch.float32)) for i in range(self.n_blocks)])
 
+        self.in_convs = nn.ModuleList(
+            [ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1) for _ in range(self.n_blocks)]
+        )
+
         self.dyna_convs = nn.ModuleList(
             [DynaConv(self.lat_size, self.n_filter, self.n_filter, 1, 1, 0, norm_weights=True) for _ in range(self.n_blocks)]
         )
@@ -120,7 +124,7 @@ class Decoder(nn.Module):
             if ca_init is None:
                 seed = torch.cat([self.seeds[i].to(float_type)] * batch_size, 0)
             else:
-                seed = F.interpolate(ca_init, size=2 ** (i + 1))
+                seed = self.in_convs(F.interpolate(ca_init, size=2 ** (i + 1)))
             seed = self.dyna_convs[i](seed, lat)
             out = torch.cat([out, seed], dim=1)
             out = self.conv_block[i](out)
