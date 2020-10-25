@@ -121,11 +121,10 @@ class Decoder(nn.Module):
         out_embs = []
         out = torch.zeros((batch_size, self.n_filter, 1, 1), device=lat.device)
         for i in range(self.n_blocks):
-            out = F.interpolate(out, size=2 ** (i + 1))
+            out = F.interpolate(out, scale_factor=2)
             out_init = F.interpolate(ca_init, size=2 ** (i + 1))
             out_cond = cond.repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
-            out = torch.cat([out, out_init, out_cond], dim=1)
-            out = out + 0.1 * self.conv_block[i](out)
+            out = out + 0.1 * self.conv_block[i](torch.cat([out, out_init, out_cond], dim=1))
             out_embs.append(out)
 
         if out.size(2) != self.image_size:
