@@ -44,12 +44,16 @@ class Encoder(nn.Module):
             if self.adain:
                 self.inj_cond = nn.Sequential(
                     LinearResidualBlock(self.lat_size, self.lat_size),
-                    LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls)),
+                    LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
                 )
             elif self.dyncin:
                 self.inj_cond = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter)
             else:
-                self.inj_cond = ResidualBlock(self.n_filter + self.lat_size, self.n_filter, None, 1, 1, 0)
+                self.lat_to_in = nn.Sequential(
+                    LinearResidualBlock(self.lat_size, self.lat_size),
+                    LinearResidualBlock(self.lat_size, sum(self.conv_state_size), self.lat_size * 2),
+                )
+                self.inj_cond = ResidualBlock(self.n_filter + sum(self.split_sizes), self.n_filter, None, 1, 1, 0)
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
@@ -77,8 +81,18 @@ class Encoder(nn.Module):
             elif self.dyncin:
                 pass
             else:
-                inj_lat = inj_lat.view(batch_size, self.lat_size, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
-                out = self.inj_cond(torch.cat([out, inj_lat], dim=1))
+                conv_state = self.lat_to_in(inj_lat)
+                if self.multi_cut:
+                    cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
+                    cs_f_m = cs_f_m.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
+                    cs_fh = cs_fh.view(batch_size, self.n_filter, self.ds_size, 1).repeat(1, 1, 1, self.ds_size)
+                    cs_fw = cs_fw.view(batch_size, self.n_filter, 1, self.ds_size).repeat(1, 1, self.ds_size, 1)
+                    cs_hw = cs_hw.view(batch_size, 1, self.ds_size, self.ds_size)
+                    out = torch.cat([out, cs_f_m, cs_fh, cs_fw, cs_hw], dim=1)
+                else:
+                    cs_f_m = conv_state.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
+                    out = torch.cat([out, cs_f_m], dim=1)
+                out = self.inj_cond(out)
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
@@ -124,12 +138,6 @@ class LabsInjectedEncoder(InjectedEncoder):
     def forward(self, x, labels):
         inj_lat = self.labs_encoder(labels)
         return super().forward(x, inj_lat)
-
-
-class ZInjectedEncoder(LabsInjectedEncoder):
-    def __init__(self, **kwargs):
-        kwargs['z_out'] = True
-        super().__init__(**kwargs)
 
 
 class Decoder(nn.Module):
