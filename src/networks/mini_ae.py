@@ -6,6 +6,7 @@ import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.networks.base import LabsEncoder
+from src.utils.model_utils import checkerboard_seed
 from itertools import chain
 import numpy as np
 
@@ -88,15 +89,15 @@ class Decoder(nn.Module):
         self.lat_size = lat_size
         self.n_blocks = int(np.ceil(np.log2(image_size)))
 
-        self.lat_to_seed = nn.ModuleList(
+        self.lat_to_cond = nn.ModuleList(
             [LinearResidualBlock(self.lat_size, self.n_filter) for _ in range(self.n_blocks)]
         )
 
-        self.conv_in = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
+        self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.ds_size, 'cpu').to(torch.float32))
 
         self.conv_block = nn.ModuleList(
             [nn.Sequential(nn.InstanceNorm2d(self.n_filter),
-                           ResidualBlock(self.n_filter * 2, self.n_filter, self.n_filter, 3, 1, 1),
+                           ResidualBlock(self.n_filter * 3, self.n_filter, self.n_filter, 3, 1, 1),
                            ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** (int(np.log2(image_size)) - i), 1, 1, 0)) for i in range(self.n_blocks)]
         )
 
@@ -109,18 +110,16 @@ class Decoder(nn.Module):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
-        if ca_init is not None:
-            ca_init = self.conv_in(ca_init)
+        if ca_init is None:
+            ca_init = torch.cat([self.seed.to(float_type)] * batch_size, 0)
 
         out_embs = []
         out = torch.zeros((batch_size, self.n_filter, 1, 1), device=lat.device)
         for i in range(self.n_blocks):
             out = F.interpolate(out, size=2 ** (i + 1))
-            if ca_init is None:
-                seed = self.lat_to_seed[i](lat).view(batch_size, self.n_filter, 1, 1).repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
-            else:
-                seed = F.interpolate(ca_init, size=2 ** (i + 1))
-            out = torch.cat([out, seed], dim=1)
+            out_init = F.interpolate(ca_init, size=2 ** (i + 1))
+            out_cond = self.lat_to_cond(lat).view(batch_size, self.n_filter, 1, 1).repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
+            out = torch.cat([out, out_init, out_cond], dim=1)
             out = self.conv_block[i](out)
             out_embs.append(out)
 
