@@ -132,13 +132,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
-                    with torch.no_grad():
-                        images, _, _, trainiter = get_inputs(trainiter, batch_size, device)
-
-                        lat_enc, _, _ = encoder(images)
-                        lat_dec = irm_translator(lat_enc)
-
-                        zdist, zdist_mu, zdist_cov = update_multigauss_params(lat_size, zdist, zdist_mu, zdist_cov, lat_dec, zdist_momentum)
+                    # with torch.no_grad():
+                    #     images, _, _, trainiter = get_inputs(trainiter, batch_size, device)
+                    #
+                    #     lat_enc, _, _ = encoder(images)
+                    #     lat_dec = irm_translator(lat_enc)
+                    #
+                    #     zdist, zdist_mu, zdist_cov = update_multigauss_params(lat_size, zdist, zdist_mu, zdist_cov, lat_dec, zdist_momentum)
 
                 # Streaming Images
                 with torch.no_grad():
@@ -160,19 +160,19 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 it += 1
 
-    save_multigauss_params(zdist_mu, zdist_cov, join(config['training']['out_dir'], 'irmae'))
+    # save_multigauss_params(zdist_mu, zdist_cov, join(config['training']['out_dir'], 'irmae'))
 
     with torch.no_grad():
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, _, lat_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            images_gen, _, _ = decoder(lat_gen)
+            # images_gen, _, _ = decoder(lat_gen)
             lat_enc, _, _ = encoder(images)
             lat_dec = irm_translator(lat_enc)
             images_dec, _, _ = decoder(lat_dec)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
-            model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
+            # model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             # for lab in range(config['training']['sample_labels']):
             #     if labels.dim() == 1:
