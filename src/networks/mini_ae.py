@@ -118,7 +118,7 @@ class Decoder(nn.Module):
         for i in range(self.n_blocks):
             out = F.interpolate(out, size=2 ** (i + 1))
             out_init = F.interpolate(ca_init, size=2 ** (i + 1))
-            out_cond = self.lat_to_cond(lat).view(batch_size, self.n_filter, 1, 1).repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
+            out_cond = self.lat_to_cond[i](lat).view(batch_size, self.n_filter, 1, 1).repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
             out = torch.cat([out, out_init, out_cond], dim=1)
             out = self.conv_block[i](out)
             out_embs.append(out)
