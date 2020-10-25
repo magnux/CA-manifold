@@ -27,8 +27,7 @@ class Encoder(nn.Module):
         )
 
         self.conv_block = nn.Sequential(
-            *chain(*[(ResidualBlock(self.n_filter, self.n_filter, self.n_filter, 3, 2, 1),
-                      ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** i, 1, 1, 0)) for i in range(int(np.log2(image_size)))])
+            *[ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** i, 3, 2, 1) for i in range(int(np.log2(image_size)))]
         )
 
         if self.injected:
@@ -95,8 +94,7 @@ class Decoder(nn.Module):
         self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.image_size, 'cpu').to(torch.float32))
 
         self.conv_block = nn.ModuleList(
-            [nn.Sequential(ResidualBlock(self.n_filter * 3, self.n_filter, self.n_filter, 3, 1, 1),
-                           ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** (int(np.log2(image_size)) - i), 1, 1, 0)) for i in range(self.n_blocks)]
+            [ResidualBlock(self.n_filter * 3, self.n_filter, self.n_filter * 2 ** (int(np.log2(image_size)) - i), 3, 1, 1) for i in range(self.n_blocks)]
         )
 
         self.conv_img = nn.Sequential(
