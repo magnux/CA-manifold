@@ -93,7 +93,7 @@ class Decoder(nn.Module):
             [LinearResidualBlock(self.lat_size, self.n_filter) for _ in range(self.n_blocks)]
         )
 
-        self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.ds_size, 'cpu').to(torch.float32))
+        self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.image_size, 'cpu').to(torch.float32))
 
         self.conv_block = nn.ModuleList(
             [nn.Sequential(nn.InstanceNorm2d(self.n_filter),
