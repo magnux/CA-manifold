@@ -109,7 +109,8 @@ class Decoder(nn.Module):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
-        ca_init = self.conv_in(ca_init)
+        if ca_init is not None:
+            ca_init = self.conv_in(ca_init)
 
         out_embs = []
         out = torch.zeros((batch_size, self.n_filter, 1, 1), device=lat.device)
