@@ -27,7 +27,8 @@ class Encoder(nn.Module):
         )
 
         self.conv_block = nn.Sequential(
-            *[ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** i, 3, 2, 1) for i in range(int(np.log2(image_size)))]
+            *chain(*[(ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** i, 3, 1, 1),
+                      nn.AvgPool2d(3, 2, 1)) for i in range(int(np.log2(image_size)))])
         )
 
         if self.injected:
@@ -113,7 +114,6 @@ class Decoder(nn.Module):
 
         out_embs = []
         out = torch.zeros((batch_size, self.n_filter, 1, 1), device=lat.device)
-        out[:, 0, :, :] = 1
         for i in range(self.n_blocks):
             out = F.interpolate(out, size=2 ** (i + 1))
             out_init = F.interpolate(ca_init, size=2 ** (i + 1))
