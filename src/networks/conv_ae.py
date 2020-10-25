@@ -96,7 +96,8 @@ class Encoder(nn.Module):
                 elif self.dyncin:
                     out_new = self.inj_cond(out_new, inj_lat)
                 else:
-                    out_new = torch.cat([out_new, cond_factors[0 if self.shared_params else c]], dim=1)
+                    c_fact = cond_factors[0 if self.shared_params else c].view(batch_size, self.n_filter, 1, 1).contiguous().repeat(1, 1, self.ds_size, self.ds_size)
+                    out_new = torch.cat([out_new, c_fact], dim=1)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
