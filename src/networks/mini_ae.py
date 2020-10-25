@@ -28,7 +28,7 @@ class Encoder(nn.Module):
 
         self.conv_block = nn.ModuleList(
             [nn.Sequential(nn.InstanceNorm2d(self.n_filter),
-                           ResidualBlock(self.n_filter, self.n_filter, self.n_filter, 3, 2, 1),
+                           ResidualBlock(self.n_filter, self.n_filter, self.n_filter, 3, 1, 1),
                            ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** i, 1, 1, 0)) for i in range(int(np.log2(image_size)))]
         )
 
@@ -57,6 +57,7 @@ class Encoder(nn.Module):
             out = self.inj_cond(out)
 
         for i in range(len(self.conv_block)):
+            out = F.interpolate(out, scale_factor=0.5)
             out = out + 0.1 * self.conv_block[i](out)
 
         lat = self.out_to_lat(out.mean(dim=(2, 3)))
