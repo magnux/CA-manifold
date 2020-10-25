@@ -21,7 +21,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -35,7 +35,6 @@ class InjectedEncoder(nn.Module):
         self.fire_rate = fire_rate
         self.skip_fire = skip_fire
         assert not self.fire_rate < 1.0 or not skip_fire, "fire_rate and skip_fire are mutually exclusive options"
-        self.log_mix_out = log_mix_out
         self.causal = causal
         self.gated = gated
         self.env_feedback = env_feedback
