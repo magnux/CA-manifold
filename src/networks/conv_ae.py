@@ -148,8 +148,6 @@ class Decoder(nn.Module):
         self.dyncin = dyncin
         self.log_mix_out = log_mix_out
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, self.n_filter, 1]
-        self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
@@ -160,19 +158,19 @@ class Decoder(nn.Module):
         self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.ds_size, 'cpu'))
 
         if self.adain:
-            self.lat_to_facts = nn.Sequential(
+            self.inj_cond = nn.Sequential(
                 LinearResidualBlock(self.lat_size, self.lat_size),
                 LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
             )
         elif self.dyncin:
-            self.dyn_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter)
+            self.inj_cond = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter)
         else:
-            self.lat_to_out = nn.Sequential(
+            self.inj_cond = nn.Sequential(
                 LinearResidualBlock(self.lat_size, self.lat_size),
-                LinearResidualBlock(self.lat_size, sum(self.conv_state_size), self.lat_size * 2),
+                LinearResidualBlock(self.lat_size, self.n_filter * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
             )
 
-        self.in_conv = ResidualBlock(self.n_filter if self.adain or self.dyncin else sum(self.merge_sizes), self.n_filter, None, 1, 1, 0)
+        self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
         self.conv_img = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
@@ -185,27 +183,20 @@ class Decoder(nn.Module):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
-        if self.adain or self.dyncin:
-            if self.adain:
-                cond_factors = self.lat_to_facts(lat)
-                cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
-            if ca_init is None:
-                # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
-                out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
-            else:
-                out = self.in_conv(ca_init)
+        if self.adain:
+            cond_factors = self.inj_cond(lat)
+            cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
+        elif self.dyncin:
+            pass
         else:
-            conv_state = self.lat_to_out(lat)
-            cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
-            cs_f_m = cs_f_m.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
-            cs_fh = cs_fh.view(batch_size, self.n_filter, self.ds_size, 1).repeat(1, 1, 1, self.ds_size)
-            cs_fw = cs_fw.view(batch_size, self.n_filter, 1, self.ds_size).repeat(1, 1, self.ds_size, 1)
-            cs_hw = cs_hw.view(batch_size, 1, self.ds_size, self.ds_size)
-            if ca_init is None:
-                # ca_init = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
-                ca_init = torch.cat([self.seed.to(float_type)] * batch_size, 0)
-            out = torch.cat([ca_init, cs_f_m, cs_fh, cs_fw, cs_hw], dim=1)
-            out = self.in_conv(out)
+            cond_factors = self.inj_cond(lat)
+            cond_factors = torch.split(cond_factors, self.n_filter, dim=1)
+
+        if ca_init is None:
+            # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+            out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
+        else:
+            out = self.in_conv(ca_init)
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
@@ -217,7 +208,10 @@ class Decoder(nn.Module):
                 b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
                 out_new = (s_fact * out_new) + b_fact
             elif self.dyncin:
-                out_new = self.dyn_conv(out_new, lat)
+                out_new = self.inj_cond(out_new, lat)
+            else:
+                c_fact = cond_factors[0 if self.shared_params else c].view(batch_size, self.n_filter, 1, 1).contiguous().repeat(1, 1, self.ds_size, self.ds_size)
+                out_new = torch.cat([out_new, c_fact], dim=1)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
