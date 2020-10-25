@@ -26,9 +26,9 @@ class Encoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1),
         )
 
-        self.conv_block = nn.ModuleList(
-            [nn.Sequential(ResidualBlock(self.n_filter, self.n_filter, self.n_filter, 3, 1, 1),
-                           ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** i, 1, 1, 0)) for i in range(int(np.log2(image_size)))]
+        self.conv_block = nn.Sequential(
+            *chain(*[(ResidualBlock(self.n_filter, self.n_filter, self.n_filter, 3, 2, 1),
+                      ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** i, 1, 1, 0)) for i in range(int(np.log2(image_size)))])
         )
 
         if self.injected:
@@ -55,10 +55,7 @@ class Encoder(nn.Module):
             out = torch.cat([out, cs_f_m], dim=1)
             out = self.inj_cond(out)
 
-        for i in range(len(self.conv_block)):
-            out = F.interpolate(out, scale_factor=0.5)
-            out = out + 0.1 * self.conv_block[i](out)
-
+        out = self.conv_block(out)
         lat = self.out_to_lat(out.mean(dim=(2, 3)))
 
         return lat, [out], None
@@ -118,11 +115,13 @@ class Decoder(nn.Module):
 
         out_embs = []
         out = torch.zeros((batch_size, self.n_filter, 1, 1), device=lat.device)
+        out[:, 0, :, :] = 1
         for i in range(self.n_blocks):
-            out = F.interpolate(out, scale_factor=2)
+            out = F.interpolate(out, size=2 ** (i + 1))
             out_init = F.interpolate(ca_init, size=2 ** (i + 1))
             out_cond = cond.repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
-            out = out + 0.1 * self.conv_block[i](torch.cat([out, out_init, out_cond], dim=1))
+            out = torch.cat([out, out_init, out_cond], dim=1)
+            out = self.conv_block[i](out)
             out_embs.append(out)
 
         if out.size(2) != self.image_size:
