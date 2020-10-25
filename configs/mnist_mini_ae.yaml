@@ -42,5 +42,5 @@ training:
   d_reg_param: 10.
   d_reg_every: 16
   g_reg_every: 0
-  through_grads: True
+  through_grads: False
   inception_every: 0
