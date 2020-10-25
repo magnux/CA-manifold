@@ -91,12 +91,12 @@ def get_multigauss_params(samples):
     return zdist_mu, zdist_cov
 
 
-def update_multigauss_params(dim, zdist, zdist_mu, zdist_cov, samples, lr):
+def update_multigauss_params(dim, zdist, zdist_mu, zdist_cov, samples, momentum):
     with torch.no_grad():
         del zdist
         zdist_mu_new, zdist_cov_new = get_multigauss_params(samples)
-        zdist_mu += lr * (zdist_mu_new - zdist_mu)
-        zdist_cov += lr * (zdist_cov_new - zdist_cov)
+        zdist_mu = momentum * zdist_mu + (1-momentum) * zdist_mu_new
+        zdist_cov = momentum * zdist_cov + (1-momentum) * zdist_cov_new
         zdist = get_zdist('multigauss', dim, samples.device, zdist_mu, zdist_cov)
         return zdist, zdist_mu, zdist_cov
 
