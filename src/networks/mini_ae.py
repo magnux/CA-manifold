@@ -5,12 +5,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.imagescaling import DownScale, UpScale
-from src.layers.lambd import LambdaLayer
-from src.layers.dynaconv import DynaConv
 from src.networks.base import LabsEncoder
-from src.utils.model_utils import ca_seed, checkerboard_seed
-from src.utils.loss_utils import sample_from_discretized_mix_logistic
 from itertools import chain
 import numpy as np
 
@@ -93,18 +88,13 @@ class Decoder(nn.Module):
         self.lat_size = lat_size
         self.n_blocks = int(np.ceil(np.log2(image_size)))
 
-        self.seeds = nn.ParameterList([nn.Parameter(checkerboard_seed(1, self.n_filter, 2 ** (i + 1), 'cpu').to(torch.float32)) for i in range(self.n_blocks)])
-
-        self.in_convs = nn.ModuleList(
-            [ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1) for _ in range(self.n_blocks)]
-        )
-
-        self.dyna_convs = nn.ModuleList(
-            [DynaConv(self.lat_size, self.n_filter, self.n_filter, 1, 1, 0, norm_weights=True) for _ in range(self.n_blocks)]
+        self.lat_to_seed = nn.ModuleList(
+            [LinearResidualBlock(self.lat_size, self.n_filter) for i in range(self.n_blocks)]
         )
 
         self.conv_block = nn.ModuleList(
-            [nn.Sequential(ResidualBlock(self.n_filter * 2, self.n_filter, self.n_filter, 3, 1, 1),
+            [nn.Sequential(nn.InstanceNorm2d(self.n_filter),
+                           ResidualBlock(self.n_filter * 2, self.n_filter, self.n_filter, 3, 1, 1),
                            ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 2 ** (int(np.log2(image_size)) - i), 1, 1, 0)) for i in range(self.n_blocks)]
         )
 
@@ -122,10 +112,9 @@ class Decoder(nn.Module):
         for i in range(self.n_blocks):
             out = F.interpolate(out, size=2 ** (i + 1))
             if ca_init is None:
-                seed = torch.cat([self.seeds[i].to(float_type)] * batch_size, 0)
+                seed = self.lat_to_seed[i](lat).view(batch_size, self.n_filter, 1, 1).repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
             else:
-                seed = self.in_convs[i](F.interpolate(ca_init, size=2 ** (i + 1)))
-            seed = self.dyna_convs[i](seed, lat)
+                seed = F.interpolate(ca_init, size=2 ** (i + 1))
             out = torch.cat([out, seed], dim=1)
             out = self.conv_block[i](out)
             out_embs.append(out)
