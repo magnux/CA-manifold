@@ -51,9 +51,9 @@ class Encoder(nn.Module):
             else:
                 self.lat_to_in = nn.Sequential(
                     LinearResidualBlock(self.lat_size, self.lat_size),
-                    LinearResidualBlock(self.lat_size, sum(self.conv_state_size), self.lat_size * 2),
+                    LinearResidualBlock(self.lat_size, self.n_filter, self.lat_size * 2),
                 )
-                self.inj_cond = ResidualBlock(self.n_filter + sum(self.split_sizes), self.n_filter, None, 1, 1, 0)
+                self.inj_cond = ResidualBlock(self.n_filter * 2, self.n_filter, None, 1, 1, 0)
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
@@ -82,16 +82,8 @@ class Encoder(nn.Module):
                 pass
             else:
                 conv_state = self.lat_to_in(inj_lat)
-                if self.multi_cut:
-                    cs_f_m, cs_fh, cs_fw, cs_hw = torch.split(conv_state, self.conv_state_size, dim=1)
-                    cs_f_m = cs_f_m.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
-                    cs_fh = cs_fh.view(batch_size, self.n_filter, self.ds_size, 1).repeat(1, 1, 1, self.ds_size)
-                    cs_fw = cs_fw.view(batch_size, self.n_filter, 1, self.ds_size).repeat(1, 1, self.ds_size, 1)
-                    cs_hw = cs_hw.view(batch_size, 1, self.ds_size, self.ds_size)
-                    out = torch.cat([out, cs_f_m, cs_fh, cs_fw, cs_hw], dim=1)
-                else:
-                    cs_f_m = conv_state.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
-                    out = torch.cat([out, cs_f_m], dim=1)
+                cs_f_m = conv_state.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
+                out = torch.cat([out, cs_f_m], dim=1)
                 out = self.inj_cond(out)
 
         out_embs = [out]
@@ -156,7 +148,7 @@ class Decoder(nn.Module):
         self.dyncin = dyncin
         self.log_mix_out = log_mix_out
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1, self.n_filter]
+        self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, self.n_filter, 1]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2]
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
@@ -212,7 +204,7 @@ class Decoder(nn.Module):
             if ca_init is None:
                 # ca_init = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
                 ca_init = torch.cat([self.seed.to(float_type)] * batch_size, 0)
-            out = torch.cat([cs_f_m, cs_fh, cs_fw, cs_hw, ca_init], dim=1)
+            out = torch.cat([ca_init, cs_f_m, cs_fh, cs_fw, cs_hw], dim=1)
             out = self.in_conv(out)
 
         out_embs = [out]
