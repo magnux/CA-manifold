@@ -49,7 +49,7 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
 # Distributions
 zdist_mu, zdist_cov = load_multigauss_params(join(config['training']['out_dir'], 'irmae'), lat_size, device=device)
 zdist = get_zdist('multigauss', lat_size, device=device, mu=zdist_mu, cov=zdist_cov)
-zdist_momentum = 1 - (10 / len(trainloader))
+zdist_momentum = 1 - (1 / len(trainloader))
 
 
 # Networks
