@@ -49,15 +49,14 @@ class Encoder(nn.Module):
             elif self.dyncin:
                 self.inj_cond = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter)
             else:
-                self.lat_to_in = nn.Sequential(
+                self.inj_cond = nn.Sequential(
                     LinearResidualBlock(self.lat_size, self.lat_size),
-                    LinearResidualBlock(self.lat_size, self.n_filter, self.lat_size * 2),
+                    LinearResidualBlock(self.lat_size, self.n_filter * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
                 )
-                self.inj_cond = ResidualBlock(self.n_filter * 2, self.n_filter, None, 1, 1, 0)
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
-                                            ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0),
+                                            ResidualBlock(self.n_filter * (2 if self.injected else 1), self.n_filter, self.n_filter * 4, 1, 1, 0),
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
                                         ) for _ in range(1 if self.shared_params else self.n_calls)])
 
@@ -81,10 +80,8 @@ class Encoder(nn.Module):
             elif self.dyncin:
                 pass
             else:
-                conv_state = self.lat_to_in(inj_lat)
-                cs_f_m = conv_state.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.ds_size, self.ds_size)
-                out = torch.cat([out, cs_f_m], dim=1)
-                out = self.inj_cond(out)
+                cond_factors = self.inj_cond(inj_lat)
+                cond_factors = torch.split(cond_factors, self.n_filter, dim=1)
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
@@ -98,6 +95,8 @@ class Encoder(nn.Module):
                     out_new = (s_fact * out_new) + b_fact
                 elif self.dyncin:
                     out_new = self.inj_cond(out_new, inj_lat)
+                else:
+                    out_new = torch.cat([out_new, cond_factors[0 if self.shared_params else c]], dim=1)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
             out_embs.append(out)
