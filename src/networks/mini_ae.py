@@ -34,7 +34,7 @@ class Encoder(nn.Module):
         if self.injected:
             self.lat_to_in = nn.Sequential(
                 LinearResidualBlock(self.lat_size, self.lat_size),
-                LinearResidualBlock(self.lat_size, self.n_filter),
+                LinearResidualBlock(self.lat_size, self.n_filter, self.lat_size * 2),
             )
             self.inj_cond = ResidualBlock(self.n_filter * 2, self.n_filter, None, 1, 1, 0)
 
