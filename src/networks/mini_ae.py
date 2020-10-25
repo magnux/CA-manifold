@@ -41,7 +41,6 @@ class Encoder(nn.Module):
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(self.n_filter, self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, self.lat_size)
         )
 
     def forward(self, x, inj_lat=None):
@@ -88,8 +87,9 @@ class Decoder(nn.Module):
         self.lat_size = lat_size
         self.n_blocks = int(np.ceil(np.log2(image_size)))
 
-        self.lat_to_cond = nn.ModuleList(
-            [LinearResidualBlock(self.lat_size, self.n_filter) for _ in range(self.n_blocks)]
+        self.lat_to_cond = nn.Sequential(
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.n_filter, self.lat_size * 2),
         )
 
         self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.image_size, 'cpu').to(torch.float32))
@@ -111,12 +111,14 @@ class Decoder(nn.Module):
         if ca_init is None:
             ca_init = torch.cat([self.seed.to(float_type)] * batch_size, 0)
 
+        cond = self.lat_to_cond(lat).view(batch_size, self.n_filter, 1, 1)
+
         out_embs = []
         out = torch.zeros((batch_size, self.n_filter, 1, 1), device=lat.device)
         for i in range(self.n_blocks):
             out = F.interpolate(out, size=2 ** (i + 1))
             out_init = F.interpolate(ca_init, size=2 ** (i + 1))
-            out_cond = self.lat_to_cond[i](lat).view(batch_size, self.n_filter, 1, 1).repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
+            out_cond = cond.repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
             out = torch.cat([out, out_init, out_cond], dim=1)
             out = self.conv_block[i](out)
             out_embs.append(out)
