@@ -92,9 +92,7 @@ class Decoder(nn.Module):
             [LinearResidualBlock(self.lat_size, self.n_filter) for _ in range(self.n_blocks)]
         )
 
-        self.conv_in = nn.ModuleList(
-            [ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1) for _ in range(self.n_blocks)]
-        )
+        self.conv_in = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
         self.conv_block = nn.ModuleList(
             [nn.Sequential(nn.InstanceNorm2d(self.n_filter),
@@ -111,6 +109,8 @@ class Decoder(nn.Module):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
+        ca_init = self.conv_in(ca_init)
+
         out_embs = []
         out = torch.zeros((batch_size, self.n_filter, 1, 1), device=lat.device)
         for i in range(self.n_blocks):
@@ -118,14 +118,13 @@ class Decoder(nn.Module):
             if ca_init is None:
                 seed = self.lat_to_seed[i](lat).view(batch_size, self.n_filter, 1, 1).repeat(1, 1, 2 ** (i + 1), 2 ** (i + 1))
             else:
-                seed = self.conv_in[i](F.interpolate(ca_init, size=2 ** (i + 1)))
+                seed = F.interpolate(ca_init, size=2 ** (i + 1))
             out = torch.cat([out, seed], dim=1)
             out = self.conv_block[i](out)
             out_embs.append(out)
 
         if out.size(2) != self.image_size:
             out = F.interpolate(out, size=self.image_size)
-            out_embs.append(out)
         out = self.conv_img(out)
         out_raw = out
         out = out.clamp(-1., 1.)
