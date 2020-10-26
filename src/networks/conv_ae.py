@@ -55,8 +55,9 @@ class Encoder(nn.Module):
                 )
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
+        conv_in_size = (1 if not self.injected or self.adain or self.dyncin else 2)
         self.frac_conv = nn.ModuleList([nn.Sequential(
-                                            ResidualBlock(self.n_filter * (2 if self.injected else 1), self.n_filter, self.n_filter * 4, 1, 1, 0),
+                                            ResidualBlock(self.n_filter * conv_in_size, self.n_filter, self.n_filter * 4, 1, 1, 0),
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
                                         ) for _ in range(1 if self.shared_params else self.n_calls)])
 
@@ -150,8 +151,9 @@ class Decoder(nn.Module):
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
+        conv_in_size = (1 if self.adain or self.dyncin else 2)
         self.frac_conv = nn.ModuleList([nn.Sequential(
-                                            ResidualBlock(self.n_filter * (1 if self.adain or self.dyncin else 2), self.n_filter, self.n_filter * 4, 1, 1, 0),
+                                            ResidualBlock(self.n_filter * conv_in_size, self.n_filter, self.n_filter * 4, 1, 1, 0),
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
                                         ) for _ in range(1 if self.shared_params else self.n_calls)])
 
