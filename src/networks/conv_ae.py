@@ -7,7 +7,7 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.imagescaling import DownScale, UpScale
 from src.layers.lambd import LambdaLayer
-from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.dynaconv import DynaConv
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -47,7 +47,7 @@ class Encoder(nn.Module):
                     LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
                 )
             elif self.dyncin:
-                self.inj_cond = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter)
+                self.inj_cond = nn.ModuleList([DynaConv(self.lat_size, self.n_filter, self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
             else:
                 self.inj_cond = nn.Sequential(
                     LinearResidualBlock(self.lat_size, self.lat_size),
@@ -94,7 +94,7 @@ class Encoder(nn.Module):
                     b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
                     out_new = (s_fact * out_new) + b_fact
                 elif self.dyncin:
-                    out_new = self.inj_cond(out_new, inj_lat)
+                    out_new = self.inj_cond[0 if self.shared_params else c](out_new, inj_lat)
                 else:
                     c_fact = cond_factors[0 if self.shared_params else c].view(batch_size, self.n_filter, 1, 1).contiguous().repeat(1, 1, self.ds_size, self.ds_size)
                     out_new = torch.cat([out_new, c_fact], dim=1)
@@ -163,7 +163,7 @@ class Decoder(nn.Module):
                 LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
             )
         elif self.dyncin:
-            self.inj_cond = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter)
+            self.inj_cond = nn.ModuleList([DynaConv(self.lat_size, self.n_filter, self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         else:
             self.inj_cond = nn.Sequential(
                 LinearResidualBlock(self.lat_size, self.lat_size),
@@ -208,7 +208,7 @@ class Decoder(nn.Module):
                 b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
                 out_new = (s_fact * out_new) + b_fact
             elif self.dyncin:
-                out_new = self.inj_cond(out_new, lat)
+                out_new = self.inj_cond[0 if self.shared_params else c](out_new, lat)
             else:
                 c_fact = cond_factors[0 if self.shared_params else c].view(batch_size, self.n_filter, 1, 1).contiguous().repeat(1, 1, self.ds_size, self.ds_size)
                 out_new = torch.cat([out_new, c_fact], dim=1)
