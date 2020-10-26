@@ -39,6 +39,10 @@ batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
+pre_train = config['training']['pre_train'] if 'pretrain' in config['training'] else True
+n_epochs = config['training']['n_epochs']
+if pre_train:
+    n_epochs = n_epochs // 2
 z_dim = config['z_dist']['z_dim']
 
 # Inputs
@@ -107,6 +111,44 @@ if config['training']['inception_every'] > 0:
         fid_real_samples.append(images)
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
+window_size = math.ceil((len(trainloader) // batch_split) / 10)
+
+if pre_train and model_manager.start_epoch == 0:
+    for epoch in range(model_manager.start_epoch, n_epochs):
+        with model_manager.on_epoch(epoch):
+            running_loss_dec = np.zeros(window_size)
+
+            t = trange(len(trainloader) // batch_split)
+            t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
+            for batch in t:
+                with model_manager.on_batch():
+
+                    loss_dec_sum = 0
+
+                    with model_manager.on_step(['encoder', 'decoder', 'irm_translator']) as nets_to_train:
+                        for _ in range(batch_split):
+                            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                            lat_enc, _, _ = encoder(images, labels)
+                            lat_dec = irm_translator(lat_enc, labels)
+                            images_dec, _, _ = decoder(lat_dec)
+
+                            loss_dec = (1 / batch_split) * F.mse_loss(images_dec, images)
+                            model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=config['training']['through_grads'])
+                            loss_dec_sum += loss_dec.item()
+
+                # Streaming Images
+                with torch.no_grad():
+                    lat_enc, _, _ = encoder(images_test, labels_test)
+                    lat_dec = irm_translator(lat_enc, labels_test)
+                    images_dec, _, _ = decoder(lat_dec)
+
+                stream_images(images_dec, config_name + '/frae_pretrain', config['training']['out_dir'] + '/frae_pretrain')
+
+                # Print progress
+                running_loss_dec[batch % window_size] = loss_dec_sum
+                running_factor = window_size if batch > window_size else batch + 1
+                t.set_postfix(loss_dec='%.2e' % (np.sum(running_loss_dec) / running_factor))
 
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', 1 if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
@@ -116,15 +158,12 @@ d_reg_every_mean_irm = model_manager.log_manager.get_last('regs', 'd_reg_every_m
 d_reg_every_mean_irm_next = d_reg_every_mean_irm
 d_reg_param_mean_irm = model_manager.log_manager.get_last('regs', 'd_reg_param_mean_irm', 1 / d_reg_param)
 
-window_size = math.ceil((len(trainloader) // batch_split) / 10)
-
-for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
+for epoch in range(model_manager.start_epoch, n_epochs):
     with model_manager.on_epoch(epoch):
-
         running_loss_dec = np.zeros(window_size)
 
-        batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-        reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
+        batch_mult = (int((epoch / n_epochs) * config['training']['batch_mult_steps']) + 1) * batch_split
+        reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / n_epochs))
 
         it = (epoch * (len(trainloader) // batch_split))
 
