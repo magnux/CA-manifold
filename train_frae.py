@@ -129,7 +129,7 @@ if pre_train and model_manager.start_epoch == 0:
                         for _ in range(batch_split):
                             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
                             if pre_train_ap:
-                                images = F.avg_pool2d(images, 3, 1, 1, count_include_pad=False)
+                                images = F.avg_pool2d(images, 9, 1, 4, count_include_pad=False)
 
                             lat_enc, _, _ = encoder(images, labels)
                             lat_dec = irm_translator(lat_enc, labels)
