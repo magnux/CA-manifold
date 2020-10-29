@@ -42,9 +42,6 @@ batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else True
 pre_train_gs = config['training']['pre_train_gs'] if 'pre_train_gs' in config['training'] else False
-n_epochs = config['training']['n_epochs']
-if pre_train:
-    n_epochs = n_epochs // 2
 z_dim = config['z_dist']['z_dim']
 
 # Inputs
@@ -118,9 +115,11 @@ window_size = math.ceil((len(trainloader) // batch_split) / 10)
 if pre_train and model_manager.start_epoch == 0:
     if pre_train_gs:
         gs = GaussianSmoothing(channels, image_size + 1 if (image_size % 2) == 0 else image_size, image_size//2, 2).to(device)
-    for epoch in range(model_manager.start_epoch, n_epochs):
+    for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 2):
         with model_manager.on_epoch(epoch):
             running_loss_dec = np.zeros(window_size)
+
+            it = (epoch * (len(trainloader) // batch_split))
 
             t = trange(len(trainloader) // batch_split)
             t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
@@ -156,6 +155,14 @@ if pre_train and model_manager.start_epoch == 0:
                 running_factor = window_size if batch > window_size else batch + 1
                 t.set_postfix(loss_dec='%.2e' % (np.sum(running_loss_dec) / running_factor))
 
+                # Log progress
+                model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
+
+                it += 1
+
+    print('Pre-training is complete...')
+    model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 2)
+
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', 1 if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
@@ -164,12 +171,12 @@ d_reg_every_mean_irm = model_manager.log_manager.get_last('regs', 'd_reg_every_m
 d_reg_every_mean_irm_next = d_reg_every_mean_irm
 d_reg_param_mean_irm = model_manager.log_manager.get_last('regs', 'd_reg_param_mean_irm', 1 / d_reg_param)
 
-for epoch in range(model_manager.start_epoch, n_epochs):
+for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
         running_loss_dec = np.zeros(window_size)
 
-        batch_mult = (int((epoch / n_epochs) * config['training']['batch_mult_steps']) + 1) * batch_split
-        reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / n_epochs))
+        batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
+        reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
 
         it = (epoch * (len(trainloader) // batch_split))
 
