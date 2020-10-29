@@ -24,7 +24,7 @@ z_dist:
   type: gauss
   z_dim: 256
 training:
-  out_dir: save/emoji_s_cell_ae_gs
+  out_dir: save/emoji_s_cell_ae_ap
   persistence: False
   regeneration: False
   batch_size: 64
@@ -47,4 +47,4 @@ training:
   through_grads: True
   inception_every: 0
   pre_train: True
-  pre_train_gs: True
+  pre_train_ap: True

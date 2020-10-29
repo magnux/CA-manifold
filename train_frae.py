@@ -12,7 +12,6 @@ from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_
 from src.utils.model_utils import compute_inception_score
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
-from src.layers.gaussiansmoothing import GaussianSmoothing
 from os.path import basename, splitext
 
 torch.backends.cudnn.deterministic = False
@@ -41,7 +40,7 @@ batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else True
-pre_train_gs = config['training']['pre_train_gs'] if 'pre_train_gs' in config['training'] else False
+pre_train_ap = config['training']['pre_train_ap'] if 'pre_train_ap' in config['training'] else False
 z_dim = config['z_dist']['z_dim']
 
 # Inputs
@@ -113,8 +112,6 @@ if config['training']['inception_every'] > 0:
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 if pre_train and model_manager.start_epoch == 0:
-    if pre_train_gs:
-        gs = GaussianSmoothing(channels, image_size + 1 if (image_size % 2) == 0 else image_size, image_size//2, 2).to(device)
     for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 2):
         with model_manager.on_epoch(epoch):
             running_loss_dec = np.zeros(window_size)
@@ -131,8 +128,8 @@ if pre_train and model_manager.start_epoch == 0:
                     with model_manager.on_step(['encoder', 'decoder', 'irm_translator']) as nets_to_train:
                         for _ in range(batch_split):
                             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-                            if pre_train_gs:
-                                images = gs(images)
+                            if pre_train_ap:
+                                images = F.avg_pool2d(images, 3, 1, 1, count_include_pad=False)
 
                             lat_enc, _, _ = encoder(images, labels)
                             lat_dec = irm_translator(lat_enc, labels)
@@ -144,7 +141,7 @@ if pre_train and model_manager.start_epoch == 0:
 
                 # Streaming Images
                 with torch.no_grad():
-                    lat_enc, _, _ = encoder(gs(images_test) if pre_train_gs else images_test, labels_test)
+                    lat_enc, _, _ = encoder(images_test, labels_test)
                     lat_dec = irm_translator(lat_enc, labels_test)
                     images_dec, _, _ = decoder(lat_dec)
 

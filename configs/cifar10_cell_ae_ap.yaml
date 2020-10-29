@@ -1,18 +1,18 @@
 data:
-  name: mnist
+  name: cifar10
   type: image
-  train_dir: data/mnist
-  test_dir: data/mnist
-  image_size: 28
-  channels: 1
+  train_dir: data/cifar10
+  test_dir: data/cifar10
+  image_size: 32
+  channels: 3
   n_labels: 10
 network:
   class: cell_ae
   kwargs:
-    ds_size: 28
-    n_filter: 16
-    embed_size: 64
-    lat_size: 128
+    ds_size: 32
+    n_filter: 64
+    embed_size: 256
+    lat_size: 512
     n_calls: 4
     shared_params: True
     adain: False
@@ -22,17 +22,17 @@ network:
     fire_rate: 1.0
 z_dist:
   type: gauss
-  z_dim: 64
+  z_dim: 256
 training:
-  out_dir: save/mnist_cell_ae_gs
+  out_dir: save/cifar10_cell_ae_ap
   batch_size: 64
-  batch_split: 1
-  batch_mult_steps: 4
+  batch_split: 4
+  batch_mult_steps: 1
   n_workers: 2
   optimizer: adamp
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 64
+  n_epochs: 256
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0
@@ -45,4 +45,4 @@ training:
   through_grads: True
   inception_every: 0
   pre_train: True
-  pre_train_gs: True
+  pre_train_ap: True
