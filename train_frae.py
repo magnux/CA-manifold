@@ -117,7 +117,7 @@ window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 if pre_train and model_manager.start_epoch == 0:
     if pre_train_gs:
-        gs = GaussianSmoothing(channels, image_size + 1 if (image_size % 2) == 0 else image_size, image_size//2, 2)
+        gs = GaussianSmoothing(channels, image_size + 1 if (image_size % 2) == 0 else image_size, image_size//2, 2).to(device)
     for epoch in range(model_manager.start_epoch, n_epochs):
         with model_manager.on_epoch(epoch):
             running_loss_dec = np.zeros(window_size)
