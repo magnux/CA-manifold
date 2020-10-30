@@ -40,7 +40,7 @@ batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else True
-pre_train_ap = config['training']['pre_train_ap'] if 'pre_train_ap' in config['training'] else False
+one_dec_pass = config['training']['one_dec_pass'] if 'one_dec_pass' in config['training'] else False
 z_dim = config['z_dist']['z_dim']
 
 # Inputs
@@ -128,8 +128,6 @@ if pre_train and model_manager.start_epoch == 0:
                     with model_manager.on_step(['encoder', 'decoder', 'irm_translator']) as nets_to_train:
                         for _ in range(batch_split):
                             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-                            if pre_train_ap:
-                                images = F.avg_pool2d(images, 9, 1, 4, count_include_pad=False)
 
                             lat_enc, _, _ = encoder(images, labels)
                             lat_dec = irm_translator(lat_enc, labels)
@@ -218,7 +216,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             lat_dec = irm_translator(lat_enc, labels)
                             images_dec, out_embs, _ = decoder(lat_dec)
-                            images_redec, _, _ = decoder(lat_dec, out_embs[-1])
+                            if one_dec_pass:
+                                images_redec = images_dec
+                            else:
+                                images_redec, _, _ = decoder(lat_dec, out_embs[-1])
 
                         images_redec.requires_grad_()
                         lat_top_dec, _, _ = fr_encoder(images_redec, labels)
@@ -254,10 +255,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=config['training']['through_grads'])
                         loss_dec_sum += loss_dec.item()
 
-                        if config['training']['through_grads']:
-                            images_redec, _, _ = decoder(lat_dec, out_embs[-1])
+                        if one_dec_pass:
+                            images_redec = images_dec
                         else:
-                            images_redec, _, _ = decoder(lat_dec.clone().detach(), out_embs[-1].clone().detach())
+                            if config['training']['through_grads']:
+                                images_redec, _, _ = decoder(lat_dec, out_embs[-1])
+                            else:
+                                images_redec, _, _ = decoder(lat_dec.clone().detach(), out_embs[-1].clone().detach())
 
                         lat_top_dec, _, _ = fr_encoder(images_redec, labels)
                         labs_dec = fr_discriminator(lat_top_dec, labels)
@@ -342,8 +346,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with torch.no_grad():
                     lat_gen = irm_generator(z_test, labels_test)
                     images_gen, out_embs, _ = decoder(lat_gen)
-                    images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-                    images_gen = torch.cat([images_gen, images_regen], dim=3)
+                    if not one_dec_pass:
+                        images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                        images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/frae', config['training']['out_dir'] + '/frae')
 
@@ -383,13 +388,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = irm_generator(z_test, labels_test)
             images_gen, out_embs, _ = decoder(lat_gen)
-            images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-            images_gen = torch.cat([images_gen, images_regen], dim=3)
+            if not one_dec_pass:
+                images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                images_gen = torch.cat([images_gen, images_regen], dim=3)
             lat_enc, _, _ = encoder(images, labels)
             lat_dec = irm_translator(lat_enc, labels)
             images_dec, out_embs, _ = decoder(lat_dec)
-            images_redec, _, _ = decoder(lat_dec, out_embs[-1])
-            images_dec = torch.cat([images_dec, images_redec], dim=3)
+            if not one_dec_pass:
+                images_redec, _, _ = decoder(lat_dec, out_embs[-1])
+                images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
@@ -401,8 +408,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     fixed_lab[:, lab] = 1
                 lat_gen = irm_generator(z_test, fixed_lab)
                 images_gen, out_embs, _ = decoder(lat_gen)
-                images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-                images_gen = torch.cat([images_gen, images_regen], dim=3)
+                if not one_dec_pass:
+                    images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                    images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
@@ -410,7 +418,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             t.write('Computing inception/fid!')
             inception_mean, inception_std, fid = compute_inception_score(irm_generator, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
-                                                                         zdist, ydist, fid_real_samples, device)
+                                                                         zdist, ydist, fid_real_samples, device, 1 if one_dec_pass else 2)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
             model_manager.log_manager.add_scalar('inception_score', 'stddev', inception_std, it=it)
             model_manager.log_manager.add_scalar('inception_score', 'fid', fid, it=it)

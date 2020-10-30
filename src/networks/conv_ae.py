@@ -135,7 +135,7 @@ class LabsInjectedEncoder(InjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params,
-                 adain=False, dyncin=False, log_mix_out=False, **kwargs):
+                 adain=False, dyncin=False, log_mix_out=False, redec_ap=False, **kwargs):
         super().__init__()
         self.n_labels = n_labels
         self.image_size = image_size
@@ -149,6 +149,7 @@ class Decoder(nn.Module):
         self.dyncin = dyncin
         self.log_mix_out = log_mix_out
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.redec_ap = redec_ap
 
         self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         conv_in_size = (1 if self.adain or self.dyncin else 2)
@@ -172,6 +173,8 @@ class Decoder(nn.Module):
                 LinearResidualBlock(self.lat_size, self.n_filter * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
             )
 
+        if self.redec_ap:
+            self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
         self.conv_img = nn.Sequential(
@@ -198,6 +201,8 @@ class Decoder(nn.Module):
             # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
         else:
+            if self.redec_ap:
+                ca_init = self.in_ap(ca_init)
             out = self.in_conv(ca_init)
 
         out_embs = [out]

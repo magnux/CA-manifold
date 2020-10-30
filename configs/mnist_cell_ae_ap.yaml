@@ -20,6 +20,7 @@ network:
     letter_encoding: False
     perception_noise: False
     fire_rate: 1.0
+    redec_ap: True
 z_dist:
   type: gauss
   z_dim: 64
@@ -45,4 +46,3 @@ training:
   through_grads: True
   inception_every: 0
   pre_train: True
-  pre_train_ap: True
