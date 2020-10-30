@@ -296,12 +296,12 @@ def sample_from_discretized_mix_logistic(output, nr_mix):
     return out
 
 
-def gaussian_kl_loss(mu, log_var):
+def vae_gaussian_kl_loss(mu, log_var):
     kl_div = - 0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1)
     return kl_div.mean()
 
 
-def sample_gaussian(mu, log_var):
+def vae_sample_gaussian(mu, log_var):
     std = torch.exp(log_var / 2)
     eps = torch.randn_like(std)
     return mu + eps * std
