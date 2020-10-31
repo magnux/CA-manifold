@@ -306,3 +306,24 @@ def vae_sample_gaussian(mu, log_var):
     eps = torch.randn_like(std)
     return mu + eps * std
 
+
+def age_gaussian_kl_loss(samples, kl_dir_pq=False):
+    samples_var = samples.var(0)
+    samples_mean = samples.mean(0)
+
+    if kl_dir_pq:
+        # mu_1 = 0; sigma_1 = 1
+
+        t1 = (1 + samples_mean.pow(2)) / (2 * samples_var.pow(2))
+        t2 = samples_var.log()
+
+        KL = (t1 + t2 - 0.5).mean()
+    else:
+        # mu_2 = 0; sigma_2 = 1
+
+        t1 = (samples_var.pow(2) + samples_mean.pow(2)) / 2
+        t2 = -samples_var.log()
+
+        KL = (t1 + t2 - 0.5).mean()
+
+    return KL
