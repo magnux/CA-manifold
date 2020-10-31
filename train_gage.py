@@ -160,7 +160,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
-                        images, labels, _, trainiter = get_inputs(trainiter, batch_split_size, device)
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, out_embs, _ = decoder(lat_gen)
