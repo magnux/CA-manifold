@@ -20,7 +20,7 @@ torch.backends.cudnn.benchmark = True
 np.random.seed(42)
 torch.manual_seed(42)
 
-parser = argparse.ArgumentParser(description='Train a gage')
+parser = argparse.ArgumentParser(description='Train a FRAE-AGE')
 parser.add_argument('config', type=str, help='Path to config file.')
 args = parser.parse_args()
 config = load_config(args.config)
@@ -55,7 +55,7 @@ networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
 }
-model_manager = ModelManager('gage', networks_dict, config)
+model_manager = ModelManager('frae_age', networks_dict, config)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
@@ -186,7 +186,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
-                stream_images(images_gen, config_name + '/gage', config['training']['out_dir'] + '/gage')
+                stream_images(images_gen, config_name + '/frae_age', config['training']['out_dir'] + '/frae_age')
 
                 # Print progress
                 running_loss_dis[batch % window_size] = loss_dis_enc_sum + loss_dis_dec_sum
