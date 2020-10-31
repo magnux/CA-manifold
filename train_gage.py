@@ -131,13 +131,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_enc, nets_to_train, retain_graph=True)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                        lat_enc = generator(z_enc, labels)
-                        _, out_embs, _ = decoder(lat_enc)
-                        images_redec, _, _ = decoder(lat_enc, out_embs[-1])
-
-                        loss_enc = (1 / batch_mult) * F.mse_loss(images_redec, images)
-                        model_manager.loss_backward(loss_enc, nets_to_train)
-                        loss_enc_sum += loss_enc.item()
+                        # lat_enc = generator(z_enc, labels)
+                        # _, out_embs, _ = decoder(lat_enc)
+                        # images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+                        #
+                        # loss_enc = (1 / batch_mult) * F.mse_loss(images_redec, images)
+                        # model_manager.loss_backward(loss_enc, nets_to_train)
+                        # loss_enc_sum += loss_enc.item()
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
@@ -174,9 +174,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         # model_manager.loss_backward(loss_dec, nets_to_train)
                         # loss_dec_sum += loss_dec.item()
 
-                        with torch.no_grad():
-                            z_enc, _, _ = encoder(images, labels)
+                # AE step
+                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
+                    for _ in range(batch_mult):
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                        z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
                         images_dec, out_embs, _ = decoder(lat_enc)
                         images_redec, _, _ = decoder(lat_enc, out_embs[-1])
