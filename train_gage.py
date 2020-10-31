@@ -150,11 +150,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                        z_redec, _, _ = encoder(images_redec, labels)
-
-                        loss_enc = (1 / batch_mult) * F.mse_loss(F.normalize(z_redec, dim=1), F.normalize(z_gen, dim=1))
-                        model_manager.loss_backward(loss_enc, nets_to_train)
-                        loss_enc_sum += loss_enc.item()
+                        # z_redec, _, _ = encoder(images_redec, labels)
+                        #
+                        # loss_enc = (1 / batch_mult) * F.mse_loss(F.normalize(z_redec, dim=1), F.normalize(z_gen, dim=1))
+                        # model_manager.loss_backward(loss_enc, nets_to_train)
+                        # loss_enc_sum += loss_enc.item()
 
                 # Decoder step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
@@ -162,21 +162,23 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, _, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        with torch.no_grad():
-                            z_enc, _, _ = encoder(images, labels)
-
-                        lat_enc = generator(z_enc, labels)
-                        images_dec, out_embs, _ = decoder(lat_enc)
+                        lat_gen = generator(z_gen, labels)
+                        images_dec, out_embs, _ = decoder(lat_gen)
                         z_dec, _, _ = encoder(images_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train, retain_graph=True)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                        loss_dec = (1 / batch_mult) * F.mse_loss(F.normalize(z_dec, dim=1), F.normalize(z_enc, dim=1))
-                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
-                        loss_dec_sum += loss_dec.item()
+                        # loss_dec = (1 / batch_mult) * F.mse_loss(F.normalize(z_dec, dim=1), F.normalize(z_gen, dim=1))
+                        # model_manager.loss_backward(loss_dec, nets_to_train)
+                        # loss_dec_sum += loss_dec.item()
 
+                        with torch.no_grad():
+                            z_enc, _, _ = encoder(images, labels)
+
+                        lat_enc = generator(z_enc, labels)
+                        images_dec, out_embs, _ = decoder(lat_enc)
                         images_redec, _, _ = decoder(lat_enc, out_embs[-1])
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_redec, images)
