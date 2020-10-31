@@ -126,7 +126,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_enc, _, _ = encoder(images, labels)
 
                         loss_dis_enc = (1 / batch_mult) * age_gaussian_kl_loss(z_enc)
-                        model_manager.loss_backward(loss_dis_enc, nets_to_train)
+                        model_manager.loss_backward(loss_dis_enc, nets_to_train, retain_graph=True)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         lat_enc = generator(z_enc, labels)
