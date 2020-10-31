@@ -115,7 +115,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 loss_gen_dec_sum = 0
-                loss_dec_sum = 0
+                loss_enc_sum, loss_dec_sum = 0, 0
 
                 # Discriminator step
                 with model_manager.on_step(['encoder']) as nets_to_train:
@@ -131,13 +131,20 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
-                            images_dec, _, _ = decoder(lat_gen)
+                            images_dec, out_embs, _ = decoder(lat_gen)
+                            images_redec, _, _ = decoder(lat_gen, out_embs[-1])
 
-                        z_dec, _, _ = encoder(images, labels)
+                        z_dec, _, _ = encoder(images_dec, labels)
                         loss_dis_dec = (1 / batch_mult) * -age_gaussian_kl_loss(z_dec)
 
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
+
+                        z_redec, _, _ = encoder(images_redec, labels)
+
+                        loss_enc = (1 / batch_mult) * F.mse_loss(z_redec, z_gen)
+                        model_manager.loss_backward(loss_enc, nets_to_train)
+                        loss_enc_sum += loss_enc.item()
 
                 # Decoder step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
@@ -184,6 +191,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
+
+                model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 it += 1
@@ -222,7 +231,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             t.write('Computing inception/fid!')
             inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
-                                                                         zdist, ydist, fid_real_samples, device)
+                                                                         zdist, ydist, fid_real_samples, device, 2)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
             model_manager.log_manager.add_scalar('inception_score', 'stddev', inception_std, it=it)
             model_manager.log_manager.add_scalar('inception_score', 'fid', fid, it=it)
