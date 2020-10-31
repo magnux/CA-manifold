@@ -173,6 +173,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_dec, nets_to_train, retain_graph=True)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
+                        loss_dec = (1 / batch_mult) * F.mse_loss(F.normalize(z_dec, dim=1), F.normalize(z_enc, dim=1))
+                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
+                        loss_dec_sum += loss_dec.item()
+
                         images_redec, _, _ = decoder(lat_enc, out_embs[-1])
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_redec, images)
