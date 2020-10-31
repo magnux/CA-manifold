@@ -49,7 +49,7 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=False, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
@@ -66,6 +66,7 @@ class Generator(nn.Module):
             IRMLinear(self.fhidden),
         )
         self.lat_out = nn.Linear(self.fhidden, self.lat_size)
+        self.norm_z = norm_z
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -81,7 +82,10 @@ class Generator(nn.Module):
 
         labs_proj = self.labs_to_proj(yembed)
 
-        z = z.clamp(-3, 3)
+        if self.norm_z:
+            z = F.normalize(z, dim=1)
+        else:
+            z = z.clamp(-3, 3)
         lat = self.irm_layer(z)
         lat = self.lat_to_lat(lat) + (labs_proj * lat)
         lat = self.lat_out(lat)
