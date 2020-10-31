@@ -111,7 +111,7 @@ if config['training']['inception_every'] > 0:
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
-if pre_train and model_manager.start_epoch == 0:
+if pre_train:
     for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 2):
         with model_manager.on_epoch(epoch):
             running_loss_dec = np.zeros(window_size)
