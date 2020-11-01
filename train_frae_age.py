@@ -117,7 +117,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             with model_manager.on_batch():
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
-                loss_gen_dec_sum = 0
+                loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
                 loss_enc_sum, loss_dec_sum = 0, 0
 
                 # Discriminator step
@@ -129,7 +129,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_enc, _, _ = encoder(images, labels)
 
                         loss_dis_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_enc, dim=1))
-                        model_manager.loss_backward(loss_dis_enc, nets_to_train, retain_graph=True)
+                        model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         with torch.no_grad():
@@ -148,6 +148,16 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                        z_enc, _, _ = encoder(images, labels)
+                        lat_enc = generator(z_enc, labels)
+                        images_dec, out_embs, _ = decoder(lat_enc)
+                        images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+                        z_reenc, _, _ = encoder(images_redec, labels)
+
+                        loss_gen_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_reenc, dim=1))
+                        model_manager.loss_backward(loss_gen_enc, nets_to_train)
+                        loss_gen_enc_sum += loss_gen_enc.item()
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, out_embs, _ = decoder(lat_gen)
@@ -183,7 +193,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Print progress
                 running_loss_dis[batch % window_size] = loss_dis_enc_sum + loss_dis_dec_sum
-                running_loss_gen[batch % window_size] = loss_gen_dec_sum
+                running_loss_gen[batch % window_size] = loss_gen_enc_sum + loss_gen_dec_sum
                 running_factor = window_size if batch > window_size else batch + 1
                 t.set_postfix(loss_dis='%.2e' % (np.sum(running_loss_dis) / running_factor),
                               loss_gen='%.2e' % (np.sum(running_loss_gen) / running_factor))
@@ -193,6 +203,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
