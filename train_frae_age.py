@@ -38,6 +38,7 @@ batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
+kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 1e-2
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -127,7 +128,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_enc, _, _ = encoder(images, labels)
 
-                        loss_dis_enc = (1 / batch_mult) * age_gaussian_kl_loss(F.normalize(z_enc, dim=1))
+                        loss_dis_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_enc, dim=1))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train, retain_graph=True)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
@@ -138,7 +139,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_dec, _, _ = encoder(images_redec, labels)
 
-                        loss_dis_dec = (1 / batch_mult) * -age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
+                        loss_dis_dec = (1 / batch_mult) * kl_factor * -age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
@@ -153,7 +154,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_redec, _, _ = decoder(lat_gen, out_embs[-1])
                         z_dec, _, _ = encoder(images_redec, labels)
 
-                        loss_gen_dec = (1 / batch_mult) * age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
+                        loss_gen_dec = (1 / batch_mult) * 2 * kl_factor * age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train, retain_graph=True)
                         loss_gen_dec_sum += loss_gen_dec.item()
 

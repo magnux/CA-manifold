@@ -307,7 +307,7 @@ def vae_sample_gaussian(mu, log_var):
     return mu + eps * std
 
 
-def age_gaussian_kl_loss(samples, kl_dir_pq=False, squash_out=True):
+def age_gaussian_kl_loss(samples, kl_dir_pq=False):
     samples_var = samples.var(0)
     samples_mean = samples.mean(0)
 
@@ -320,11 +320,6 @@ def age_gaussian_kl_loss(samples, kl_dir_pq=False, squash_out=True):
         t1 = (samples_var.pow(2) + samples_mean.pow(2)) / 2
         t2 = -samples_var.log()
 
-    KL = t1 + t2 - 0.5
-
-    if squash_out:
-        KL = KL.tanh() + (KL * 1e-3)
-
-    KL = KL.mean()
+    KL = (t1 + t2 - 0.5).mean()
 
     return KL
