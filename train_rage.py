@@ -20,7 +20,7 @@ torch.backends.cudnn.benchmark = True
 np.random.seed(42)
 torch.manual_seed(42)
 
-parser = argparse.ArgumentParser(description='Train a FRAE-AGE')
+parser = argparse.ArgumentParser(description='Train a RAGE')
 parser.add_argument('config', type=str, help='Path to config file.')
 args = parser.parse_args()
 config = load_config(args.config)
@@ -38,6 +38,7 @@ batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
+pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else True
 kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 1e-2
 
 # Inputs
@@ -56,7 +57,7 @@ networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
 }
-model_manager = ModelManager('frae_age', networks_dict, config)
+model_manager = ModelManager('rage', networks_dict, config)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
@@ -95,10 +96,56 @@ if config['training']['inception_every'] > 0:
         fid_real_samples.append(images)
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
+window_size = math.ceil((len(trainloader) // batch_split) / 10)
+
+if pre_train:
+    for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 2):
+        with model_manager.on_epoch(epoch):
+            running_loss_dec = np.zeros(window_size)
+
+            it = (epoch * (len(trainloader) // batch_split))
+
+            t = trange(len(trainloader) // batch_split)
+            t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
+            for batch in t:
+                with model_manager.on_batch():
+
+                    loss_dec_sum = 0
+
+                    with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+                        for _ in range(batch_split):
+                            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                            z_enc, _, _ = encoder(images, labels)
+                            lat_dec = generator(z_enc, labels)
+                            images_dec, _, _ = decoder(lat_dec)
+
+                            loss_dec = (1 / batch_split) * F.mse_loss(images_dec, images)
+                            model_manager.loss_backward(loss_dec, nets_to_train)
+                            loss_dec_sum += loss_dec.item()
+
+                # Streaming Images
+                with torch.no_grad():
+                    z_enc, _, _ = encoder(images_test, labels_test)
+                    lat_dec = generator(z_enc, labels_test)
+                    images_dec, _, _ = decoder(lat_dec)
+
+                stream_images(images_dec, config_name + '/rage_pretrain', config['training']['out_dir'] + '/rage_pretrain')
+
+                # Print progress
+                running_loss_dec[batch % window_size] = loss_dec_sum
+                running_factor = window_size if batch > window_size else batch + 1
+                t.set_postfix(loss_dec='%.2e' % (np.sum(running_loss_dec) / running_factor))
+
+                # Log progress
+                model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
+
+                it += 1
+
+    print('Pre-training is complete...')
+    model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 2)
 
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
-
-window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
@@ -201,7 +248,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
-                stream_images(images_gen, config_name + '/frae_age', config['training']['out_dir'] + '/frae_age')
+                stream_images(images_gen, config_name + '/rage', config['training']['out_dir'] + '/rage')
 
                 # Print progress
                 running_loss_dis[batch % window_size] = loss_dis_enc_sum + loss_dis_dec_sum
