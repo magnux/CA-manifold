@@ -15,7 +15,7 @@ from src.utils.loss_utils import sample_from_discretized_mix_logistic
 
 class Encoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params,
-                 injected=False, adain=False, dyncin=False, multi_cut=True, **kwargs):
+                 injected=False, adain=False, dyncin=False, multi_cut=True, z_out=False, z_dim=0, **kwargs):
         super().__init__()
         self.injected = injected
         self.adain = adain
@@ -65,7 +65,7 @@ class Encoder(nn.Module):
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, self.lat_size)
+            nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
         )
 
     def forward(self, x, inj_lat=None):
@@ -131,6 +131,12 @@ class LabsInjectedEncoder(InjectedEncoder):
     def forward(self, x, labels):
         inj_lat = self.labs_encoder(labels)
         return super().forward(x, inj_lat)
+
+
+class ZInjectedEncoder(LabsInjectedEncoder):
+    def __init__(self, **kwargs):
+        kwargs['z_out'] = True
+        super().__init__(**kwargs)
 
 
 class Decoder(nn.Module):
