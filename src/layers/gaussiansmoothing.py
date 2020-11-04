@@ -18,10 +18,10 @@ class GaussianSmoothing(nn.Module):
         dim (int, optional): The number of dimensions of the data.
             Default value is 2 (spatial).
     """
-    def __init__(self, channels, kernel, padding, sigma, dim=2, left_side=False):
+    def __init__(self, channels, kernel, padding, sigma, dim=2, left_side=False, norm_kernel=True):
         super(GaussianSmoothing, self).__init__()
 
-        self.register_buffer('weight', get_gaussian_kernel(channels, kernel, sigma, dim, left_side))
+        self.register_buffer('weight', get_gaussian_kernel(channels, kernel, sigma, dim, left_side, norm_kernel))
         self.groups = channels
         self.padding = padding
 
@@ -48,10 +48,10 @@ class GaussianSmoothing(nn.Module):
 
 
 class GaussianAttention(nn.Module):
-    def __init__(self, channels, kernel=5, padding=2, sigma=1, dim=2, left_side=False, n_passes=4):
+    def __init__(self, channels, kernel=5, padding=2, sigma=1, dim=2, left_side=False, norm_kernel=True, n_passes=4):
         super(GaussianAttention, self).__init__()
 
-        self.register_buffer('weight', get_gaussian_kernel(channels, kernel, sigma, dim, left_side))
+        self.register_buffer('weight', get_gaussian_kernel(channels, kernel, sigma, dim, left_side, norm_kernel))
         self.groups = channels
         self.padding = padding
         self.n_passes = n_passes
@@ -75,7 +75,7 @@ class GaussianAttention(nn.Module):
         return x_out
 
 
-def get_gaussian_kernel(channels, kernel_size, sigma, dim=2, left_side=False):
+def get_gaussian_kernel(channels, kernel_size, sigma, dim=2, left_side=False, norm_kernel=True):
     if isinstance(kernel_size, numbers.Number):
         kernel_size = [kernel_size] * dim
     if isinstance(sigma, numbers.Number):
@@ -92,12 +92,12 @@ def get_gaussian_kernel(channels, kernel_size, sigma, dim=2, left_side=False):
             new_kernel[(size // 2) + 1:] = 0.
         kernel *= new_kernel
 
-    if left_side:
-        # Make sure the max value in the kernel is 1.
-        kernel = kernel / torch.max(kernel)
-    else:
+    if norm_kernel:
         # Make sure sum of values in gaussian kernel equals 1.
         kernel = kernel / torch.sum(kernel)
+    else:
+        # Make sure the max value in the kernel is 1.
+        kernel = kernel / torch.max(kernel)
 
     # Reshape to depthwise convolutional weight
     kernel = kernel.view(1, 1, *kernel.size())
