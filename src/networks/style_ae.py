@@ -56,7 +56,7 @@ class InjectedEncoder(nn.Module):
         self.n_filter = n_filter
         self.lat_size = lat_size
 
-        filters = [self.n_filter * (2 ** (i + 1)) for i in range(int(np.log2(self.image_size)))]
+        filters = [self.in_chan] + [self.n_filter * (2 ** (i + 1)) for i in range(int(np.log2(self.image_size)))]
 
         self.blocks = nn.ModuleList()
         for i in range(len(filters)-1):
@@ -101,32 +101,6 @@ class ZInjectedEncoder(LabsInjectedEncoder):
         super().__init__(**kwargs)
 
 
-class DecoderOutBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, upsample):
-        super().__init__()
-        self.input_channel = fin
-
-        self.conv = ModConv(lat_size, fin, fout, 1, demod=False)
-
-        self.upsample = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-            GaussianSmoothing(fout, 3, 1, 1)
-        ) if upsample else None
-
-    def forward(self, x, lat, prev_out):
-
-        style = self.to_style(lat)
-        x = self.conv(x, style)
-
-        if prev_out is not None:
-            x = x + prev_out
-
-        if self.upsample is not None:
-            x = self.upsample(x)
-
-        return x
-
-
 class DecoderBlock(nn.Module):
     def __init__(self, lat_size, fin, fout, out_chan, upsample_in=True, upsample_out=True, lat_mask_prob=0.9):
         super().__init__()
@@ -136,13 +110,19 @@ class DecoderBlock(nn.Module):
             self.lat_mask = nn.Parameter((torch.rand(1, lat_size) < lat_mask_prob).to(torch.float32))
 
         self.conv0 = ModConv(lat_size, fin, fout, 3)
-        self.noise0 = NoiseInjection(lat_size, fout)
+        self.noise0 = NoiseInjection(fout)
 
         self.conv1 = ModConv(lat_size, fout, fout, 3)
-        self.noise1 = NoiseInjection(lat_size, fout)
+        self.noise1 = NoiseInjection(fout)
 
         self.activation = nn.LeakyReLU(0.2, True)
-        self.to_rgb = DecoderOutBlock(lat_size, fout, out_chan, upsample_out)
+
+        self.conv_out = ModConv(lat_size, fout, out_chan, 1, demod=False)
+
+        self.upsample_out = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            GaussianSmoothing(out_chan, 3, 1, 1)
+        ) if upsample_out else None
 
     def forward(self, x, lat, prev_out):
         if self.lat_mask is not None:
@@ -152,15 +132,22 @@ class DecoderBlock(nn.Module):
             x = self.upsample(x)
 
         x = self.conv0(x, lat)
-        x = self.noise0(x, lat)
+        x = self.noise0(x)
         x = self.activation(x)
 
         x = self.conv1(x, lat)
-        x = self.noise1(x, lat)
+        x = self.noise1(x)
         x = self.activation(x)
 
-        rgb = self.to_rgb(x, lat, prev_out)
-        return x, rgb
+        out = self.conv_out(x, lat)
+
+        if prev_out is not None:
+            out = out + prev_out
+
+        if self.upsample_out is not None:
+            out = self.upsample_out(out)
+
+        return x, out
 
 
 class Decoder(nn.Module):
@@ -174,7 +161,7 @@ class Decoder(nn.Module):
         self.lat_size = lat_size
         self.log_mix_out = log_mix_out
 
-        filters = [self.n_filter * (2 ** (i + 1)) for i in range(int(np.log2(self.image_size) - 1))][::-1]
+        filters = [self.n_filter * (2 ** (i + 1)) for i in range(int(np.log2(self.image_size)))][::-1]
 
         self.blocks = nn.ModuleList()
         for i in range(len(filters) - 1):
