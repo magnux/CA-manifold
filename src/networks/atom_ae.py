@@ -31,15 +31,15 @@ class InjectedEncoder(nn.Module):
         self.lat_size = lat_size if lat_size > 3 else 512
         self.auto_reg = auto_reg
 
-        self.in_conv = ResidualBlock(self.in_chan, self.in_chan, None, 1, 1, 0)
+        self.in_conv = ResidualBlock(self.in_chan, self.n_filter, None, 1, 1, 0)
 
         self.frac_sobel = SinSobel(self.in_chan, [(2 ** i) + 1 for i in range(1, int(np.log2(self.image_size)-1), 1)],
                                                  [2 ** (i - 1) for i in range(1, int(np.log2(self.image_size)-1), 1)])
         if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.in_chan * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(lat_size, self.in_chan * self.frac_sobel.c_factor, self.in_chan, self.n_filter * 4)
+            self.frac_norm = nn.InstanceNorm2d(self.in_chan * self.frac_sobel.c_factor + (self.n_filter - self.in_chan))
+        self.frac_dyna_conv = DynaResidualBlock(lat_size, self.in_chan * self.frac_sobel.c_factor + (self.n_filter - self.in_chan), self.n_filter, self.n_filter * 2)
 
-        self.out_conv = ResidualBlock(self.in_chan, self.n_filter, None, 1, 1, 0)
+        self.out_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(self.n_filter, self.lat_size, self.lat_size * 2),
@@ -56,8 +56,8 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         for _ in range(self.n_calls):
-            out_new = out
-            out_new = self.frac_sobel(out_new)
+            out_new = self.frac_sobel(out[:, :self.in_chan, :, :])
+            out_new = torch.cat([out_new, out[:, self.in_chan:, :, :]], dim=1)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, inj_lat)
@@ -102,18 +102,18 @@ class Decoder(nn.Module):
         self.log_mix_out = log_mix_out
         self.auto_reg = auto_reg
 
-        self.in_conv = ResidualBlock(self.out_chan, self.out_chan, None, 1, 1, 0)
+        self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
-        self.seed = nn.Parameter(checkerboard_seed(1, self.out_chan, self.image_size, 'cpu'))
+        self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.image_size, 'cpu'))
         self.frac_sobel = SinSobel(self.out_chan, [(2 ** i) + 1 for i in range(1, int(np.log2(self.image_size)-1), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(self.image_size)-1), 1)])
         if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.out_chan * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.out_chan * self.frac_sobel.c_factor, self.out_chan, self.n_filter * 4)
+            self.frac_norm = nn.InstanceNorm2d(self.out_chan * self.frac_sobel.c_factor + (self.n_filter - self.out_chan))
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.out_chan * self.frac_sobel.c_factor + (self.n_filter - self.out_chan), self.n_filter, self.n_filter * 2)
 
         self.out_conv = nn.Sequential(
             *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
-            ResidualBlock(self.out_chan, self.n_filter, None, 1, 1, 0),
+            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
             nn.Conv2d(self.n_filter, 10 * ((self.out_chan * 3) + 1) if self.log_mix_out else self.out_chan, 1, 1, 0),
         )
 
@@ -129,8 +129,8 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         for _ in range(self.n_calls):
-            out_new = out
-            out_new = self.frac_sobel(out_new)
+            out_new = self.frac_sobel(out[:, :self.out_chan, :, :])
+            out_new = torch.cat([out_new, out[:, self.out_chan:, :, :]], dim=1)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
