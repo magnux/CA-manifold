@@ -38,7 +38,6 @@ class InjectedEncoder(nn.Module):
             nn.Conv2d(self.n_filter, self.in_chan, 1, 1, 0),
             frac_sobel,
             nn.Conv2d(self.in_chan * frac_sobel.c_factor, self.n_filter, 1, 1, 0),
-            nn.ReLU(),
         )
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
@@ -117,7 +116,6 @@ class Decoder(nn.Module):
                 nn.Conv2d(self.n_filter, self.out_chan, 1, 1, 0),
                 frac_sobel,
                 nn.Conv2d(self.out_chan * frac_sobel.c_factor, self.n_filter, 1, 1, 0),
-                nn.ReLU(),
         )
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
