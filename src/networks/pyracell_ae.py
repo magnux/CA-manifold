@@ -129,7 +129,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, redec_ap=False, auto_reg=True, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -143,13 +143,10 @@ class Decoder(nn.Module):
         self.causal = causal
         self.gated = gated
         self.env_feedback = env_feedback
-        self.redec_ap = redec_ap
         self.auto_reg = auto_reg
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        if self.redec_ap:
-            self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
         self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, 16, 'cpu'))
@@ -179,8 +176,6 @@ class Decoder(nn.Module):
             # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
         else:
-            if self.redec_ap:
-                ca_init = self.in_ap(ca_init)
             out = self.in_conv(ca_init)
 
         if self.perception_noise and self.training:
