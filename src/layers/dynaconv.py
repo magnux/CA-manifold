@@ -45,7 +45,7 @@ class DynaConv(nn.Module):
             k, b = torch.split(ks, [self.k_size, self.b_size], dim=1)
             self.k = k.view([batch_size, self.fout, self.fin] + self.kernel_size)
             if self.norm_weights:
-                self.k = self.k / (self.k.norm(dim=2, keepdim=True) + 1e-8)
+                self.k = self.k * torch.rsqrt((self.k ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
             self.k = self.k.reshape([batch_size * self.fout, self.fin] + self.kernel_size)
 
             if not self.norm_weights:

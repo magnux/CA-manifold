@@ -66,10 +66,10 @@ class DynaResidualBlock(nn.Module):
             self.k_short = k_short.view([batch_size, self.fout, self.fin] + self.kernel_size)
 
             if self.norm_weights:
-                self.k_in = self.k_in / (self.k_in.norm(dim=2, keepdim=True) + 1e-8)
-                self.k_mid = self.k_mid / (self.k_mid.norm(dim=2, keepdim=True) + 1e-8)
-                self.k_out = self.k_out / (self.k_out.norm(dim=2, keepdim=True) + 1e-8)
-                self.k_short = self.k_short / (self.k_short.norm(dim=2, keepdim=True) + 1e-8)
+                self.k_in = self.k_in * torch.rsqrt((self.k_in ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
+                self.k_mid = self.k_mid * torch.rsqrt((self.k_mid ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
+                self.k_out = self.k_out * torch.rsqrt((self.k_out ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
+                self.k_short = self.k_short * torch.rsqrt((self.k_short ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
 
             self.k_in = self.k_in.reshape([batch_size * self.fhidden, self.fin] + self.kernel_size)
             self.k_mid = self.k_mid.reshape([batch_size * self.fhidden, self.fhidden] + self.kernel_size)
