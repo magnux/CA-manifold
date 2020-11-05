@@ -46,10 +46,10 @@ class InjectedEncoder(nn.Module):
         )
         if self.causal:
             self.frac_irm = IRMConv(self.n_filter)
-        self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], left_sided=self.causal)
+        self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
+        self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter * 2)
 
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
@@ -152,10 +152,10 @@ class Decoder(nn.Module):
         self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, 16, 'cpu'))
         if self.causal:
             self.frac_irm = IRMConv(self.n_filter)
-        self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], left_sided=self.causal)
+        self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter * 2)
 
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
