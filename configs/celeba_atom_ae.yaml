@@ -7,7 +7,7 @@ data:
   channels: 3
   n_labels: 40
 network:
-  class: pyracell_ae
+  class: atom_ae
   kwargs:
     ds_size: 64
     n_filter: 32
@@ -24,7 +24,7 @@ z_dist:
   type: gauss
   z_dim: 256
 training:
-  out_dir: save/celeba_pyracell_ae
+  out_dir: save/celeba_atom_ae
   batch_size: 64
   batch_split: 4
   batch_mult_steps: 1

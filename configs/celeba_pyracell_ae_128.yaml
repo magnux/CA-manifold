@@ -10,11 +10,11 @@ network:
   class: pyracell_ae
   kwargs:
     ds_size: 128
-    n_filter: 64
+    n_filter: 32
     embed_size: 256
     lat_size: 512
     n_calls: 4
-    shared_params: True
+    shared_params: False
     adain: False
     dyncin: False
     letter_encoding: False
