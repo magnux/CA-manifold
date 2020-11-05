@@ -21,7 +21,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -39,6 +39,7 @@ class InjectedEncoder(nn.Module):
         self.gated = gated
         self.env_feedback = env_feedback
         self.multi_cut = multi_cut
+        self.auto_reg = auto_reg
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
@@ -54,7 +55,8 @@ class InjectedEncoder(nn.Module):
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=self.causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+        if not self.auto_reg:
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
@@ -92,7 +94,8 @@ class InjectedEncoder(nn.Module):
             if self.causal:
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
-            out_new = self.frac_norm(out_new)
+            if not self.auto_reg:
+                out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -107,6 +110,10 @@ class InjectedEncoder(nn.Module):
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
+            if self.training and self.auto_reg:
+                with torch.no_grad():
+                    auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
+                out.register_hook(lambda grad: grad + auto_reg_grad)
             out_embs.append(out)
 
         out = self.out_conv(out)
@@ -141,7 +148,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, redec_ap=False, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, redec_ap=False, auto_reg=True, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -159,6 +166,7 @@ class Decoder(nn.Module):
         self.gated = gated
         self.env_feedback = env_feedback
         self.redec_ap = redec_ap
+        self.auto_reg = auto_reg
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
@@ -171,7 +179,8 @@ class Decoder(nn.Module):
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=self.causal)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+        if not self.auto_reg:
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
         if self.skip_fire:
@@ -211,7 +220,8 @@ class Decoder(nn.Module):
             if self.causal:
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
-            out_new = self.frac_norm(out_new)
+            if not self.auto_reg:
+                out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -226,6 +236,10 @@ class Decoder(nn.Module):
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
+            if self.training and self.auto_reg:
+                with torch.no_grad():
+                    auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
+                out.register_hook(lambda grad: grad + auto_reg_grad)
             out_embs.append(out)
 
         out = self.out_conv(out)
