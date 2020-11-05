@@ -156,6 +156,7 @@ class Decoder(nn.Module):
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
         self.seed = nn.Parameter(ca_seed(1, self.n_filter, 16, 'cpu'))
+        self.c_seed = nn.ParameterList([nn.Parameter(checkerboard_seed(1, 1, 2 ** (i + 4), 'cpu'), requires_grad=False) for i in range(self.n_calls)])
         if self.causal:
             self.frac_irm = IRMConv(self.n_filter + 1)
         self.frac_sobel = SinSobel(self.n_filter + 1, 3, 1, left_sided=self.causal)
@@ -198,7 +199,7 @@ class Decoder(nn.Module):
         for c in range(self.n_calls):
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
-            out_new = torch.cat([out, checkerboard_seed(batch_size, self.n_filter, out.size(2), out.device)], 1)
+            out_new = torch.cat([out, torch.cat([self.c_seed[c].to(float_type)] * batch_size, 0)], 1)
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             if self.causal:

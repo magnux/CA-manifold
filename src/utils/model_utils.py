@@ -161,8 +161,8 @@ def ca_seed(batch_size, n_filter, image_size, device, seed_value=1.0, all_channe
 def checkerboard_seed(batch_size, n_filter, image_size, device):
     seed = np.zeros((batch_size, n_filter, image_size, image_size))
     cb = np.indices((1, 1, image_size, image_size)).sum(axis=0) % 2
-    seed[:, 0, :, :] = np.tile(cb, (batch_size, 1, 1, 1))
-    return torch.tensor(seed, device=device)
+    seed[:, 0:1, :, :] = np.tile(cb, (batch_size, 1, 1, 1))
+    return torch.tensor(seed, device=device, dtype=torch.float32)
 
 
 def grads_seed(batch_size, n_filter, image_size, device):
