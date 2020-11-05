@@ -32,12 +32,16 @@ class InjectedEncoder(nn.Module):
         self.auto_reg = auto_reg
 
         self.in_conv = ResidualBlock(self.in_chan, self.n_filter, None, 1, 1, 0)
-
-        self.frac_sobel = SinSobel(self.in_chan, [(2 ** i) + 1 for i in range(1, int(np.log2(self.image_size)-1), 1)],
-                                                 [2 ** (i - 1) for i in range(1, int(np.log2(self.image_size)-1), 1)])
+        frac_sobel = SinSobel(self.in_chan, [(2 ** i) + 1 for i in range(1, int(np.log2(self.image_size) - 1), 1)],
+                              [2 ** (i - 1) for i in range(1, int(np.log2(self.image_size) - 1), 1)])
+        self.frac_sobel = nn.Sequential(
+            nn.Conv2d(self.n_filter, self.in_chan, 1, 1, 0),
+            frac_sobel,
+            nn.Conv2d(self.in_chan * frac_sobel.c_factor, self.n_filter, 1, 1, 0),
+        )
         if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.in_chan * self.frac_sobel.c_factor + (self.n_filter - self.in_chan))
-        self.frac_dyna_conv = DynaResidualBlock(lat_size, self.in_chan * self.frac_sobel.c_factor + (self.n_filter - self.in_chan), self.n_filter, self.n_filter * 2)
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter * 2)
 
         self.out_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
@@ -56,8 +60,7 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         for _ in range(self.n_calls):
-            out_new = self.frac_sobel(out[:, :self.in_chan, :, :])
-            out_new = torch.cat([out_new, out[:, self.in_chan:, :, :]], dim=1)
+            out_new = out * (1 + self.frac_sobel(out))
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, inj_lat)
@@ -105,11 +108,16 @@ class Decoder(nn.Module):
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
         self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.image_size, 'cpu'))
-        self.frac_sobel = SinSobel(self.out_chan, [(2 ** i) + 1 for i in range(1, int(np.log2(self.image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(self.image_size)-1), 1)])
+        frac_sobel = SinSobel(self.out_chan, [(2 ** i) + 1 for i in range(1, int(np.log2(self.image_size)-1), 1)],
+                              [2 ** (i - 1) for i in range(1, int(np.log2(self.image_size)-1), 1)])
+        self.frac_sobel = nn.Sequential(
+                nn.Conv2d(self.n_filter, self.out_chan, 1, 1, 0),
+                frac_sobel,
+                nn.Conv2d(self.out_chan * frac_sobel.c_factor, self.n_filter, 1, 1, 0),
+        )
         if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.out_chan * self.frac_sobel.c_factor + (self.n_filter - self.out_chan))
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.out_chan * self.frac_sobel.c_factor + (self.n_filter - self.out_chan), self.n_filter, self.n_filter * 2)
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter * 2)
 
         self.out_conv = nn.Sequential(
             *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
@@ -129,8 +137,7 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         for _ in range(self.n_calls):
-            out_new = self.frac_sobel(out[:, :self.out_chan, :, :])
-            out_new = torch.cat([out_new, out[:, self.out_chan:, :, :]], dim=1)
+            out_new = out * (1 + self.frac_sobel(out))
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
