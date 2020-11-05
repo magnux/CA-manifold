@@ -38,6 +38,7 @@ class InjectedEncoder(nn.Module):
             nn.Conv2d(self.n_filter, self.in_chan, 1, 1, 0),
             frac_sobel,
             nn.Conv2d(self.in_chan * frac_sobel.c_factor, self.n_filter, 1, 1, 0),
+            nn.ReLU(),
         )
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
@@ -59,8 +60,9 @@ class InjectedEncoder(nn.Module):
         out = self.in_conv(x)
 
         out_embs = [out]
+        auto_reg_grads = []
         for _ in range(self.n_calls):
-            out_new = out + self.frac_sobel(out)
+            out_new = out * self.frac_sobel(out)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, inj_lat)
@@ -68,7 +70,8 @@ class InjectedEncoder(nn.Module):
             if self.training and self.auto_reg:
                 with torch.no_grad():
                     auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
-                out.register_hook(lambda grad: grad + auto_reg_grad)
+                auto_reg_grads.append(auto_reg_grad)
+                out.register_hook(lambda grad: grad + auto_reg_grads.pop())
             out_embs.append(out)
 
         out = self.out_conv(out)
@@ -114,6 +117,7 @@ class Decoder(nn.Module):
                 nn.Conv2d(self.n_filter, self.out_chan, 1, 1, 0),
                 frac_sobel,
                 nn.Conv2d(self.out_chan * frac_sobel.c_factor, self.n_filter, 1, 1, 0),
+                nn.ReLU(),
         )
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
@@ -136,8 +140,9 @@ class Decoder(nn.Module):
             out = self.in_conv(ca_init)
 
         out_embs = [out]
+        auto_reg_grads = []
         for _ in range(self.n_calls):
-            out_new = out + self.frac_sobel(out)
+            out_new = out * self.frac_sobel(out)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
@@ -145,7 +150,8 @@ class Decoder(nn.Module):
             if self.training and self.auto_reg:
                 with torch.no_grad():
                     auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
-                out.register_hook(lambda grad: grad + auto_reg_grad)
+                auto_reg_grads.append(auto_reg_grad)
+                out.register_hook(lambda grad: grad + auto_reg_grads.pop())
             out_embs.append(out)
 
         out = self.out_conv(out)

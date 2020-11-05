@@ -15,7 +15,7 @@ from src.utils.loss_utils import sample_from_discretized_mix_logistic
 
 class Encoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params,
-                 injected=False, adain=False, dyncin=False, multi_cut=True, z_out=False, z_dim=0, **kwargs):
+                 injected=False, adain=False, dyncin=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, **kwargs):
         super().__init__()
         self.injected = injected
         self.adain = adain
@@ -29,6 +29,7 @@ class Encoder(nn.Module):
         self.lat_size = lat_size
         self.n_calls = n_calls
         self.shared_params = shared_params
+        self.auto_reg = auto_reg
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2] if self.multi_cut else [self.n_filter]
@@ -53,8 +54,8 @@ class Encoder(nn.Module):
                     LinearResidualBlock(self.lat_size, self.lat_size),
                     LinearResidualBlock(self.lat_size, self.n_filter * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
                 )
-
-        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
+        if not self.auto_reg:
+            self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         conv_in_size = (1 if not self.injected or self.adain or self.dyncin else 2)
         self.frac_conv = nn.ModuleList([nn.Sequential(
                                             ResidualBlock(self.n_filter * conv_in_size, self.n_filter, self.n_filter * 4, 1, 1, 0),
@@ -86,8 +87,11 @@ class Encoder(nn.Module):
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        auto_reg_grads = []
         for c in range(self.n_calls):
-            out_new = self.frac_norm[0 if self.shared_params else c](out)
+            out_new = out
+            if not self.auto_reg:
+                out_new = self.frac_norm[0 if self.shared_params else c](out_new)
             if self.injected:
                 if self.adain:
                     s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
@@ -101,6 +105,11 @@ class Encoder(nn.Module):
                     out_new = torch.cat([out_new, c_fact], dim=1)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
+            if self.training and self.auto_reg:
+                with torch.no_grad():
+                    auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
+                auto_reg_grads.append(auto_reg_grad)
+                out.register_hook(lambda grad: grad + auto_reg_grads.pop())
             out_embs.append(out)
 
         out = self.out_conv(out)
@@ -141,7 +150,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params,
-                 adain=False, dyncin=False, log_mix_out=False, redec_ap=False, **kwargs):
+                 adain=False, dyncin=False, log_mix_out=False, redec_ap=False, auto_reg=True, **kwargs):
         super().__init__()
         self.n_labels = n_labels
         self.image_size = image_size
@@ -156,8 +165,10 @@ class Decoder(nn.Module):
         self.log_mix_out = log_mix_out
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.redec_ap = redec_ap
+        self.auto_reg = auto_reg
 
-        self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
+        if not self.auto_reg:
+            self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter) for _ in range(1 if self.shared_params else self.n_calls)])
         conv_in_size = (1 if self.adain or self.dyncin else 2)
         self.frac_conv = nn.ModuleList([nn.Sequential(
                                             ResidualBlock(self.n_filter * conv_in_size, self.n_filter, self.n_filter * 4, 1, 1, 0),
@@ -213,8 +224,11 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        auto_reg_grads = []
         for c in range(self.n_calls):
-            out_new = self.frac_norm[0 if self.shared_params else c](out)
+            out_new = out
+            if not self.auto_reg:
+                out_new = self.frac_norm[0 if self.shared_params else c](out_new)
             if self.adain:
                 s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
                 s_fact = s_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
@@ -227,6 +241,11 @@ class Decoder(nn.Module):
                 out_new = torch.cat([out_new, c_fact], dim=1)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
+            if self.training and self.auto_reg:
+                with torch.no_grad():
+                    auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
+                auto_reg_grads.append(auto_reg_grad)
+                out.register_hook(lambda grad: grad + auto_reg_grads.pop())
             out_embs.append(out)
 
         out = self.conv_img(out)
