@@ -60,7 +60,7 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         for _ in range(self.n_calls):
-            out_new = out * (1 + self.frac_sobel(out))
+            out_new = out + self.frac_sobel(out)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, inj_lat)
@@ -137,7 +137,7 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         for _ in range(self.n_calls):
-            out_new = out * (1 + self.frac_sobel(out))
+            out_new = out + self.frac_sobel(out)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
