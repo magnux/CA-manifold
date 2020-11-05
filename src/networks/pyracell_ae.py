@@ -5,7 +5,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.imagescaling import DownScale, UpScale
+from src.layers.gaussiansmoothing import GaussianSmoothing
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
@@ -20,21 +20,18 @@ from src.networks.conv_ae import Encoder
 
 
 class InjectedEncoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, perception_noise, fire_rate,
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
         self.image_size = image_size
-        self.ds_size = ds_size
         self.in_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
-        self.n_calls = n_calls
+        self.n_calls = int(np.ceil(np.log2(image_size) - np.log2(2)))
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
-        self.skip_fire = skip_fire
-        assert not self.fire_rate < 1.0 or not skip_fire, "fire_rate and skip_fire are mutually exclusive options"
         self.causal = causal
         self.gated = gated
         self.env_feedback = env_feedback
@@ -42,32 +39,26 @@ class InjectedEncoder(nn.Module):
         self.auto_reg = auto_reg
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
-        self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
-        self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2] if self.multi_cut else [self.n_filter]
 
         self.in_conv = nn.Sequential(
             nn.Conv2d(self.in_chan, self.n_filter, 1, 1, 0),
-            *([DownScale(self.n_filter, self.n_filter, self.image_size, self.ds_size)] if self.ds_size < self.image_size else []),
-            # *([LambdaLayer(lambda x: F.interpolate(x, size=self.ds_size))] if self.ds_size < self.image_size else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         )
         if self.causal:
             self.frac_irm = IRMConv(self.n_filter)
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=self.causal)
+        self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
-        if self.skip_fire:
-            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
-
-        self.out_conv = nn.Sequential(
-            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
-            nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
+        self.frac_ds = nn.Sequential(
+            GaussianSmoothing(n_filter, 3, 1, 1),
+            LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False)),
         )
+
+        self.out_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
         self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.n_filter, self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
             nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
         )
@@ -103,11 +94,6 @@ class InjectedEncoder(nn.Module):
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=x.device) <= self.fire_rate).to(float_type)
-            if self.skip_fire:
-                if c % 2 == 0:
-                    out_new = out_new * self.skip_fire_mask.to(device=x.device).to(float_type)
-                else:
-                    out_new = out_new * (1 - self.skip_fire_mask.to(device=x.device).to(float_type))
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
@@ -116,18 +102,11 @@ class InjectedEncoder(nn.Module):
                     auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop())
+            out = self.frac_ds(out)
             out_embs.append(out)
 
         out = self.out_conv(out)
-        if self.multi_cut:
-            conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
-            conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
-                                    conv_state_fh.mean(dim=3).view(batch_size, -1),
-                                    conv_state_fw.mean(dim=2).view(batch_size, -1),
-                                    conv_state_hw.view(batch_size, -1)], dim=1)
-        else:
-            conv_state = out.mean(dim=(2, 3))
-        lat = self.out_to_lat(conv_state)
+        lat = self.out_to_lat(out.mean(dim=(2, 3)))
 
         return lat, out_embs, None
 
@@ -149,20 +128,17 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, redec_ap=False, auto_reg=True, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, perception_noise, fire_rate,
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, redec_ap=False, auto_reg=True, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
         self.image_size = image_size
-        self.ds_size = ds_size
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls
+        self.n_calls = int(np.ceil(np.log2(image_size) - np.log2(16))) + 1
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
-        self.skip_fire = skip_fire
-        assert not self.fire_rate < 1.0 or not skip_fire, "fire_rate and skip_fire are mutually exclusive options"
         self.log_mix_out = log_mix_out
         self.causal = causal
         self.gated = gated
@@ -176,22 +152,22 @@ class Decoder(nn.Module):
             self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
-        self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.ds_size, 'cpu'))
+        self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, 16, 'cpu'))
         if self.causal:
             self.frac_irm = IRMConv(self.n_filter)
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=self.causal)
+        self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
 
-        if self.skip_fire:
-            self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.ds_size + (2 if self.causal else 0), self.ds_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
+        self.frac_us = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+            GaussianSmoothing(self.n_filter, 3, 1, 1)
+        )
 
         self.out_conv = nn.Sequential(
+            *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
-            # *([LambdaLayer(lambda x: F.interpolate(x, size=self.image_size))] if self.ds_size < self.image_size else []),
-            *([UpScale(self.n_filter, self.n_filter, self.ds_size, self.image_size)] if self.ds_size < self.image_size else []),
             nn.Conv2d(self.n_filter, 10 * ((self.out_chan * 3) + 1) if self.log_mix_out else self.out_chan, 1, 1, 0),
         )
 
@@ -231,11 +207,6 @@ class Decoder(nn.Module):
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(float_type)
-            if self.skip_fire:
-                if c % 2 == 0:
-                    out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
-                else:
-                    out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
@@ -244,6 +215,8 @@ class Decoder(nn.Module):
                     auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop())
+            if c < self.n_calls - 1:
+                out = self.frac_us(out)
             out_embs.append(out)
 
         out = self.out_conv(out)
