@@ -70,7 +70,7 @@ class InjectedEncoder(nn.Module):
                 with torch.no_grad():
                     auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
-                out.register_hook(lambda grad: grad + auto_reg_grads.pop())
+                out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
         out = self.out_conv(out)
@@ -149,7 +149,7 @@ class Decoder(nn.Module):
                 with torch.no_grad():
                     auto_reg_grad = - (2 / out.numel()) * -out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
-                out.register_hook(lambda grad: grad + auto_reg_grads.pop())
+                out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
         out = self.out_conv(out)
