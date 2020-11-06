@@ -153,7 +153,11 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
+        self.in_conv = nn.Sequential(
+            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
+            GaussianSmoothing(self.n_filter, 3, 1, 1),
+            LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
+        )
 
         self.seed = nn.Parameter(ca_seed(1, self.n_filter, 16, 'cpu'))
         self.c_seed = nn.ParameterList([nn.Parameter(checkerboard_seed(1, 1, 2 ** (i + 4), 'cpu'), requires_grad=False) for i in range(self.n_calls)])
