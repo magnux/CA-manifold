@@ -41,7 +41,7 @@ class InjectedEncoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
-        self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2] if self.multi_cut else [self.n_filter]
+        self.conv_state_size = [self.n_filter, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2] if self.multi_cut else [self.n_filter]
 
         self.in_conv = nn.Sequential(
             nn.Conv2d(self.in_chan, self.n_filter, 1, 1, 0),
@@ -201,7 +201,7 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
+            # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
             out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
         else:
             out = self.in_conv(ca_init)
