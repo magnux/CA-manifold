@@ -55,16 +55,19 @@ zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=de
 networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
-    'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
-    'labs_encoder': {'class': 'base', 'sub_class': 'LabsEncoder'},
+    'dis_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
     'discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
 }
-model_manager = ModelManager('gan', networks_dict, config)
+to_avg = ['decoder', 'generator']
+
+model_manager = ModelManager('gan', networks_dict, config, to_avg=to_avg)
 decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
 dis_encoder = model_manager.get_network('dis_encoder')
-labs_encoder = model_manager.get_network('labs_encoder')
 discriminator = model_manager.get_network('discriminator')
+
+decoder_avg = model_manager.get_network_avg('decoder')
+generator_avg = model_manager.get_network_avg('generator')
 
 model_manager.print()
 
@@ -152,13 +155,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
                 # Discriminator step
-                with model_manager.on_step(['dis_encoder', 'labs_encoder', 'discriminator']) as nets_to_train:
+                with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        lat_labs = labs_encoder(labels)
-                        lat_top_enc, _, _ = dis_encoder(images, lat_labs)
+                        lat_top_enc, _, _ = dis_encoder(images, labels)
                         labs_enc = discriminator(lat_top_enc, labels)
 
                         loss_dis_enc = (1/batch_mult) * compute_gan_loss(labs_enc, 1)
@@ -181,8 +183,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec = rand_erase_images(images_dec)
 
                         images_dec.requires_grad_()
-                        lat_labs = labs_encoder(labels)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_labs)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         loss_dis_dec = (1/batch_mult) * compute_gan_loss(labs_dec, 0)
@@ -210,8 +211,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
-                        lat_labs = labs_encoder(labels)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_labs)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
@@ -261,8 +261,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen = generator(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen)
+            lat_gen = generator_avg(z_test, labels_test)
+            images_gen, _, _ = decoder_avg(lat_gen)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             for lab in range(config['training']['sample_labels']):
@@ -271,14 +271,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 else:
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
-                lat_gen = generator(z_test, fixed_lab)
-                images_gen, _, _ = decoder(lat_gen)
+                lat_gen = generator_avg(z_test, fixed_lab)
+                images_gen, _, _ = decoder_avg(lat_gen)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
             t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
+            inception_mean, inception_std, fid = compute_inception_score(generator_avg, decoder_avg,
                                                                          10000, 10000, config['training']['batch_size'],
                                                                          zdist, ydist, fid_real_samples, device)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
