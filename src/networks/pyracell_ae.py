@@ -29,7 +29,7 @@ class InjectedEncoder(nn.Module):
         self.in_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
-        self.n_calls = int(np.ceil(np.log2(image_size) - np.log2(2)))
+        self.n_calls = int(np.ceil(np.log2(image_size) - np.log2(16)))
         self.shared_params = shared_params
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
@@ -41,7 +41,7 @@ class InjectedEncoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
-        self.conv_state_size = [self.n_filter, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2] if self.multi_cut else [self.n_filter]
+        self.conv_state_size = [self.n_filter, self.n_filter * 16, self.n_filter * 16, 16 ** 2] if self.multi_cut else [self.n_filter]
 
         self.in_conv = nn.Sequential(
             nn.Conv2d(self.in_chan, self.n_filter, 1, 1, 0),
