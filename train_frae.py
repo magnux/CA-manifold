@@ -39,7 +39,7 @@ batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
-pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else True
+pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
 one_dec_pass = config['training']['one_dec_pass'] if 'one_dec_pass' in config['training'] else False
 z_dim = config['z_dist']['z_dim']
 
@@ -65,7 +65,9 @@ networks_dict = {
     'fr_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
     'fr_discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
 }
-model_manager = ModelManager('frae', networks_dict, config)
+to_avg = ['encoder', 'decoder', 'irm_translator', 'irm_generator']
+
+model_manager = ModelManager('frae', networks_dict, config, to_avg=to_avg)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
 irm_translator = model_manager.get_network('irm_translator')
