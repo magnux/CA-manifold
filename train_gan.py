@@ -122,9 +122,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Dynamic reg target for grad annealing
         # reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
         # Fixed reg target
-        reg_dis_target = 1e-3
+        reg_dis_target = 1e-4
 
-        it = (epoch * (len(trainloader) // batch_split))
+        it = epoch * (len(trainloader) // batch_split)
 
         t = trange(len(trainloader) // batch_split)
         t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
