@@ -21,7 +21,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -41,7 +41,7 @@ class InjectedEncoder(nn.Module):
         self.multi_cut = multi_cut
         self.auto_reg = auto_reg
 
-        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.leak_factor = nn.Parameter(torch.ones([]) * 1e-2)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2] if self.multi_cut else [self.n_filter]
 
@@ -113,7 +113,7 @@ class InjectedEncoder(nn.Module):
                 out = out[:, :, 1:, 1:]
             if self.training and self.auto_reg:
                 with torch.no_grad():
-                    auto_reg_grad = (1. / out.numel()) * out.pow(3)
+                    auto_reg_grad = (1e-3 / out.numel()) * out.pow(3)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
@@ -150,7 +150,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, redec_ap=False, auto_reg=True, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, redec_ap=False, auto_reg=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -170,7 +170,7 @@ class Decoder(nn.Module):
         self.redec_ap = redec_ap
         self.auto_reg = auto_reg
 
-        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.leak_factor = nn.Parameter(torch.ones([]) * 1e-2)
 
         if self.redec_ap:
             self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
@@ -241,7 +241,7 @@ class Decoder(nn.Module):
                 out = out[:, :, 1:, 1:]
             if self.training and self.auto_reg:
                 with torch.no_grad():
-                    auto_reg_grad = (1. / out.numel()) * out.pow(3)
+                    auto_reg_grad = (1e-3 / out.numel()) * out.pow(3)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)

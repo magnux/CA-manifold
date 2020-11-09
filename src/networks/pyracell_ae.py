@@ -21,7 +21,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -109,7 +109,7 @@ class InjectedEncoder(nn.Module):
                 out = out[:, :, 1:, 1:]
             if self.training and self.auto_reg:
                 with torch.no_grad():
-                    auto_reg_grad = (1. / out.numel()) * out.pow(3)
+                    auto_reg_grad = (1e-3 / out.numel()) * out.pow(3)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out = self.frac_ds(out)
@@ -147,7 +147,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -235,7 +235,7 @@ class Decoder(nn.Module):
                 out = out[:, :, 1:, 1:]
             if self.training and self.auto_reg:
                 with torch.no_grad():
-                    auto_reg_grad = (1. / out.numel()) * out.pow(3)
+                    auto_reg_grad = (1e-3 / out.numel()) * out.pow(3)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             if c < self.n_calls - 1:
