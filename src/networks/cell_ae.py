@@ -41,7 +41,7 @@ class InjectedEncoder(nn.Module):
         self.multi_cut = multi_cut
         self.auto_reg = auto_reg
 
-        self.leak_factor = nn.Parameter(torch.ones([]) * 1e-2)
+        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2] if self.multi_cut else [self.n_filter]
 
@@ -170,7 +170,7 @@ class Decoder(nn.Module):
         self.redec_ap = redec_ap
         self.auto_reg = auto_reg
 
-        self.leak_factor = nn.Parameter(torch.ones([]) * 1e-2)
+        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         if self.redec_ap:
             self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
