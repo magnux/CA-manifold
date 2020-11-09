@@ -40,6 +40,8 @@ class InjectedEncoder(nn.Module):
         self.auto_reg = auto_reg
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
+        self.conv_state_size = [self.n_filter, self.n_filter * self.ds_size, self.n_filter * self.ds_size, self.ds_size ** 2] if self.multi_cut else [self.n_filter]
 
         self.in_conv = nn.Sequential(
             nn.Conv2d(self.in_chan, self.n_filter, 1, 1, 0),
@@ -61,9 +63,12 @@ class InjectedEncoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False)),
         )
 
-        self.out_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
+        self.out_conv = nn.Sequential(
+            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
+            nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
+        )
         self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(self.n_filter, self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
             nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
         )
@@ -111,7 +116,15 @@ class InjectedEncoder(nn.Module):
             out_embs.append(out)
 
         out = self.out_conv(out)
-        lat = self.out_to_lat(out.mean(dim=(2, 3)))
+        if self.multi_cut:
+            conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
+            conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
+                                    conv_state_fh.mean(dim=3).view(batch_size, -1),
+                                    conv_state_fw.mean(dim=2).view(batch_size, -1),
+                                    conv_state_hw.view(batch_size, -1)], dim=1)
+        else:
+            conv_state = out.mean(dim=(2, 3))
+        lat = self.out_to_lat(conv_state)
 
         return lat, out_embs, None
 
