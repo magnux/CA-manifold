@@ -3,7 +3,7 @@ from torch.nn.utils import clip_grad_norm_
 from src.log_manager import LogManager
 from src.checkpoint_manager import CheckpointManager
 from src.config import build_network, build_optimizer, build_lr_scheduler
-from src.utils.model_utils import toggle_grad, count_parameters, make_grad_safe
+from src.utils.model_utils import toggle_grad, count_parameters, make_grad_safe, update_network_average
 from os import path
 from contextlib import contextmanager
 
@@ -15,11 +15,12 @@ except:
 
 
 class ModelManager(object):
-    def __init__(self, model_name, networks_dict, config, logging=True):
+    def __init__(self, model_name, networks_dict, config, logging=True, to_avg=[]):
         self.model_name = model_name
         self.networks_dict = networks_dict
         self.config = config
         self.logging = logging
+        self.to_avg = to_avg
         self.fp16 = config['training']['fp16'] if 'fp16' in config['training'] else False
         assert not self.fp16 or self.fp16 and APEX_AVAILABLE, 'Apex is not available for fp16 training'
 
@@ -32,6 +33,10 @@ class ModelManager(object):
                 if torch.cuda.device_count() > 1:
                     self.networks_dict[net_name]['net'] = torch.nn.DataParallel(self.networks_dict[net_name]['net'])
 
+            if net_name in self.to_avg:
+                self.networks_dict[net_name]['avg'] = build_network(self.config, self.networks_dict[net_name]['class'],
+                                                                    self.networks_dict[net_name]['sub_class'])
+
             self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], self.config)
 
             if self.fp16:
@@ -41,6 +46,9 @@ class ModelManager(object):
         self.checkpoint_manager = CheckpointManager(self.config['training']['out_dir'])
         self.checkpoint_manager.register_modules(**{net_name: self.networks_dict[net_name]['net']
                                                     for net_name in self.networks_dict.keys()})
+        if len(self.to_avg) > 0:
+            self.checkpoint_manager.register_modules(**{'%s_avg' % net_name: self.networks_dict[net_name]['avg']
+                                                        for net_name in self.to_avg})
         self.checkpoint_manager.register_modules(**{'%s_optimizer' % net_name: self.networks_dict[net_name]['optimizer']
                                                     for net_name in self.networks_dict.keys()})
         self.start_epoch = self.checkpoint_manager.load_last(self.model_name)
@@ -74,6 +82,9 @@ class ModelManager(object):
     def get_network(self, net_name):
         return self.networks_dict[net_name]['net']
 
+    def get_network_avg(self, net_name):
+        return self.networks_dict[net_name]['avg']
+
     def set_lr(self, lr):
         self.lr = lr
         for net_name in self.networks_dict.keys():
@@ -103,6 +114,13 @@ class ModelManager(object):
             if self.logging:
                 self.log_manager.save_stats('%s_stats.p' % self.model_name)
                 self.log_manager.flush()
+
+        if len(self.to_avg) > 0:
+            for net_name in self.to_avg:
+                if self.epoch == 0:
+                    update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.0)
+                else:
+                    update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.9)
 
         if self.config['training']['lr_anneal_every'] > 0:
             for net_name in self.networks_dict.keys():

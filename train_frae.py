@@ -75,6 +75,11 @@ irm_discriminator = model_manager.get_network('irm_discriminator')
 fr_encoder = model_manager.get_network('fr_encoder')
 fr_discriminator = model_manager.get_network('fr_discriminator')
 
+encoder_avg = model_manager.get_network_avg('encoder')
+decoder_avg = model_manager.get_network_avg('decoder')
+irm_translator_avg = model_manager.get_network_avg('irm_translator')
+irm_generator_avg = model_manager.get_network_avg('irm_generator')
+
 model_manager.print()
 
 
@@ -426,16 +431,16 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen = irm_generator(z_test, labels_test)
-            images_gen, out_embs, _ = decoder(lat_gen)
+            lat_gen = irm_generator_avg(z_test, labels_test)
+            images_gen, out_embs, _ = decoder_avg(lat_gen)
             if not one_dec_pass:
-                images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                images_regen, _, _ = decoder_avg(lat_gen, out_embs[-1])
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
-            lat_enc, _, _ = encoder(images, labels)
-            lat_dec = irm_translator(lat_enc, labels)
-            images_dec, out_embs, _ = decoder(lat_dec)
+            lat_enc, _, _ = encoder_avg(images, labels)
+            lat_dec = irm_translator_avg(lat_enc, labels)
+            images_dec, out_embs, _ = decoder_avg(lat_dec)
             if not one_dec_pass:
-                images_redec, _, _ = decoder(lat_dec, out_embs[-1])
+                images_redec, _, _ = decoder_avg(lat_dec, out_embs[-1])
                 images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
@@ -446,17 +451,17 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 else:
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
-                lat_gen = irm_generator(z_test, fixed_lab)
-                images_gen, out_embs, _ = decoder(lat_gen)
+                lat_gen = irm_generator_avg(z_test, fixed_lab)
+                images_gen, out_embs, _ = decoder_avg(lat_gen)
                 if not one_dec_pass:
-                    images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                    images_regen, _, _ = decoder_avg(lat_gen, out_embs[-1])
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
             t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(irm_generator, decoder,
+            inception_mean, inception_std, fid = compute_inception_score(irm_generator_avg, decoder_avg,
                                                                          10000, 10000, config['training']['batch_size'],
                                                                          zdist, ydist, fid_real_samples, device, 1 if one_dec_pass else 2)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
