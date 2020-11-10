@@ -36,6 +36,7 @@ class ModelManager(object):
             if net_name in self.to_avg:
                 self.networks_dict[net_name]['avg'] = build_network(self.config, self.networks_dict[net_name]['class'],
                                                                     self.networks_dict[net_name]['sub_class'])
+                toggle_grad(self.networks_dict[net_name]['avg'], False)
 
             self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], self.config)
 
