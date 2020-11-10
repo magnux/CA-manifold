@@ -38,7 +38,7 @@ batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
-pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else True
+pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
 kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 1e-2
 
 # Inputs
@@ -55,7 +55,7 @@ zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=de
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
-    'generator': {'class': 'base', 'sub_class': 'Generator'},
+    'generator': {'class': 'base', 'sub_class': 'IRMGenerator'},
 }
 to_avg = ['decoder', 'generator']
 
