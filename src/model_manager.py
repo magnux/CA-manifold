@@ -36,6 +36,10 @@ class ModelManager(object):
             if net_name in self.to_avg:
                 self.networks_dict[net_name]['avg'] = build_network(self.config, self.networks_dict[net_name]['class'],
                                                                     self.networks_dict[net_name]['sub_class'])
+                if torch.cuda.is_available():
+                    self.networks_dict[net_name]['avg'].to("cuda:0")
+                    if torch.cuda.device_count() > 1:
+                        self.networks_dict[net_name]['avg'] = torch.nn.DataParallel(self.networks_dict[net_name]['avg'])
                 toggle_grad(self.networks_dict[net_name]['avg'], False)
 
             self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], self.config)
@@ -117,11 +121,12 @@ class ModelManager(object):
                 self.log_manager.flush()
 
         if len(self.to_avg) > 0:
-            for net_name in self.to_avg:
-                if self.epoch == 0:
-                    update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.0)
-                else:
-                    update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.9)
+            with torch.no_grad():
+                for net_name in self.to_avg:
+                    if self.epoch == 0:
+                        update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.0)
+                    else:
+                        update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.9)
 
         if self.config['training']['lr_anneal_every'] > 0:
             for net_name in self.networks_dict.keys():
