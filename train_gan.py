@@ -247,6 +247,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('regs', 'd_reg_every_mean', d_reg_every_mean, it=it)
+                model_manager.log_manager.add_scalar('regs', 'd_reg_param_mean', d_reg_param_mean, it=it)
+
                 if g_reg_every > 0:
                     model_manager.log_manager.add_scalar('regs', 'reg_gen_dec', reg_gen_dec_sum, it=it)
                     model_manager.log_manager.add_scalar('regs', 'g_reg_every_dec', g_reg_every_dec, it=it)
