@@ -38,7 +38,7 @@ batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
-pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
+pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else True
 kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 1e-3
 
 # Inputs
@@ -57,13 +57,14 @@ networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'IRMGenerator'},
 }
-to_avg = ['decoder', 'generator']
+to_avg = ['encoder', 'decoder', 'generator']
 
 model_manager = ModelManager('rage', networks_dict, config, to_avg=to_avg)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
 
+encoder_avg = model_manager.get_network_avg('encoder')
 decoder_avg = model_manager.get_network_avg('decoder')
 generator_avg = model_manager.get_network_avg('generator')
 
@@ -104,7 +105,7 @@ if config['training']['inception_every'] > 0:
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 if pre_train:
-    for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 2):
+    for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 8):
         with model_manager.on_epoch(epoch):
             running_loss_dec = np.zeros(window_size)
 
@@ -148,7 +149,7 @@ if pre_train:
                 it += 1
 
     print('Pre-training is complete...')
-    model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 2)
+    model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 8)
 
 total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 
@@ -282,7 +283,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images_gen, out_embs, _ = decoder_avg(lat_gen)
             images_regen, _, _ = decoder_avg(lat_gen, out_embs[-1])
             images_gen = torch.cat([images_gen, images_regen], dim=3)
-            z_enc, _, _ = encoder(images, labels)
+            z_enc, _, _ = encoder_avg(images, labels)
             lat_enc = generator_avg(z_enc, labels)
             images_dec, out_embs, _ = decoder_avg(lat_enc)
             images_redec, _, _ = decoder_avg(lat_enc, out_embs[-1])

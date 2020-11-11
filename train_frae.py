@@ -39,7 +39,7 @@ batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
-pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
+pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else True
 one_dec_pass = config['training']['one_dec_pass'] if 'one_dec_pass' in config['training'] else False
 z_dim = config['z_dist']['z_dim']
 
@@ -119,7 +119,7 @@ if config['training']['inception_every'] > 0:
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 if pre_train:
-    for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 2):
+    for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 8):
         with model_manager.on_epoch(epoch):
             running_loss_dec = np.zeros(window_size)
 
@@ -163,7 +163,7 @@ if pre_train:
                 it += 1
 
     print('Pre-training is complete...')
-    model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 2)
+    model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 8)
 
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', 1 if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
@@ -181,7 +181,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Dynamic reg target for grad annealing
         # reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
         # Fixed reg target
-        reg_dis_target = 1e-4
+        reg_dis_target = 1e-3
 
         it = epoch * (len(trainloader) // batch_split)
 
