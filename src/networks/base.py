@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
+from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMLinear
 
 
@@ -17,11 +18,10 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
-        self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
@@ -127,7 +127,7 @@ class UnconditionalGenerator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
-        self.z_to_lat = nn.Linear(z_dim, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         z = z.clamp(-3, 3)

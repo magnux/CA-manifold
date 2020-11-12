@@ -6,6 +6,7 @@ import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.gaussiansmoothing import GaussianSmoothing
+from src.layers.noiseinjection import NoiseInjection
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
@@ -109,7 +110,7 @@ class InjectedEncoder(nn.Module):
                 out = out[:, :, 1:, 1:]
             if self.training and self.auto_reg:
                 with torch.no_grad():
-                    auto_reg_grad = (1e-3 / out.numel()) * out.pow(3)
+                    auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out = self.frac_ds(out)
@@ -173,16 +174,15 @@ class Decoder(nn.Module):
         )
 
         self.seed = nn.Parameter(ca_seed(1, self.n_filter, 16, 'cpu'))
-        self.c_seed = nn.ParameterList([nn.Parameter(checkerboard_seed(1, 1, 2 ** (i + 4), 'cpu'), requires_grad=False) for i in range(self.n_calls)])
         if self.causal:
-            self.frac_irm = IRMConv(self.n_filter + 1)
-        self.frac_sobel = SinSobel(self.n_filter + 1, 3, 1, left_sided=self.causal)
+            self.frac_irm = IRMConv(self.n_filter)
+        self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
         if not self.auto_reg:
-            self.frac_norm = nn.ModuleList([nn.InstanceNorm2d((self.n_filter + 1) * self.frac_sobel.c_factor)
+            self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
                                             for _ in range(1 if self.shared_params else self.n_calls)])
         self.frac_dyna_conv = nn.ModuleList([
-            DynaResidualBlock(self.lat_size + ((self.n_filter + 1) * self.frac_sobel.c_factor if self.env_feedback else 0),
-                              (self.n_filter + 1) * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
+            DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
+                              self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_calls)])
 
         self.frac_us = nn.Sequential(
@@ -216,7 +216,7 @@ class Decoder(nn.Module):
         for c in range(self.n_calls):
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
-            out_new = torch.cat([out, torch.cat([self.c_seed[c].to(float_type)] * batch_size, 0)], 1)
+            out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             if self.causal:
@@ -235,7 +235,7 @@ class Decoder(nn.Module):
                 out = out[:, :, 1:, 1:]
             if self.training and self.auto_reg:
                 with torch.no_grad():
-                    auto_reg_grad = (1e-3 / out.numel()) * out.pow(3)
+                    auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             if c < self.n_calls - 1:
