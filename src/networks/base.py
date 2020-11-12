@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMLinear
 
 
