@@ -3,6 +3,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import numpy as np
 from src.utils.pngadataset import PNGADataset
+from src.utils.movingmnist import MovingMnistDataset
 # from src.utils.captiondataset import CaptionDataset
 
 
@@ -33,11 +34,14 @@ def get_dataset(name, type, data_dir, size=32):
         elif name == 'cifar10':
             dataset = datasets.CIFAR10(root=data_dir, train=True, download=True,
                                        transform=transform)
-            # n_labels = 10
         elif name == 'emoji':
             dataset = PNGADataset(data_dir, transform, True)
         else:
             raise NotImplemented
+    elif type == 'video':
+        if name == 'movingmnist':
+            dataset = MovingMnistDataset(root=data_dir, seq_len=4, nums_per_image=2, fake_dataset_size=1024,
+                                         speed=1, speed_type='fixed', reflect_end=True)
     # elif type == 'caption':
     #     if name in ('flowers', 'birds'):
     #         text_transform = transforms.Compose([
