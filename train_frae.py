@@ -58,19 +58,19 @@ zdist = get_zdist(config['z_dist']['type'], z_dim, device=device)
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
-    'irm_translator': {'class': 'base', 'sub_class': 'IRMTranslator'},
-    'lat_generator': {'class': 'base', 'sub_class': 'Generator'},
+    'lat_translator': {'class': 'base', 'sub_class': 'IRMTranslator'},
+    'lat_generator': {'class': 'base', 'sub_class': 'IRMGenerator'},
     'lat_encoder': {'class': 'base', 'sub_class': 'LatEncoder'},
     'lat_discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
     'fr_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
     'fr_discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
 }
-# to_avg = ['encoder', 'decoder', 'irm_translator', 'lat_generator']
+# to_avg = ['encoder', 'decoder', 'lat_translator', 'lat_generator']
 
 model_manager = ModelManager('frae', networks_dict, config)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
-irm_translator = model_manager.get_network('irm_translator')
+lat_translator = model_manager.get_network('lat_translator')
 lat_generator = model_manager.get_network('lat_generator')
 lat_encoder = model_manager.get_network('lat_encoder')
 lat_discriminator = model_manager.get_network('lat_discriminator')
@@ -79,7 +79,7 @@ fr_discriminator = model_manager.get_network('fr_discriminator')
 
 # encoder_avg = model_manager.get_network_avg('encoder')
 # decoder_avg = model_manager.get_network_avg('decoder')
-# irm_translator_avg = model_manager.get_network_avg('irm_translator')
+# lat_translator_avg = model_manager.get_network_avg('lat_translator')
 # lat_generator_avg = model_manager.get_network_avg('lat_generator')
 
 model_manager.print()
@@ -132,12 +132,12 @@ if pre_train:
 
                     loss_dec_sum = 0
 
-                    with model_manager.on_step(['encoder', 'decoder', 'irm_translator']) as nets_to_train:
+                    with model_manager.on_step(['encoder', 'decoder', 'lat_translator']) as nets_to_train:
                         for _ in range(batch_split):
                             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                             lat_enc, _, _ = encoder(images, labels)
-                            lat_dec = irm_translator(lat_enc, labels)
+                            lat_dec = lat_translator(lat_enc, labels)
                             images_dec, _, _ = decoder(lat_dec)
 
                             loss_dec = (1 / batch_split) * F.mse_loss(images_dec, images)
@@ -147,7 +147,7 @@ if pre_train:
                 # Streaming Images
                 with torch.no_grad():
                     lat_enc, _, _ = encoder(images_test, labels_test)
-                    lat_dec = irm_translator(lat_enc, labels_test)
+                    lat_dec = lat_translator(lat_enc, labels_test)
                     images_dec, _, _ = decoder(lat_dec)
 
                 stream_images(images_dec, config_name + '/frae_pretrain', config['training']['out_dir'] + '/frae_pretrain')
@@ -223,7 +223,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_enc, _, _ = encoder(images, labels)
-                            lat_dec = irm_translator(lat_enc, labels)
+                            lat_dec = lat_translator(lat_enc, labels)
                             images_dec, out_embs, _ = decoder(lat_dec)
                             if one_dec_pass:
                                 images_redec = images_dec
@@ -271,13 +271,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
                     #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                with model_manager.on_step(['encoder', 'decoder', 'irm_translator']) as nets_to_train:
+                with model_manager.on_step(['encoder', 'decoder', 'lat_translator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_enc, _, _ = encoder(images, labels)
-                        lat_dec = irm_translator(lat_enc, labels)
+                        lat_dec = lat_translator(lat_enc, labels)
                         images_dec, out_embs, _ = decoder(lat_dec)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
@@ -336,7 +336,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_enc, _, _ = encoder(images, labels)
-                            lat_enc = irm_translator(lat_enc, labels)
+                            lat_enc = lat_translator(lat_enc, labels)
 
                         lat_enc.requires_grad_()
                         lat_top_enc = lat_encoder(lat_enc)
@@ -439,7 +439,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
             lat_enc, _, _ = encoder(images, labels)
-            lat_dec = irm_translator(lat_enc, labels)
+            lat_dec = lat_translator(lat_enc, labels)
             images_dec, out_embs, _ = decoder(lat_dec)
             if not one_dec_pass:
                 images_redec, _, _ = decoder(lat_dec, out_embs[-1])
