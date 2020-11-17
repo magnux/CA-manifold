@@ -54,20 +54,20 @@ zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=de
 # Networks
 networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
-    'generator': {'class': 'base', 'sub_class': 'IRMGenerator'},
+    'generator': {'class': 'base', 'sub_class': 'Generator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
     'discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
 }
-to_avg = ['decoder', 'generator']
+# to_avg = ['decoder', 'generator']
 
-model_manager = ModelManager('gan', networks_dict, config, to_avg=to_avg)
+model_manager = ModelManager('gan', networks_dict, config)
 decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
 dis_encoder = model_manager.get_network('dis_encoder')
 discriminator = model_manager.get_network('discriminator')
 
-decoder_avg = model_manager.get_network_avg('decoder')
-generator_avg = model_manager.get_network_avg('generator')
+# decoder_avg = model_manager.get_network_avg('decoder')
+# generator_avg = model_manager.get_network_avg('generator')
 
 model_manager.print()
 
@@ -103,7 +103,7 @@ if config['training']['inception_every'] > 0:
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
 
-d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', 1 if d_reg_every > 0 else 0)
+d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', d_reg_every if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
 
@@ -121,7 +121,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Dynamic reg target for grad annealing
         # reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
         # Fixed reg target
-        reg_dis_target = 1e-5
+        # reg_dis_target = 1e-5
 
         it = epoch * (len(trainloader) // batch_split)
 
@@ -187,12 +187,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                        reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
-                        loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
-                        d_reg_every_mean = d_reg_every_mean_next
-                        d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
-                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
+                    # if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                    #     reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
+                    #     loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
+                    #     d_reg_every_mean = d_reg_every_mean_next
+                    #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
+                    #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
@@ -253,8 +253,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen = generator_avg(z_test, labels_test)
-            images_gen, _, _ = decoder_avg(lat_gen)
+            lat_gen = generator(z_test, labels_test)
+            images_gen, _, _ = decoder(lat_gen)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             for lab in range(config['training']['sample_labels']):
@@ -263,14 +263,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 else:
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
-                lat_gen = generator_avg(z_test, fixed_lab)
-                images_gen, _, _ = decoder_avg(lat_gen)
+                lat_gen = generator(z_test, fixed_lab)
+                images_gen, _, _ = decoder(lat_gen)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
             t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(generator_avg, decoder_avg,
+            inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
                                                                          zdist, ydist, fid_real_samples, device)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)

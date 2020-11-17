@@ -23,7 +23,7 @@ def compute_gan_loss(d_out, target, gan_type='standard'):
     elif gan_type == 'saddle':
         loss = (2*target - 1) * (d_out.pow(3) / d_out.abs().pow(1.5)).mean()
     elif gan_type == 'relu':
-        loss = F.relu((2*target - 1) * d_out).mean()
+        loss = F.relu(1 + (2*target - 1) * d_out).mean()
     elif gan_type == 'mse':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
         loss = F.mse_loss(d_out.clamp(0., 1.),  target)

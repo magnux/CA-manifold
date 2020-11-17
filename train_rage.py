@@ -29,8 +29,6 @@ config_name = splitext(basename(args.config))[0]
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-config['network']['kwargs']['norm_z'] = True
-
 image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
@@ -55,18 +53,18 @@ zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=de
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
-    'generator': {'class': 'base', 'sub_class': 'IRMGenerator'},
+    'generator': {'class': 'base', 'sub_class': 'Generator'},
 }
-to_avg = ['encoder', 'decoder', 'generator']
+# to_avg = ['encoder', 'decoder', 'generator']
 
-model_manager = ModelManager('rage', networks_dict, config, to_avg=to_avg)
+model_manager = ModelManager('rage', networks_dict, config)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
 
-encoder_avg = model_manager.get_network_avg('encoder')
-decoder_avg = model_manager.get_network_avg('decoder')
-generator_avg = model_manager.get_network_avg('generator')
+# encoder_avg = model_manager.get_network_avg('encoder')
+# decoder_avg = model_manager.get_network_avg('decoder')
+# generator_avg = model_manager.get_network_avg('generator')
 
 model_manager.print()
 
@@ -150,8 +148,6 @@ if pre_train:
 
     print('Pre-training is complete...')
     model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 8)
-
-total_it = config['training']['n_epochs'] * (len(trainloader) // batch_split)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
@@ -279,14 +275,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen = generator_avg(z_test, labels_test)
-            images_gen, out_embs, _ = decoder_avg(lat_gen)
-            images_regen, _, _ = decoder_avg(lat_gen, out_embs[-1])
+            lat_gen = generator(z_test, labels_test)
+            images_gen, out_embs, _ = decoder(lat_gen)
+            images_regen, _, _ = decoder(lat_gen, out_embs[-1])
             images_gen = torch.cat([images_gen, images_regen], dim=3)
-            z_enc, _, _ = encoder_avg(images, labels)
-            lat_enc = generator_avg(z_enc, labels)
-            images_dec, out_embs, _ = decoder_avg(lat_enc)
-            images_redec, _, _ = decoder_avg(lat_enc, out_embs[-1])
+            z_enc, _, _ = encoder(images, labels)
+            lat_enc = generator(z_enc, labels)
+            images_dec, out_embs, _ = decoder(lat_enc)
+            images_redec, _, _ = decoder(lat_enc, out_embs[-1])
             images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
@@ -297,16 +293,16 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 else:
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
-                lat_gen = generator_avg(z_test, fixed_lab)
-                images_gen, out_embs, _ = decoder_avg(lat_gen)
-                images_regen, _, _ = decoder_avg(lat_gen, out_embs[-1])
+                lat_gen = generator(z_test, fixed_lab)
+                images_gen, out_embs, _ = decoder(lat_gen)
+                images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
             t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(generator_avg, decoder_avg,
+            inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
                                                                          zdist, ydist, fid_real_samples, device, 2)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
