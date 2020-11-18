@@ -254,87 +254,87 @@ class UnconditionalIRMTranslator(nn.Module):
         return lat
 
 
-class IRMTranslator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
-        super().__init__()
-        self.lat_size = lat_size
-        self.fhidden = lat_size if lat_size > 3 else 512
-        self.z_dim = z_dim
-        self.embed_size = embed_size
-        self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size),
-            LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
-        )
-        self.irm_layer = nn.Sequential(
-            nn.Linear(self.lat_size, self.fhidden),
-            IRMLinear(self.fhidden),
-            nn.Linear(self.fhidden, self.z_dim),
-        )
+# class IRMTranslator(nn.Module):
+#     def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
+#         super().__init__()
+#         self.lat_size = lat_size
+#         self.fhidden = lat_size if lat_size > 3 else 512
+#         self.z_dim = z_dim
+#         self.embed_size = embed_size
+#         self.register_buffer('embedding_mat', torch.eye(n_labels))
+#         self.labs_to_proj = nn.Sequential(
+#             LinearResidualBlock(n_labels, self.embed_size),
+#             LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
+#         )
+#         self.irm_layer = nn.Sequential(
+#             nn.Linear(self.lat_size, self.fhidden),
+#             IRMLinear(self.fhidden),
+#             nn.Linear(self.fhidden, self.z_dim),
+#         )
+#
+#     def forward(self, lat, y):
+#         assert (lat.size(0) == y.size(0))
+#         batch_size = lat.size(0)
+#
+#         if y.dtype is torch.int64:
+#             if y.dim() == 1:
+#                 yembed = self.embedding_mat[y]
+#             else:
+#                 yembed = y.to(torch.float32)
+#         else:
+#             yembed = y
+#
+#         lat_proj = self.labs_to_proj(yembed)
+#         lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
+#
+#         lat = self.irm_layer(lat).view(batch_size, 1, self.z_dim)
+#         lat = torch.bmm(lat, lat_proj).squeeze(1)
+#
+#         return lat
 
-    def forward(self, lat, y):
-        assert (lat.size(0) == y.size(0))
-        batch_size = lat.size(0)
 
-        if y.dtype is torch.int64:
-            if y.dim() == 1:
-                yembed = self.embedding_mat[y]
-            else:
-                yembed = y.to(torch.float32)
-        else:
-            yembed = y
-
-        lat_proj = self.labs_to_proj(yembed)
-        lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
-
-        lat = self.irm_layer(lat).view(batch_size, 1, self.z_dim)
-        lat = torch.bmm(lat, lat_proj).squeeze(1)
-
-        return lat
-
-
-class IRMGenerator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=True, **kwargs):
-        super().__init__()
-        self.lat_size = lat_size
-        self.fhidden = lat_size if lat_size > 3 else 512
-        self.z_dim = z_dim
-        self.embed_size = embed_size
-        self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size),
-            LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
-        )
-        self.irm_layer = nn.Sequential(
-            nn.Linear(self.z_dim, self.fhidden),
-            IRMLinear(self.fhidden),
-            nn.Linear(self.fhidden, self.z_dim),
-        )
-        self.norm_z = norm_z
-
-    def forward(self, z, y):
-        assert (z.size(0) == y.size(0))
-        batch_size = z.size(0)
-
-        if y.dtype is torch.int64:
-            if y.dim() == 1:
-                yembed = self.embedding_mat[y]
-            else:
-                yembed = y.to(torch.float32)
-        else:
-            yembed = y
-
-        lat_proj = self.labs_to_proj(yembed)
-        lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
-
-        if self.norm_z:
-            z = F.normalize(z, dim=1)
-        else:
-            z = z.clamp(-3, 3)
-        lat = self.irm_layer(z).view(batch_size, 1, self.z_dim)
-        lat = torch.bmm(lat, lat_proj).squeeze(1)
-
-        return lat
+# class IRMGenerator(nn.Module):
+#     def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=True, **kwargs):
+#         super().__init__()
+#         self.lat_size = lat_size
+#         self.fhidden = lat_size if lat_size > 3 else 512
+#         self.z_dim = z_dim
+#         self.embed_size = embed_size
+#         self.register_buffer('embedding_mat', torch.eye(n_labels))
+#         self.labs_to_proj = nn.Sequential(
+#             LinearResidualBlock(n_labels, self.embed_size),
+#             LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
+#         )
+#         self.irm_layer = nn.Sequential(
+#             nn.Linear(self.z_dim, self.fhidden),
+#             IRMLinear(self.fhidden),
+#             nn.Linear(self.fhidden, self.z_dim),
+#         )
+#         self.norm_z = norm_z
+#
+#     def forward(self, z, y):
+#         assert (z.size(0) == y.size(0))
+#         batch_size = z.size(0)
+#
+#         if y.dtype is torch.int64:
+#             if y.dim() == 1:
+#                 yembed = self.embedding_mat[y]
+#             else:
+#                 yembed = y.to(torch.float32)
+#         else:
+#             yembed = y
+#
+#         lat_proj = self.labs_to_proj(yembed)
+#         lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
+#
+#         if self.norm_z:
+#             z = F.normalize(z, dim=1)
+#         else:
+#             z = z.clamp(-3, 3)
+#         lat = self.irm_layer(z).view(batch_size, 1, self.z_dim)
+#         lat = torch.bmm(lat, lat_proj).squeeze(1)
+#
+#         return lat
 
 
 class LatEncoder(nn.Module):
