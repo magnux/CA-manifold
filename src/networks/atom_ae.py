@@ -66,7 +66,7 @@ class InjectedEncoder(nn.Module):
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, inj_lat)
             out = out + (0.1 * out_new)
-            if self.training and self.auto_reg:
+            if self.auto_reg and out.requires_grad:
                 with torch.no_grad():
                     auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
@@ -145,7 +145,7 @@ class Decoder(nn.Module):
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
             out = out + (0.1 * out_new)
-            if self.training and self.auto_reg:
+            if self.auto_reg and out.requires_grad:
                 with torch.no_grad():
                     auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)

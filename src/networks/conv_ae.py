@@ -105,7 +105,7 @@ class Encoder(nn.Module):
                     out_new = torch.cat([out_new, c_fact], dim=1)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
-            if self.training and self.auto_reg:
+            if self.auto_reg and out.requires_grad:
                 with torch.no_grad():
                     auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
@@ -241,7 +241,7 @@ class Decoder(nn.Module):
                 out_new = torch.cat([out_new, c_fact], dim=1)
             out_new = self.frac_conv[0 if self.shared_params else c](out_new)
             out = out + (leak_factor * out_new)
-            if self.training and self.auto_reg:
+            if self.auto_reg and out.requires_grad:
                 with torch.no_grad():
                     auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)

@@ -111,7 +111,7 @@ class InjectedEncoder(nn.Module):
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
-            if self.training and self.auto_reg:
+            if self.auto_reg and out.requires_grad:
                 with torch.no_grad():
                     auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
@@ -239,7 +239,7 @@ class Decoder(nn.Module):
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
-            if self.training and self.auto_reg:
+            if self.auto_reg and out.requires_grad:
                 with torch.no_grad():
                     auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
