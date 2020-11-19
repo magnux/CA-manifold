@@ -170,7 +170,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Dynamic reg target for grad annealing
         # reg_dis_target = 1e-3 * ((1 + 1e-3) - (epoch / config['training']['n_epochs']))
         # Fixed reg target
-        # reg_dis_target = 1e-5
+        reg_dis_target = 1.
 
         it = epoch * (len(trainloader) // batch_split)
 
@@ -245,12 +245,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    # if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                    #     reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
-                    #     loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
-                    #     d_reg_every_mean = d_reg_every_mean_next
-                    #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
-                    #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
+                    if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                        reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
+                        loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
+                        d_reg_every_mean = d_reg_every_mean_next
+                        d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
+                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
