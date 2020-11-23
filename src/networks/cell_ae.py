@@ -263,12 +263,12 @@ class Decoder(nn.Module):
         if self.log_mix_out:
             out = sample_from_discretized_mix_logistic(out, 10)
         elif self.ce_out:
-            # Non-Differentiable
-            out = (out.argmax(dim=1) / 127.5) - 1
             # Differentiable
             pos = self.ce_pos.expand(batch_size, -1, -1, -1, -1)
             out_d = ((out.softmax(dim=1) * pos).sum(dim=1) / 127.5) - 1
             out_raw = (out_d, out_raw)
+            # Non-Differentiable
+            out = (out.argmax(dim=1) / 127.5) - 1
         else:
             out = out.clamp(-1., 1.)
 
