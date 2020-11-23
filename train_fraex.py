@@ -143,15 +143,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc, _, _ = encoder(images, labels)
 
                         lat_dec = lat_translator(lat_enc, labels)
-                        images_dec, out_embs, _ = decoder(lat_dec)
+                        _, out_embs, images_dec_raw = decoder(lat_dec)
 
-                        loss_dec = (1 / batch_mult) * F.relu(F.mse_loss(images_dec, images) - 0.1)
+                        loss_dec = (1 / batch_mult) * F.relu(F.mse_loss(images_dec_raw[0], images) - 0.1)
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
                         _, _, images_redec_raw = decoder(lat_dec, out_embs[-1])
 
-                        loss_redec = (1 / batch_mult) * F.cross_entropy(images_redec_raw, ((images + 1) * 127.5).long())
+                        loss_redec = (1 / batch_mult) * F.cross_entropy(images_redec_raw[1], ((images + 1) * 127.5).long())
                         model_manager.loss_backward(loss_redec, nets_to_train)
                         loss_redec_sum += loss_redec.item()
 
