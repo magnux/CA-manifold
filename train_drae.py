@@ -29,7 +29,8 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 config['network']['kwargs']['ce_out'] = True
-config['network']['kwargs']['gated'] = True
+# config['network']['kwargs']['gated'] = True
+config['z_dist']['z_dim'] = 16
 
 image_size = config['data']['image_size']
 channels = config['data']['channels']
@@ -138,8 +139,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
-                        lat_enc = lat_generator(z_enc.clone().detach(), labels)
-                        _, _, images_redec_raw = decoder(lat_enc, out_embs[-1].clone().detach())
+                        _, _, images_redec_raw = decoder(lat_enc, out_embs[-1])
 
                         loss_redec = (1 / batch_mult) * F.cross_entropy(images_redec_raw[1], ((images + 1) * 127.5).long())
                         model_manager.loss_backward(loss_redec, nets_to_train)
