@@ -22,7 +22,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, conv_irm=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -39,6 +39,7 @@ class InjectedEncoder(nn.Module):
         self.env_feedback = env_feedback
         self.multi_cut = multi_cut
         self.auto_reg = auto_reg
+        self.conv_irm = conv_irm
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
@@ -48,7 +49,7 @@ class InjectedEncoder(nn.Module):
             nn.Conv2d(self.in_chan, self.n_filter, 1, 1, 0),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         )
-        if self.causal:
+        if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
         if not self.auto_reg:
@@ -94,7 +95,7 @@ class InjectedEncoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
-            if self.causal:
+            if self.conv_irm:
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
@@ -148,7 +149,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, conv_irm=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -164,6 +165,7 @@ class Decoder(nn.Module):
         self.gated = gated
         self.env_feedback = env_feedback
         self.auto_reg = auto_reg
+        self.conv_irm = conv_irm
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
@@ -174,7 +176,7 @@ class Decoder(nn.Module):
         )
 
         self.seed = nn.Parameter(ca_seed(1, self.n_filter, 16, 'cpu'))
-        if self.causal:
+        if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
         if not self.auto_reg:
@@ -219,7 +221,7 @@ class Decoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
-            if self.causal:
+            if self.conv_irm:
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
