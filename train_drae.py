@@ -92,17 +92,6 @@ def get_inputs(trainiter, batch_size, device):
 images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
 
 
-def sample(z, labels):
-    lat_enc = lat_generator(z, labels)
-    images_dec, out_embs, _ = decoder(lat_enc)
-    for i in range(image_size):
-        for j in range(image_size):
-            images_redec, out_reembs, _ = decoder(lat_enc, out_embs[-1])
-            images_dec[:, :, i, j].data.copy_(images_redec[:, :, i, j])
-            out_embs[-1][:, :, i, j].data.copy_(out_reembs[-1][:, :, i, j])
-    return images_dec
-
-
 if config['training']['inception_every'] > 0:
     fid_real_samples = []
     for _ in range(10000 // batch_size):
@@ -148,6 +137,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
+                        out_embs[-1] = out_embs[-1] * (torch.rand([batch_split_size, 1, image_size, image_size], device=images.device) <= 0.5).to(torch.float32)
                         _, _, images_redec_raw = decoder(lat_enc, out_embs[-1])
 
                         loss_redec = (1 / batch_mult) * F.cross_entropy(images_redec_raw[1], ((images + 1) * 127.5).long())
@@ -184,8 +174,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             lat_gen = lat_generator(z_test, labels_test)
             images_gen, out_embs, _ = decoder(lat_gen)
             images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-            images_reregen = sample(z_test, labels_test)
-            images_gen = torch.cat([images_gen, images_regen, images_reregen], dim=3)
+            images_gen = torch.cat([images_gen, images_regen], dim=3)
             z_enc, _, _ = encoder(images, labels)
             lat_enc = lat_generator(z_enc, labels)
             images_dec, out_embs, _ = decoder(lat_enc)
@@ -203,8 +192,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 lat_gen = lat_generator(z_test, fixed_lab)
                 images_gen, out_embs, _ = decoder(lat_gen)
                 images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-                images_reregen = sample(z_test, fixed_lab)
-                images_gen = torch.cat([images_gen, images_regen, images_reregen], dim=3)
+                images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
