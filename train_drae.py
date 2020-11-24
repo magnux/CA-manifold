@@ -29,8 +29,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 config['network']['kwargs']['ce_out'] = True
-# config['network']['kwargs']['gated'] = True
-config['z_dist']['z_dim'] = 16
 
 image_size = config['data']['image_size']
 channels = config['data']['channels']
@@ -92,6 +90,17 @@ def get_inputs(trainiter, batch_size, device):
 
 
 images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
+
+
+def sample(z, labels):
+    lat_enc = lat_generator(z, labels)
+    images_dec, out_embs, _ = decoder(lat_enc)
+    for i in range(image_size):
+        for j in range(image_size):
+            images_redec, out_reembs, _ = decoder(lat_enc, out_embs[-1])
+            images_dec[:, :, i, j].data.copy_(images_redec[:, :, i, j])
+            out_embs[-1][:, :, i, j].data.copy_(out_reembs[-1][:, :, i, j])
+    return images_dec
 
 
 if config['training']['inception_every'] > 0:
@@ -172,10 +181,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen = lat_generator(z_test, labels)
+            lat_gen = lat_generator(z_test, labels_test)
             images_gen, out_embs, _ = decoder(lat_gen)
             images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-            images_gen = torch.cat([images_gen, images_regen], dim=3)
+            images_reregen = sample(z_test, labels_test)
+            images_gen = torch.cat([images_gen, images_regen, images_reregen], dim=3)
             z_enc, _, _ = encoder(images, labels)
             lat_enc = lat_generator(z_enc, labels)
             images_dec, out_embs, _ = decoder(lat_enc)
@@ -190,10 +200,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 else:
                     fixed_lab = labels.clone()
                     fixed_lab[:, lab] = 1
-                lat_gen = lat_generator(z_test, labels)
+                lat_gen = lat_generator(z_test, fixed_lab)
                 images_gen, out_embs, _ = decoder(lat_gen)
                 images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-                images_gen = torch.cat([images_gen, images_regen], dim=3)
+                images_reregen = sample(z_test, fixed_lab)
+                images_gen = torch.cat([images_gen, images_regen, images_reregen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
