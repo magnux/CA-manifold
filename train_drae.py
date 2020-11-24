@@ -138,7 +138,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
-                        _, _, images_redec_raw = decoder(lat_enc.clone().detach(), out_embs[-1].clone().detach())
+                        lat_enc = lat_generator(z_enc.clone().detach(), labels)
+                        _, _, images_redec_raw = decoder(lat_enc, out_embs[-1].clone().detach())
 
                         loss_redec = (1 / batch_mult) * F.cross_entropy(images_redec_raw[1], ((images + 1) * 127.5).long())
                         model_manager.loss_backward(loss_redec, nets_to_train)
