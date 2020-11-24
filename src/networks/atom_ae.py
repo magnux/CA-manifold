@@ -20,7 +20,7 @@ from src.networks.conv_ae import Encoder
 
 
 class InjectedEncoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, z_out=False, z_dim=0, auto_reg=True, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, z_out=False, z_dim=0, auto_reg=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -96,7 +96,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, log_mix_out=False, auto_reg=True, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, log_mix_out=False, auto_reg=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
