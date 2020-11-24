@@ -135,10 +135,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         _, out_embs, images_dec_raw = decoder(lat_enc)
 
                         loss_dec = (1 / batch_mult) * F.relu(F.mse_loss(images_dec_raw[0], images) - 0.1)
-                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
+                        model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
-                        _, _, images_redec_raw = decoder(lat_enc, out_embs[-1])
+                        _, _, images_redec_raw = decoder(lat_enc.detach(), out_embs[-1].detach())
 
                         loss_redec = (1 / batch_mult) * F.cross_entropy(images_redec_raw[1], ((images + 1) * 127.5).long())
                         model_manager.loss_backward(loss_redec, nets_to_train)
