@@ -10,6 +10,7 @@ from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.model_utils import compute_inception_score
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, update_reg_params
+from src.utils.media_utils import rand_erase_images
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -149,7 +150,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
-                        out_embs[-1] = out_embs[-1] * (torch.rand([batch_split_size, 1, image_size, image_size], device=images.device) <= 0.5).to(torch.float32)
+                        if it % 2 == 0:
+                            out_embs[-1] = out_embs[-1] * (torch.rand([batch_split_size, 1, image_size, image_size], device=images.device) <= 0.5).to(torch.float32)
+                        else:
+                            out_embs[-1] = rand_erase_images(out_embs[-1])
                         _, _, images_redec_raw = decoder(lat_enc, out_embs[-1])
 
                         loss_redec = (1 / batch_mult) * F.cross_entropy(images_redec_raw[1], ((images + 1) * 127.5).long())
@@ -233,7 +237,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     lat_gen = lat_generator(z_test, labels_test)
                     images_gen, out_embs, _ = decoder(lat_gen)
                     images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-                    images_gen = torch.cat([images_gen, images_regen], dim=3)
+                    images_zregen, _, _ = decoder(lat_gen, torch.zeros_like(out_embs[-1]))
+                    images_gen = torch.cat([images_gen, images_regen, images_zregen], dim=3)
 
                 stream_images(images_gen, config_name + '/drae', config['training']['out_dir'] + '/drae')
 
@@ -267,7 +272,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             lat_gen = lat_generator(z_test, labels_test)
             images_gen, out_embs, _ = decoder(lat_gen)
             images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-            images_gen = torch.cat([images_gen, images_regen], dim=3)
+            images_zregen, _, _ = decoder(lat_gen, torch.zeros_like(out_embs[-1]))
+            images_gen = torch.cat([images_gen, images_regen, images_zregen], dim=3)
             lat_enc, _, _ = encoder(images, labels)
             lat_enc = lat_translator(lat_enc, labels)
             images_dec, out_embs, _ = decoder(lat_enc)
@@ -285,7 +291,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 lat_gen = lat_generator(z_test, fixed_lab)
                 images_gen, out_embs, _ = decoder(lat_gen)
                 images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-                images_gen = torch.cat([images_gen, images_regen], dim=3)
+                images_zregen, _, _ = decoder(lat_gen, torch.zeros_like(out_embs[-1]))
+                images_gen = torch.cat([images_gen, images_regen, images_zregen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
