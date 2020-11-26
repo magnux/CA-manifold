@@ -12,12 +12,10 @@ from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
-from src.utils.model_utils import ca_seed, checkerboard_seed
+from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
 from itertools import chain
-
-from src.networks.conv_ae import Encoder
 
 
 class InjectedEncoder(nn.Module):

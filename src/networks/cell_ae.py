@@ -11,12 +11,10 @@ from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
-from src.utils.model_utils import ca_seed, checkerboard_seed
+from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
 from itertools import chain
-
-from src.networks.conv_ae import Encoder
 
 
 class InjectedEncoder(nn.Module):
@@ -179,7 +177,7 @@ class Decoder(nn.Module):
             self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
-        self.seed = nn.Parameter(checkerboard_seed(1, self.n_filter, self.ds_size, 'cpu'))
+        self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.ds_size, 'cpu'))
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
