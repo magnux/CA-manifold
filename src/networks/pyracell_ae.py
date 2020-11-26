@@ -147,7 +147,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_out=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -164,6 +164,7 @@ class Decoder(nn.Module):
         self.env_feedback = env_feedback
         self.auto_reg = auto_reg
         self.conv_irm = conv_irm
+        self.ce_out = ce_out
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
@@ -190,10 +191,19 @@ class Decoder(nn.Module):
             GaussianSmoothing(self.n_filter, 3, 1, 1)
         )
 
+        if self.log_mix_out:
+            out_f = 10 * ((self.out_chan * 3) + 1)
+        elif self.ce_out:
+            out_f = self.out_chan * 256
+            ce_pos = torch.arange(0, 256).view(1, 256, 1, 1, 1)
+            ce_pos = ce_pos.expand(-1, -1, self.out_chan, self.image_size, self.image_size)
+            self.register_buffer('ce_pos', ce_pos)
+        else:
+            out_f = self.out_chan
         self.out_conv = nn.Sequential(
             *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
-            nn.Conv2d(self.n_filter, 10 * ((self.out_chan * 3) + 1) if self.log_mix_out else self.out_chan, 1, 1, 0),
+            nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         )
 
     def forward(self, lat, ca_init=None):
@@ -243,9 +253,18 @@ class Decoder(nn.Module):
             out_embs.append(out)
 
         out = self.out_conv(out)
+        if self.ce_out:
+            out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
         out_raw = out
         if self.log_mix_out:
             out = sample_from_discretized_mix_logistic(out, 10)
+        elif self.ce_out:
+            # Differentiable
+            pos = self.ce_pos.expand(batch_size, -1, -1, -1, -1)
+            out_d = ((out.softmax(dim=1) * pos).sum(dim=1) / 127.5) - 1
+            out_raw = (out_d, out_raw)
+            # Non-Differentiable
+            out = (out.argmax(dim=1) / 127.5) - 1
         else:
             out = out.clamp(-1., 1.)
 
