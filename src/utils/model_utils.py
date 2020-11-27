@@ -11,7 +11,7 @@ def count_parameters(network):
 def toggle_grad(network, requires_grad):
     network.train(requires_grad)
     for p in network.parameters():
-        if p.dtype == torch.FloatTensor:
+        if p.dtype == torch.float32:
             p.requires_grad_(requires_grad)
 
 
