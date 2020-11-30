@@ -279,7 +279,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if config['training']['through_grads']:
                             images_dec, out_embs, _ = decoder(lat_enc)
-                            images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+                            images_redec, _, _ = decoder(lat_enc, out_embs[-1].clone().detach())
                         else:
                             with torch.no_grad():
                                 images_dec, out_embs, _ = decoder(lat_enc)

@@ -56,3 +56,14 @@ def rand_circle_masks(images, n_mask):
     damage = torch.ones_like(images)
     damage[-n_mask:, ...] = damage[-n_mask:, ...] - mask.unsqueeze(1)
     return images * damage
+
+
+EMB_MATRIX = torch.eye(256, device='cpu')
+
+
+def pix_to_onehot(images):
+    images_oh = ((images + 1) * 127.5).long()
+    images_oh = images_oh.permute(0, 2, 3, 1).contiguous().view(images.size(0) * images.size(2) * images.size(3), images.size(1))
+    images_oh = EMB_MATRIX[images_oh]
+    images_oh = images_oh.view(images.size(0), images.size(2), images.size(3), images.size(1) * 256).permute(0, 3, 1, 2).contiguous()
+    return images_oh

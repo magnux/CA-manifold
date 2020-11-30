@@ -279,7 +279,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_redec = images_dec
                         else:
                             if config['training']['through_grads']:
-                                images_redec, _, _ = decoder(lat_gen, out_embs[-1])
+                                images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1])
                             else:
                                 images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
 
