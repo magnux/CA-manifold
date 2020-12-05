@@ -39,8 +39,8 @@ class InjectedEncoder(nn.Module):
         self.conv_irm = conv_irm
         self.ce_in = ce_in
 
-        self.cube_size = np.ceil((self.image_size ** 2) ** (1/3))
-        self.pad_size = (self.cube_size ** 3) - (self.image_size ** 2)
+        self.cube_size = int(np.ceil((self.image_size ** 2) ** (1/3)))
+        self.pad_size = int((self.cube_size ** 3) - (self.image_size ** 2))
         self.register_buffer('cube_pad', torch.zeros(1, self.n_filter, self.pad_size))
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
@@ -184,8 +184,8 @@ class Decoder(nn.Module):
         self.conv_irm = conv_irm
         self.ce_out = ce_out
 
-        self.cube_size = np.ceil((self.image_size ** 2) ** (1/3))
-        self.pad_size = (self.cube_size ** 3) - (self.image_size ** 2)
+        self.cube_size = int(np.ceil((self.image_size ** 2) ** (1/3)))
+        self.pad_size = int((self.cube_size ** 3) - (self.image_size ** 2))
         self.register_buffer('cube_pad', torch.zeros(1, self.n_filter, self.pad_size))
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
