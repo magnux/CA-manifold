@@ -158,6 +158,17 @@ def ca_seed(batch_size, n_filter, image_size, device, seed_value=1.0, all_channe
     return seed
 
 
+def ca_seed3d(batch_size, n_filter, image_size, device, seed_value=1.0, all_channels=False):
+    # The canvas
+    seed = torch.zeros(batch_size, n_filter, image_size, image_size, image_size, device=device)
+    # The starting point of the wave
+    if all_channels:
+        seed[:, :, image_size // 2, image_size // 2, image_size // 2] = seed_value
+    else:
+        seed[:, 0, image_size // 2, image_size // 2, image_size // 2] = seed_value
+    return seed
+
+
 def checkerboard_seed(batch_size, n_filter, image_size, device):
     seed = np.zeros((batch_size, n_filter, image_size, image_size))
     cb = np.indices((1, 1, image_size, image_size)).sum(axis=0) % 2
