@@ -10,7 +10,7 @@ from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
-from src.utils.model_utils import ca_seed
+from src.utils.model_utils import ca_seed3d
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
 from itertools import chain
@@ -192,7 +192,7 @@ class Decoder(nn.Module):
 
         if self.redec_ap:
             self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
-        self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
+        self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0, conv_fn=nn.Conv3d)
 
         self.seed = nn.ParameterList([nn.Parameter(ca_seed(1, self.n_filter, self.image_size, 'cpu')) for _ in range(n_seed)])
         if self.conv_irm:
