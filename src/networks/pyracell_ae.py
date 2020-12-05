@@ -151,7 +151,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_out=False, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_out=False, n_seed=1, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -178,7 +178,7 @@ class Decoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        self.seed = nn.Parameter(ca_seed(1, self.n_filter, 16, 'cpu'))
+        self.seed = nn.ParameterList([nn.Parameter(ca_seed(1, self.n_filter, 16, 'cpu')) for _ in range(n_seed)])
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
@@ -210,13 +210,13 @@ class Decoder(nn.Module):
             nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         )
 
-    def forward(self, lat, ca_init=None):
+    def forward(self, lat, ca_init=None, seed_n=0):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
+            out = torch.cat([self.seed[seed_n].to(float_type)] * batch_size, 0)
         else:
             out = self.in_conv(ca_init)
 
