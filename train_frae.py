@@ -134,7 +134,7 @@ if pre_train:
                             images_dec, _, _ = decoder(lat_enc)
 
                             loss_dec = (1 / batch_split) * F.mse_loss(images_dec, images)
-                            model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=config['training']['through_grads'])
+                            model_manager.loss_backward(loss_dec, nets_to_train)
                             loss_dec_sum += loss_dec.item()
 
                 # Streaming Images
@@ -262,7 +262,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec, _, _ = decoder(lat_enc)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=config['training']['through_grads'])
+                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
