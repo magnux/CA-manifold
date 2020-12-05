@@ -13,7 +13,7 @@ network:
     n_filter: 16
     embed_size: 256
     lat_size: 512
-    n_calls: 2
+    n_calls: 4
     shared_params: True
     adain: False
     dyncin: False
@@ -26,7 +26,7 @@ z_dist:
 training:
   out_dir: save/cifar10_cubecell_ae
   batch_size: 64
-  batch_split: 4
+  batch_split: 8
   batch_mult_steps: 1
   n_workers: 2
   optimizer: adamp
