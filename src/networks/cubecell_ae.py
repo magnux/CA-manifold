@@ -198,7 +198,7 @@ class Decoder(nn.Module):
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter, dim=3)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(self.cube_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(self.cube_size)-1), 1)], left_sided=self.causal)
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(self.cube_size)-1), 1)], left_sided=self.causal, dim=3)
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm3d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
