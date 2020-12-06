@@ -60,9 +60,9 @@ zdist = get_zdist(config['z_dist']['type'], z_dim, device=device)
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
-    'generator': {'class': 'base', 'sub_class': 'Generator'},
+    'generator': {'class': 'base', 'sub_class': 'IRMGenerator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
-    'discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
+    'discriminator': {'class': 'base', 'sub_class': 'IRMDiscriminator'},
 }
 # to_avg = ['encoder', 'decoder', 'generator']
 
@@ -96,7 +96,11 @@ def get_inputs(trainiter, batch_size, device):
     if batch_size % config['training']['batch_size'] > 0:
         images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
-    labels = embedding_mat[labels]
+    if labels.dtype is torch.int64:
+        if labels.dim() == 1:
+            labels = embedding_mat[labels]
+        else:
+            labels = labels.to(torch.float32)
     images = images.detach().requires_grad_()
     z_gen = zdist.sample((images.size(0),))
     z_gen.detach_().requires_grad_()
