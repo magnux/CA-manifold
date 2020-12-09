@@ -53,11 +53,11 @@ class InjectedEncoder(nn.Module):
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-                                            for _ in range(1 if self.shared_params else self.n_calls)])
+                                            for _ in range(1 if self.shared_params else self.n_calls // 2)])
         self.frac_dyna_conv = nn.ModuleList([
             DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
-            for _ in range(1 if self.shared_params else self.n_calls)])
+            for _ in range(1 if self.shared_params else self.n_calls // 2)])
 
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
@@ -101,8 +101,8 @@ class InjectedEncoder(nn.Module):
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
-                out_new = self.frac_norm[0 if self.shared_params else c](out_new)
-            out_new = self.frac_dyna_conv[0 if self.shared_params else c](out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
+                out_new = self.frac_norm[0 if self.shared_params else c // 2](out_new)
+            out_new = self.frac_dyna_conv[0 if self.shared_params else c // 2](out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -185,11 +185,11 @@ class Decoder(nn.Module):
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-                                            for _ in range(1 if self.shared_params else self.n_calls)])
+                                            for _ in range(1 if self.shared_params else self.n_calls // 2)])
         self.frac_dyna_conv = nn.ModuleList([
             DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
-            for _ in range(1 if self.shared_params else self.n_calls)])
+            for _ in range(1 if self.shared_params else self.n_calls // 2)])
 
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
@@ -238,8 +238,8 @@ class Decoder(nn.Module):
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
-                out_new = self.frac_norm[0 if self.shared_params else c](out_new)
-            out_new = self.frac_dyna_conv[0 if self.shared_params else c](out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
+                out_new = self.frac_norm[0 if self.shared_params else c // 2](out_new)
+            out_new = self.frac_dyna_conv[0 if self.shared_params else c // 2](out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
