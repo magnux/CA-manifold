@@ -28,7 +28,7 @@ class InjectedEncoder(nn.Module):
         self.in_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
-        self.n_calls = int(np.ceil(np.log2(image_size) - np.log2(16))) + 1 + 4
+        self.n_calls = (int(np.ceil(np.log2(image_size) - np.log2(16))) + 1) * 2
         self.shared_params = shared_params
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
@@ -92,7 +92,7 @@ class InjectedEncoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for c in range(self.n_calls):
-            if 0 < c < self.n_calls - 4:
+            if 1 < c and c % 2 == 0:
                 out = self.frac_ds(out)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
@@ -159,7 +159,7 @@ class Decoder(nn.Module):
         self.image_size = image_size
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = int(np.ceil(np.log2(image_size) - np.log2(16))) + 1 + 4
+        self.n_calls = (int(np.ceil(np.log2(image_size) - np.log2(16))) + 1) * 2
         self.shared_params = shared_params
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
@@ -253,7 +253,7 @@ class Decoder(nn.Module):
                     auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
-            if 3 < c < self.n_calls - 1:
+            if c < self.n_calls - 1 and c % 2 == 1:
                 out = self.frac_us(out)
             out_embs.append(out)
 
