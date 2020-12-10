@@ -111,8 +111,8 @@ class InjectedEncoder(nn.Module):
                     start_h, end_h = int(e * self.cell_size), int((e + 1) * self.cell_size)
                     out_new_d = out_new[:, :, start_w:end_w, start_h:end_h]
                     if not self.auto_reg:
-                        out_new_d = self.frac_norm[d](out_new_d)
-                    out_new_d = self.frac_dyna_conv[d](out_new_d, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
+                        out_new_d = self.frac_norm[(d * int(self.n_cells ** 0.5)) + e](out_new_d)
+                    out_new_d = self.frac_dyna_conv[(d * int(self.n_cells ** 0.5)) + e](out_new_d, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
                     out_new_el.append(out_new_d)
                 out_new_dl.append(torch.cat(out_new_el, dim=3))
             out_new = torch.cat(out_new_dl, dim=2)
@@ -265,8 +265,8 @@ class Decoder(nn.Module):
                     start_h, end_h = int(e * self.cell_size), int((e + 1) * self.cell_size)
                     out_new_d = out_new[:, :, start_w:end_w, start_h:end_h]
                     if not self.auto_reg:
-                        out_new_d = self.frac_norm[d](out_new_d)
-                    out_new_d = self.frac_dyna_conv[d](out_new_d, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
+                        out_new_d = self.frac_norm[(d * int(self.n_cells ** 0.5)) + e](out_new_d)
+                    out_new_d = self.frac_dyna_conv[(d * int(self.n_cells ** 0.5)) + e](out_new_d, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
                     out_new_el.append(out_new_d)
                 out_new_dl.append(torch.cat(out_new_el, dim=3))
             out_new = torch.cat(out_new_dl, dim=2)
