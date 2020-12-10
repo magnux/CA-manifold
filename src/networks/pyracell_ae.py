@@ -117,7 +117,7 @@ class InjectedEncoder(nn.Module):
                     auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
-            if c < (self.n_layers * self.n_calls) - 1 and c % 2 == 1:
+            if c < (self.n_layers * self.n_calls) - 1 and c % self.n_calls == self.n_calls - 1:
                 out = self.frac_ds(out)
             out_embs.append(out)
 
@@ -255,7 +255,7 @@ class Decoder(nn.Module):
                     auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
-            if c < (self.n_layers * self.n_calls) - 1 and c % 2 == 1:
+            if c < (self.n_layers * self.n_calls) - 1 and c % self.n_calls == self.n_calls - 1:
                 out = self.frac_us(out)
             out_embs.append(out)
 
