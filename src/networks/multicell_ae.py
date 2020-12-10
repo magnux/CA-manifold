@@ -58,7 +58,7 @@ class InjectedEncoder(nn.Module):
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=self.causal)
         if not self.auto_reg:
-            self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor) for _ in range(self.n_cells)])
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = nn.ModuleList([
             DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
@@ -103,6 +103,8 @@ class InjectedEncoder(nn.Module):
             if self.conv_irm:
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
+            if not self.auto_reg:
+                out_new = self.frac_norm(out_new)
             out_new_dl = []
             for d in range(int(self.n_cells ** 0.5)):
                 out_new_el = []
@@ -110,8 +112,6 @@ class InjectedEncoder(nn.Module):
                     start_w, end_w = int(d * self.cell_size), int((d + 1) * self.cell_size)
                     start_h, end_h = int(e * self.cell_size), int((e + 1) * self.cell_size)
                     out_new_d = out_new[:, :, start_w:end_w, start_h:end_h]
-                    if not self.auto_reg:
-                        out_new_d = self.frac_norm[(d * int(self.n_cells ** 0.5)) + e](out_new_d)
                     out_new_d = self.frac_dyna_conv[(d * int(self.n_cells ** 0.5)) + e](out_new_d, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
                     out_new_el.append(out_new_d)
                 out_new_dl.append(torch.cat(out_new_el, dim=3))
@@ -204,7 +204,7 @@ class Decoder(nn.Module):
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(ds_size)-1), 1)], left_sided=self.causal)
         if not self.auto_reg:
-            self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor) for _ in range(self.n_cells)])
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = nn.ModuleList([
             DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
@@ -258,14 +258,14 @@ class Decoder(nn.Module):
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
             out_new_dl = []
+            if not self.auto_reg:
+                out_new = self.frac_norm(out_new)
             for d in range(int(self.n_cells ** 0.5)):
                 out_new_el = []
                 for e in range(int(self.n_cells ** 0.5)):
                     start_w, end_w = int(d * self.cell_size), int((d + 1) * self.cell_size)
                     start_h, end_h = int(e * self.cell_size), int((e + 1) * self.cell_size)
                     out_new_d = out_new[:, :, start_w:end_w, start_h:end_h]
-                    if not self.auto_reg:
-                        out_new_d = self.frac_norm[(d * int(self.n_cells ** 0.5)) + e](out_new_d)
                     out_new_d = self.frac_dyna_conv[(d * int(self.n_cells ** 0.5)) + e](out_new_d, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
                     out_new_el.append(out_new_d)
                 out_new_dl.append(torch.cat(out_new_el, dim=3))
