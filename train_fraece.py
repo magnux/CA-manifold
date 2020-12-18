@@ -264,7 +264,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         _, _, images_dec_raw = decoder(lat_enc)
 
                         loss_dec = (1 / batch_mult) * F.cross_entropy(images_dec_raw[1], ((images + 1) * 127.5).long())
-                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=config['training']['through_grads'])
+                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
