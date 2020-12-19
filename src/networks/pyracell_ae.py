@@ -181,7 +181,7 @@ class Decoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        self.seed = nn.Parameter(ca_seed(n_seed, self.n_filter, 16, 'cpu'))
+        self.seed = nn.Parameter(torch.randn(n_seed, self.n_filter, 16, 16))
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)

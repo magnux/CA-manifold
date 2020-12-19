@@ -151,7 +151,7 @@ class DecoderBlock(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, log_mix_out=False, **kwargs):
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, log_mix_out=False, n_seed=1, **kwargs):
         super().__init__()
         self.n_labels = n_labels
         self.image_size = image_size
@@ -169,7 +169,7 @@ class Decoder(nn.Module):
                                  upsample_in=i > 0, upsample_out=i < len(filters) - 2)
             self.blocks.append(block)
 
-        self.seed = nn.Parameter(checkerboard_seed(1, filters[0], 4, 'cpu'))
+        self.seed = nn.Parameter(torch.randn(n_seed, filters[0], 4, 4))
 
         self.in_conv = nn.Sequential(
             nn.Conv2d(self.out_chan, filters[0], 3, 1, 1),
@@ -180,13 +180,17 @@ class Decoder(nn.Module):
 
         self.conv_img = nn.Conv2d(filters[-1], 10 * ((self.out_chan * 3) + 1) if self.log_mix_out else self.out_chan, 3, 1, 1)
 
-    def forward(self, lat, ca_init=None):
+    def forward(self, lat, ca_init=None, seed_n=0):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
-            out_emb = torch.cat([self.seed.to(float_type)] * batch_size, 0)
+            if isinstance(seed_n, tuple):
+                mean_seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+                out_emb = torch.cat([mean_seed.to(float_type)] * batch_size, 0)
+            else:
+                out_emb = torch.cat([self.seed[seed_n:seed_n+1, ...].to(float_type)] * batch_size, 0)
         else:
             out_emb = self.in_conv(ca_init)
 

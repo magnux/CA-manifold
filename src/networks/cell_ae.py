@@ -181,7 +181,7 @@ class Decoder(nn.Module):
             self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
-        self.seed = nn.Parameter(ca_seed(n_seed, self.n_filter, self.ds_size, 'cpu'))
+        self.seed = nn.Parameter(torch.randn(n_seed, self.n_filter, self.ds_size, self.ds_size))
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(ds_size)-1), 1)],

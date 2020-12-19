@@ -194,7 +194,7 @@ class Decoder(nn.Module):
             self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0, conv_fn=nn.Conv3d)
 
-        self.seed = nn.ParameterList([nn.Parameter(ca_seed3d(1, self.n_filter, self.image_size, 'cpu')) for _ in range(n_seed)])
+        self.seed = nn.Parameter(torch.randn(n_seed, self.n_filter, self.cube_size, self.cube_size, self.cube_size))
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter, dim=3)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(self.cube_size)-1), 1)],
@@ -229,7 +229,11 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            out = torch.cat([self.seed[seed_n].to(float_type)] * batch_size, 0)
+            if isinstance(seed_n, tuple):
+                mean_seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+                out = torch.cat([mean_seed.to(float_type)] * batch_size, 0)
+            else:
+                out = torch.cat([self.seed[seed_n:seed_n+1, ...].to(float_type)] * batch_size, 0)
         else:
             if self.redec_ap:
                 ca_init = self.in_ap(ca_init)
