@@ -169,7 +169,7 @@ class Decoder(nn.Module):
                                  upsample_in=i > 0, upsample_out=i < len(filters) - 2)
             self.blocks.append(block)
 
-        self.seed = nn.Parameter(torch.randn(n_seed, filters[0], 4, 4))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, filters[0])).unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4))
 
         self.in_conv = nn.Sequential(
             nn.Conv2d(self.out_chan, filters[0], 3, 1, 1),

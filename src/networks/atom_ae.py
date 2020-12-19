@@ -109,7 +109,7 @@ class Decoder(nn.Module):
 
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
 
-        self.seed = nn.Parameter(torch.randn(n_seed, self.n_filter, self.image_size, self.image_size))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
         frac_sobel = SinSobel(self.out_chan, [(2 ** i) + 1 for i in range(1, int(np.log2(self.image_size)-1), 1)],
                               [2 ** (i - 1) for i in range(1, int(np.log2(self.image_size)-1), 1)])
         self.frac_sobel = nn.Sequential(

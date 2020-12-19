@@ -194,7 +194,7 @@ class Decoder(nn.Module):
             self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
         self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0, conv_fn=nn.Conv3d)
 
-        self.seed = nn.Parameter(torch.randn(n_seed, self.n_filter, self.cube_size, self.cube_size, self.cube_size))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).unsqueeze(4).repeat(1, 1, self.cube_size, self.cube_size, self.cube_size))
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter, dim=3)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(self.cube_size)-1), 1)],

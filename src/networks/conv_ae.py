@@ -175,7 +175,7 @@ class Decoder(nn.Module):
                                             ResidualBlock(self.n_filter, self.n_filter, None, 3, 1, 1)
                                         ) for _ in range(1 if self.shared_params else self.n_calls)])
 
-        self.seed = nn.Parameter(torch.randn(n_seed, self.n_filter, self.ds_size, self.ds_size))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.ds_size, self.ds_size))
 
         if self.adain:
             self.inj_cond = nn.Sequential(
