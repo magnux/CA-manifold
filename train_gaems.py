@@ -30,7 +30,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 n_seed = 16
-config['network']['kwargs']['n_seed'] = 8
+config['network']['kwargs']['n_seed'] = n_seed
 
 image_size = config['data']['image_size']
 channels = config['data']['channels']
