@@ -29,7 +29,7 @@ config_name = splitext(basename(args.config))[0]
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-n_seed = 8
+n_seed = 17
 config['network']['kwargs']['n_seed'] = n_seed
 
 image_size = config['data']['image_size']
