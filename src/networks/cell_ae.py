@@ -224,10 +224,11 @@ class Decoder(nn.Module):
             if self.redec_ap:
                 ca_init = self.in_ap(ca_init)
             if isinstance(seed_n, tuple):
-                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0)
+                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
             else:
-                proj = self.in_proj[seed_n, ...]
-            out = ca_init.permute(0, 2, 3, 1).reshape(batch_size * self.ds_size * self.ds_size, self.n_filter)
+                proj = self.in_proj[seed_n:seed_n+1, ...]
+            proj = torch.cat([proj.to(float_type)] * batch_size, 0)
+            out = ca_init.permute(0, 2, 3, 1).reshape(batch_size, self.ds_size * self.ds_size, self.n_filter)
             out = torch.bmm(out, proj).reshape(batch_size, self.ds_size, self.ds_size, self.n_filter).permute(0, 3, 1, 2).contiguous()
 
         if self.perception_noise and self.training:
