@@ -241,8 +241,8 @@ class Decoder(nn.Module):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0)
             else:
                 proj = self.in_proj[seed_n, ...]
-            out = ca_init.permute(0, 2, 3, 4, 1).view(batch_size * self.cube_size * self.cube_size * self.cube_size, self.n_filter)
-            out = torch.bmm(out, proj).view(batch_size, self.cube_size, self.cube_size, self.cube_size, self.n_filter).permute(0, 4, 1, 2, 3).contiguous()
+            out = ca_init.permute(0, 2, 3, 4, 1).reshape(batch_size * self.cube_size * self.cube_size * self.cube_size, self.n_filter)
+            out = torch.bmm(out, proj).reshape(batch_size, self.cube_size, self.cube_size, self.cube_size, self.n_filter).permute(0, 4, 1, 2, 3).contiguous()
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))

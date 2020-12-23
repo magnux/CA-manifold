@@ -197,8 +197,8 @@ class Decoder(nn.Module):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0)
             else:
                 proj = self.in_proj[seed_n, ...]
-            out_emb = ca_init.permute(0, 2, 3, 1).view(batch_size * self.image_size * self.image_size, self.n_filter)
-            out_emb = torch.bmm(out_emb, proj).view(batch_size, self.image_size, self.image_size, self.n_filter).permute(0, 3, 1, 2).contiguous()
+            out_emb = ca_init.permute(0, 2, 3, 1).reshape(batch_size * self.image_size * self.image_size, self.n_filter)
+            out_emb = torch.bmm(out_emb, proj).reshape(batch_size, self.image_size, self.image_size, self.n_filter).permute(0, 3, 1, 2).contiguous()
             out_emb = self.in_conv(out_emb)
 
         out_embs = [out_emb]
