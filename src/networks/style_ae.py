@@ -171,8 +171,9 @@ class Decoder(nn.Module):
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, filters[0])).unsqueeze(2).unsqueeze(3).repeat(1, 1, 4, 4))
 
+        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, filters[-1] * filters[0])).reshape(n_seed, filters[-1], filters[0]))
         self.in_conv = nn.Sequential(
-            nn.Conv2d(self.out_chan, filters[0], 3, 1, 1),
+            GaussianSmoothing(filters[0], 3, 1, 1),
             LambdaLayer(lambda x: F.interpolate(x, size=4, mode='bilinear', align_corners=False)),
         )
 
@@ -187,12 +188,18 @@ class Decoder(nn.Module):
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             if isinstance(seed_n, tuple):
-                mean_seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-                out_emb = torch.cat([mean_seed.to(float_type)] * batch_size, 0)
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
             else:
-                out_emb = torch.cat([self.seed[seed_n:seed_n+1, ...].to(float_type)] * batch_size, 0)
+                seed = self.seed[seed_n:seed_n+1, ...]
+            out_emb = torch.cat([seed.to(float_type)] * batch_size, 0)
         else:
-            out_emb = self.in_conv(ca_init)
+            if isinstance(seed_n, tuple):
+                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0)
+            else:
+                proj = self.in_proj[seed_n, ...]
+            out_emb = ca_init.permute(0, 2, 3, 1).view(batch_size * self.image_size * self.image_size, self.n_filter)
+            out_emb = torch.bmm(out_emb, proj).view(batch_size, self.image_size, self.image_size, self.n_filter).permute(0, 3, 1, 2).contiguous()
+            out_emb = self.in_conv(out_emb)
 
         out_embs = [out_emb]
         out = None

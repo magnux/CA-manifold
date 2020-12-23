@@ -107,7 +107,7 @@ class Decoder(nn.Module):
         self.log_mix_out = log_mix_out
         self.auto_reg = auto_reg
 
-        self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
+        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter * self.n_filter)).reshape(n_seed, self.n_filter, self.n_filter))
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
         frac_sobel = SinSobel(self.out_chan, [(2 ** i) + 1 for i in range(1, int(np.log2(self.image_size)-1), 1)],
@@ -134,12 +134,17 @@ class Decoder(nn.Module):
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             if isinstance(seed_n, tuple):
-                mean_seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-                out = torch.cat([mean_seed.to(float_type)] * batch_size, 0)
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
             else:
-                out = torch.cat([self.seed[seed_n:seed_n+1, ...].to(float_type)] * batch_size, 0)
+                seed = self.seed[seed_n:seed_n+1, ...]
+            out = torch.cat([seed.to(float_type)] * batch_size, 0)
         else:
-            out = self.in_conv(ca_init)
+            if isinstance(seed_n, tuple):
+                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0)
+            else:
+                proj = self.in_proj[seed_n, ...]
+            out = ca_init.permute(0, 2, 3, 1).view(batch_size * self.image_size * self.image_size, self.n_filter)
+            out = torch.bmm(out, proj).view(batch_size, self.image_size, self.image_size, self.n_filter).permute(0, 3, 1, 2).contiguous()
 
         out_embs = [out]
         auto_reg_grads = []

@@ -179,7 +179,7 @@ class Decoder(nn.Module):
 
         if self.redec_ap:
             self.in_ap = nn.AvgPool2d(5, 1, 2, count_include_pad=False)
-        self.in_conv = ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0)
+        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter * self.n_filter)).reshape(n_seed, self.n_filter, self.n_filter))
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.ds_size, self.ds_size))
         if self.conv_irm:
@@ -216,14 +216,19 @@ class Decoder(nn.Module):
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.ds_size, lat.device).to(float_type)
             if isinstance(seed_n, tuple):
-                mean_seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-                out = torch.cat([mean_seed.to(float_type)] * batch_size, 0)
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
             else:
-                out = torch.cat([self.seed[seed_n:seed_n+1, ...].to(float_type)] * batch_size, 0)
+                seed = self.seed[seed_n:seed_n+1, ...]
+            out = torch.cat([seed.to(float_type)] * batch_size, 0)
         else:
             if self.redec_ap:
                 ca_init = self.in_ap(ca_init)
-            out = self.in_conv(ca_init)
+            if isinstance(seed_n, tuple):
+                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0)
+            else:
+                proj = self.in_proj[seed_n, ...]
+            out = ca_init.permute(0, 2, 3, 1).view(batch_size * self.ds_size * self.ds_size, self.n_filter)
+            out = torch.bmm(out, proj).view(batch_size, self.ds_size, self.ds_size, self.n_filter).permute(0, 3, 1, 2).contiguous()
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))

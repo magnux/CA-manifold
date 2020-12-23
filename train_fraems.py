@@ -20,7 +20,7 @@ torch.backends.cudnn.benchmark = True
 np.random.seed(42)
 torch.manual_seed(42)
 
-parser = argparse.ArgumentParser(description='Train a FRAETS')
+parser = argparse.ArgumentParser(description='Train a FRAEMS')
 parser.add_argument('config', type=str, help='Path to config file.')
 args = parser.parse_args()
 config = load_config(args.config)
@@ -329,8 +329,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             z_enc, _, _ = encoder(images, labels)
             lat_enc = generator(z_enc, labels)
             images_dec, _, _ = decoder(lat_enc, seed_n=0)
-            z_enc, _, _ = encoder(images, labels)
-            lat_enc = generator(z_enc, labels)
             images_redec, _, _ = decoder(lat_enc, seed_n=(1, n_seed))
             images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
@@ -348,14 +346,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
-        # Perform inception
-        if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
-            t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
-                                                                         10000, 10000, config['training']['batch_size'],
-                                                                         zdist, ydist, fid_real_samples, device, 1)
-            model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
-            model_manager.log_manager.add_scalar('inception_score', 'stddev', inception_std, it=it)
-            model_manager.log_manager.add_scalar('inception_score', 'fid', fid, it=it)
+        # # Perform inception
+        # if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
+        #     t.write('Computing inception/fid!')
+        #     inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
+        #                                                                  10000, 10000, config['training']['batch_size'],
+        #                                                                  zdist, ydist, fid_real_samples, device, 1)
+        #     model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
+        #     model_manager.log_manager.add_scalar('inception_score', 'stddev', inception_std, it=it)
+        #     model_manager.log_manager.add_scalar('inception_score', 'fid', fid, it=it)
 
 print('Training is complete...')
