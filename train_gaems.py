@@ -20,7 +20,7 @@ torch.backends.cudnn.benchmark = True
 np.random.seed(42)
 torch.manual_seed(42)
 
-parser = argparse.ArgumentParser(description='Train a FRAETS')
+parser = argparse.ArgumentParser(description='Train a GAEMS')
 parser.add_argument('config', type=str, help='Path to config file.')
 args = parser.parse_args()
 config = load_config(args.config)
@@ -29,7 +29,7 @@ config_name = splitext(basename(args.config))[0]
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-n_seed = 16
+n_seed = 17
 config['network']['kwargs']['n_seed'] = n_seed
 
 image_size = config['data']['image_size']
@@ -120,6 +120,53 @@ if config['training']['inception_every'] > 0:
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
+if pre_train:
+    for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 8):
+        with model_manager.on_epoch(epoch):
+            running_loss_dec = np.zeros(window_size)
+
+            it = (epoch * (len(trainloader) // batch_split))
+
+            t = trange(len(trainloader) // batch_split)
+            t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
+            for batch in t:
+                with model_manager.on_batch():
+
+                    loss_dec_sum = 0
+
+                    with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+                        for _ in range(batch_split):
+                            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                            z_enc, _, _ = encoder(images, labels)
+                            lat_enc = generator(z_enc, labels)
+                            images_dec, _, _ = decoder(lat_enc, seed=0)
+
+                            loss_dec = (1 / batch_split) * F.mse_loss(images_dec, images)
+                            model_manager.loss_backward(loss_dec, nets_to_train)
+                            loss_dec_sum += loss_dec.item()
+
+                # Streaming Images
+                with torch.no_grad():
+                    z_enc, _, _ = encoder(images_test, labels_test)
+                    lat_enc = generator(z_enc, labels_test)
+                    images_dec, _, _ = decoder(lat_enc, seed=0)
+
+                stream_images(images_dec, config_name + '/gaems_pretrain', config['training']['out_dir'] + '/gaems_pretrain')
+
+                # Print progress
+                running_loss_dec[batch % window_size] = loss_dec_sum
+                running_factor = window_size if batch > window_size else batch + 1
+                t.set_postfix(loss_dec='%.2e' % (np.sum(running_loss_dec) / running_factor))
+
+                # Log progress
+                model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
+
+                it += 1
+
+    print('Pre-training is complete...')
+    model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 8)
+
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', d_reg_every if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
@@ -142,9 +189,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             with model_manager.on_batch():
 
+                # FR-GAN
+
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
+                loss_dec_sum = 0
 
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
@@ -180,7 +230,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
-                            images_redec, _, _ = decoder(lat_gen, seed_n=it % n_seed)
+                            images_redec, _, _ = decoder(lat_gen, seed_n=(it % (n_seed - 1)) + 1)
 
                         lat_gen.requires_grad_()
                         images_redec.requires_grad_()
@@ -214,6 +264,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
+                        if epoch == 0:
+                            images_dec, _, _ = decoder(lat_enc, seed_n=0)
+
+                            loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                            model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
+                            loss_dec_sum += loss_dec.item()
 
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
@@ -223,7 +279,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_enc_sum += loss_gen_enc.item()
 
                         lat_gen = generator(z_gen, labels)
-                        images_redec, _, _ = decoder(lat_gen, seed_n=it % n_seed)
+                        images_redec, _, _ = decoder(lat_gen, seed_n=(it % (n_seed - 1)) + 1)
 
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen.detach())
                         labs_dec = discriminator(lat_top_dec, labels)
@@ -236,7 +292,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen, seed_n=0)
-                    images_regen, _, _ = decoder(lat_gen, seed_n=(0, n_seed))
+                    images_regen, _, _ = decoder(lat_gen, seed_n=(1, n_seed))
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/gaems', config['training']['out_dir'] + '/gaems')
@@ -253,6 +309,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
@@ -268,14 +325,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen, seed_n=0)
-            images_regen, _, _ = decoder(lat_gen, seed_n=(0, n_seed))
+            images_regen, _, _ = decoder(lat_gen, seed_n=(1, n_seed))
             images_gen = torch.cat([images_gen, images_regen], dim=3)
             z_enc, _, _ = encoder(images, labels)
             lat_enc = generator(z_enc, labels)
             images_dec, _, _ = decoder(lat_enc, seed_n=0)
-            z_enc, _, _ = encoder(images, labels)
-            lat_enc = generator(z_enc, labels)
-            images_redec, _, _ = decoder(lat_enc, seed_n=(0, n_seed))
+            images_redec, _, _ = decoder(lat_enc, seed_n=(1, n_seed))
             images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
@@ -288,18 +343,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     fixed_lab[:, lab] = 1
                 lat_gen = generator(z_test, fixed_lab)
                 images_gen, _, _ = decoder(lat_gen, seed_n=0)
-                images_regen, _, _ = decoder(lat_gen, seed_n=(0, n_seed))
+                images_regen, _, _ = decoder(lat_gen, seed_n=(1, n_seed))
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
-        # Perform inception
-        if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
-            t.write('Computing inception/fid!')
-            inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
-                                                                         10000, 10000, config['training']['batch_size'],
-                                                                         zdist, ydist, fid_real_samples, device, 1)
-            model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
-            model_manager.log_manager.add_scalar('inception_score', 'stddev', inception_std, it=it)
-            model_manager.log_manager.add_scalar('inception_score', 'fid', fid, it=it)
+        # # Perform inception
+        # if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
+        #     t.write('Computing inception/fid!')
+        #     inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
+        #                                                                  10000, 10000, config['training']['batch_size'],
+        #                                                                  zdist, ydist, fid_real_samples, device, 1)
+        #     model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
+        #     model_manager.log_manager.add_scalar('inception_score', 'stddev', inception_std, it=it)
+        #     model_manager.log_manager.add_scalar('inception_score', 'fid', fid, it=it)
 
 print('Training is complete...')
