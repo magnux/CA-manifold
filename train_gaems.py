@@ -264,7 +264,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
-                        if epoch == config['training']['n_epochs'] // 8:
+                        if epoch < config['training']['n_epochs'] // 16:
                             images_dec, _, _ = decoder(lat_enc, seed_n=0)
 
                             loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
