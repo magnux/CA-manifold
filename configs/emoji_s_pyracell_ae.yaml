@@ -29,7 +29,7 @@ training:
   regeneration: False
   batch_size: 64
   batch_split: 1
-  batch_mult_steps: 4
+  batch_mult_steps: 1
   n_workers: 2
   optimizer: adamp
   lr: 0.0001
