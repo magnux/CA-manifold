@@ -285,7 +285,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen, seed_n=0)
+                    images_gen, _, _ = decoder(lat_gen, seed_n=it % n_seed)
                     images_regen, _, _ = decoder(lat_gen, seed_n=(0, n_seed))
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
