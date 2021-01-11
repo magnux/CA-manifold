@@ -34,7 +34,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 n_seed = 16
 combs = []
 for r in range(n_seed):
-    combs += [i for i in itertools.combinations(range(n_seed), r)]
+    combs += [list(i) for i in itertools.combinations(range(n_seed), r)]
 random.shuffle(combs)
 config['network']['kwargs']['n_seed'] = n_seed
 
