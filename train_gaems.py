@@ -208,9 +208,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
-                            lat_gen_half = generator(z_gen[batch_split_size // 2:, ...], labels[batch_split_size // 2:, ...])
-                            images_redec_half, _, _ = decoder(lat_gen_half, seed_n=it % n_seed)
-                            images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
+                            # lat_gen_half = generator(z_gen[batch_split_size // 2:, ...], labels[batch_split_size // 2:, ...])
+                            # images_redec_half, _, _ = decoder(lat_gen_half, seed_n=it % n_seed)
+                            # images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
 
@@ -266,10 +266,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        with torch.no_grad():
-                            lat_gen_half = generator(z_gen[batch_split_size // 2:, ...], labels[batch_split_size // 2:, ...])
-                            images_redec_half, _, _ = decoder(lat_gen_half, seed_n=it % n_seed)
-                        images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
+                        # with torch.no_grad():
+                        #     lat_gen_half = generator(z_gen[batch_split_size // 2:, ...], labels[batch_split_size // 2:, ...])
+                        #     images_redec_half, _, _ = decoder(lat_gen_half, seed_n=it % n_seed)
+                        # images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
 
