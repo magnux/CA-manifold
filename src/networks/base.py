@@ -122,14 +122,19 @@ class UnconditionalDiscriminator(nn.Module):
 
 
 class UnconditionalGenerator(nn.Module):
-    def __init__(self, lat_size, z_dim, **kwargs):
+    def __init__(self, lat_size, z_dim, norm_z=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.norm_z = norm_z
 
     def forward(self, z):
-        z = z.clamp(-3, 3)
+        if self.norm_z:
+            z = F.normalize(z, dim=1)
+        else:
+            z = z.clamp(-3, 3)
+
         lat = self.z_to_lat(z)
 
         return lat
