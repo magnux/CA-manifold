@@ -222,9 +222,9 @@ class Decoder(nn.Module):
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
             if isinstance(seed_n, torch.Tensor):
                 if seed_n.dim() == 2:
-                    seed = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed / (self.n_labels + 1), 1, 16, 16).mean(1)
+                    out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed / (self.n_labels + 1), 1, 16, 16).mean(1)
                 elif seed_n.dim() == 1:
-                    seed = self.seed[seed_n, ...]
+                    out = self.seed[seed_n, ...]
             else:
                 if isinstance(seed_n, tuple):
                     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
