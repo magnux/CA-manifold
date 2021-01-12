@@ -13,8 +13,6 @@ from src.utils.model_utils import compute_inception_score
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
-import itertools
-import random
 
 torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.benchmark = True
@@ -32,10 +30,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 n_seed = 16
-combs = []
-for r in range(n_seed):
-    combs += [list(i) for i in itertools.combinations(range(n_seed), r)]
-random.shuffle(combs)
 config['network']['kwargs']['n_seed'] = n_seed
 
 image_size = config['data']['image_size']
@@ -215,7 +209,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             # lat_gen_half = generator(z_gen[batch_split_size // 2:, ...], labels[batch_split_size // 2:, ...])
-                            # images_redec_half, _, _ = decoder(lat_gen_half, seed_n=combs[it % len(combs)])
+                            # images_redec_half, _, _ = decoder(lat_gen_half, seed_n=it % n_seed)
                             # images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
@@ -240,7 +234,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             z_gen[:batch_split_size // 2, ...].data.copy_(z_enc[:batch_split_size // 2, ...])
                             lat_gen = generator(z_gen, labels)
-                            images_redec, _, _ = decoder(lat_gen, seed_n=combs[it % len(combs)])
+                            images_redec, _, _ = decoder(lat_gen, seed_n=it % n_seed)
 
                         lat_gen.requires_grad_()
                         images_redec.requires_grad_()
@@ -274,7 +268,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         # with torch.no_grad():
                         #     lat_gen_half = generator(z_gen[batch_split_size // 2:, ...], labels[batch_split_size // 2:, ...])
-                        #     images_redec_half, _, _ = decoder(lat_gen_half, seed_n=combs[it % len(combs)])
+                        #     images_redec_half, _, _ = decoder(lat_gen_half, seed_n=it % n_seed)
                         # images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
@@ -288,7 +282,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_gen[:batch_split_size // 2, ...].data.copy_(z_enc[:batch_split_size // 2, ...])
                         lat_gen = generator(z_gen, labels)
-                        images_redec, _, _ = decoder(lat_gen, seed_n=combs[it % len(combs)])
+                        images_redec, _, _ = decoder(lat_gen, seed_n=it % n_seed)
 
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen.detach())
                         labs_dec = discriminator(lat_top_dec, labels)
@@ -300,7 +294,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen, seed_n=combs[it % len(combs)])
+                    images_gen, _, _ = decoder(lat_gen, seed_n=it % n_seed)
                     images_regen, _, _ = decoder(lat_gen, seed_n=(0, n_seed))
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
