@@ -45,7 +45,7 @@ z_dim = config['z_dist']['z_dim']
 
 n_seed = 4
 config['network']['kwargs']['n_seed'] = (n_labels + 1) * n_seed
-seed_idx = torch.arange((n_labels + 1) * n_seed).reshape(n_labels + 1, n_seed)
+seed_idx = torch.arange((n_labels + 1) * n_seed).long().reshape(n_labels + 1, n_seed)
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
