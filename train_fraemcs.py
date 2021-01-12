@@ -336,14 +336,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_gen = generator(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen, seed_n=0)
-            images_regen, _, _ = decoder(lat_gen, seed_n=(1, n_seed))
+            lat_gen = generator(z_test)
+            images_gen, _, _ = decoder(lat_gen, seed_n=seed_idx[torch.ones_like(labels) * n_labels + 1, :].tolist())
+            images_regen, _, _ = decoder(lat_gen, seed_n=seed_idx[labels, :].tolist())
             images_gen = torch.cat([images_gen, images_regen], dim=3)
             z_enc, _, _ = encoder(images, labels)
             lat_enc = generator(z_enc, labels)
-            images_dec, _, _ = decoder(lat_enc, seed_n=0)
-            images_redec, _, _ = decoder(lat_enc, seed_n=(1, n_seed))
+            images_dec, _, _ = decoder(lat_enc, seed_n=seed_idx[torch.ones_like(labels) * n_labels + 1, :].tolist())
+            images_redec, _, _ = decoder(lat_enc, seed_n=seed_idx[labels, :].tolist())
             images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
@@ -354,9 +354,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 else:
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
-                lat_gen = generator(z_test, fixed_lab)
-                images_gen, _, _ = decoder(lat_gen, seed_n=0)
-                images_regen, _, _ = decoder(lat_gen, seed_n=(1, n_seed))
+                lat_gen = generator(z_test)
+                images_gen, _, _ = decoder(lat_gen, seed_n=seed_idx[torch.ones_like(labels) * n_labels + 1, :].tolist())
+                images_regen, _, _ = decoder(lat_gen, seed_n=seed_idx[labels, :].tolist())
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
