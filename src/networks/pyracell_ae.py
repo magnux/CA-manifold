@@ -223,7 +223,9 @@ class Decoder(nn.Module):
             if isinstance(seed_n, torch.Tensor):
                 if seed_n.dim() == 2:
                     print(seed_n.shape)
-                    out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed // (self.n_labels + 1), 1, 16, 16).mean(1)
+                    out = self.seed[seed_n.flatten(), ...]
+                    print(out.shape)
+                    out = out.reshape(batch_size, self.n_seed // (self.n_labels + 1), 1, 16, 16).mean(1)
                 elif seed_n.dim() == 1:
                     out = self.seed[seed_n, ...]
             else:
