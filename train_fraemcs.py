@@ -214,7 +214,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 images_redec_half, _, _ = decoder(lat_gen_half, seed_n=seed_idx[labels[batch_split_size // 2:, ...], it % n_seed].tolist())
                                 images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
                             z_enc, _, _ = encoder(images, labels)
-                            lat_enc = generator(z_enc, labels)
+                            lat_enc = generator(z_enc)
 
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
