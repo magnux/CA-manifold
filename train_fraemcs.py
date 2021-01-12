@@ -98,11 +98,11 @@ def get_inputs(trainiter, batch_size, device):
     if batch_size % config['training']['batch_size'] > 0:
         images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
-    if labels.dtype is torch.int64:
-        if labels.dim() == 1:
-            labels = embedding_mat[labels]
-        else:
-            labels = labels.to(torch.float32)
+    # if labels.dtype is torch.int64:
+    #     if labels.dim() == 1:
+    #         labels = embedding_mat[labels]
+    #     else:
+    #         labels = labels.to(torch.float32)
     images = images.detach().requires_grad_()
     z_gen = zdist.sample((images.size(0),))
     z_gen.detach_().requires_grad_()
