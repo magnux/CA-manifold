@@ -275,7 +275,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 images_redec_half, _, _ = decoder(lat_gen_half, seed_n=seed_idx[labels[batch_split_size // 2:, ...], it % n_seed].tolist())
                             images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
                         z_enc, _, _ = encoder(images, labels)
-                        lat_enc = generator(z_enc, labels)
+                        lat_enc = generator(z_enc)
                         images_dec, _, _ = decoder(lat_enc, seed_n=seed_idx[torch.ones_like(labels) * n_labels + 1, it % n_seed].tolist())
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
@@ -303,9 +303,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Streaming Images
                 with torch.no_grad():
-                    lat_gen = generator(z_test, labels_test)
+                    lat_gen = generator(z_test)
                     images_gen, _, _ = decoder(lat_gen, seed_n=seed_idx[torch.ones_like(labels) * n_labels + 1, :].tolist())
-                    images_regen, _, _ = decoder(lat_gen, seed_n=seed_idx[labels, :].tolist())
+                    images_regen, _, _ = decoder(lat_gen, seed_n=seed_idx[labels_test, :].tolist())
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/fraemcs', config['training']['out_dir'] + '/fraemcs')
@@ -338,10 +338,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test)
             images_gen, _, _ = decoder(lat_gen, seed_n=seed_idx[torch.ones_like(labels) * n_labels + 1, :].tolist())
-            images_regen, _, _ = decoder(lat_gen, seed_n=seed_idx[labels, :].tolist())
+            images_regen, _, _ = decoder(lat_gen, seed_n=seed_idx[labels_test, :].tolist())
             images_gen = torch.cat([images_gen, images_regen], dim=3)
             z_enc, _, _ = encoder(images, labels)
-            lat_enc = generator(z_enc, labels)
+            lat_enc = generator(z_enc)
             images_dec, _, _ = decoder(lat_enc, seed_n=seed_idx[torch.ones_like(labels) * n_labels + 1, :].tolist())
             images_redec, _, _ = decoder(lat_enc, seed_n=seed_idx[labels, :].tolist())
             images_dec = torch.cat([images_dec, images_redec], dim=3)
