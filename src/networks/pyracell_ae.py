@@ -172,6 +172,7 @@ class Decoder(nn.Module):
         self.auto_reg = auto_reg
         self.conv_irm = conv_irm
         self.ce_out = ce_out
+        self.n_seed = n_seed
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
@@ -219,13 +220,19 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if isinstance(seed_n, tuple):
-                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            if isinstance(seed_n, torch.Tensor):
+                if seed_n.dim() == 2:
+                    seed = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed / (self.n_labels + 1), 1, 16, 16).mean(1)
+                elif seed_n.dim() == 1:
+                    seed = self.seed[seed_n, ...]
             else:
-                seed = self.seed[seed_n:seed_n + 1, ...]
-            out = torch.cat([seed.to(float_type)] * batch_size, 0)
+                if isinstance(seed_n, tuple):
+                    seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+                elif isinstance(seed_n, list):
+                    seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+                else:
+                    seed = self.seed[seed_n:seed_n + 1, ...]
+                out = torch.cat([seed.to(float_type)] * batch_size, 0)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
