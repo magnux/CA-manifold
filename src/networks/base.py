@@ -61,7 +61,7 @@ class Generator(nn.Module):
             LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.norm_z = norm_z
-        self.zeed = nn.Parameter(torch.nn.init.normal_(torch.empty(1, 1, z_dim)))
+        self.zeed = nn.Parameter(torch.ones(1, 1, z_dim) / (z_dim ** 0.5))
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
