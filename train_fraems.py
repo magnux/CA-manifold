@@ -304,7 +304,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen, seed_n=0)
-                    images_regen, _, _ = decoder(lat_gen, seed_n=(1, n_seed))
+                    images_regen, _, _ = decoder(lat_gen, seed_n=(it % (n_seed - 1)) + 1)
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/fraems', config['training']['out_dir'] + '/fraems')
