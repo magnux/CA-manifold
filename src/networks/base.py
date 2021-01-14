@@ -32,7 +32,7 @@ class Discriminator(nn.Module):
         batch_size = lat.size(0)
 
         labs = self.lat_to_labs(lat)
-        index = torch.arange(0, batch_size, device=lat.device)
+        index = torch.arange(0, batch_size, dtype=torch.long, device=lat.device)
         score = labs[index, y]
 
         return score
