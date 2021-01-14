@@ -61,7 +61,7 @@ class Generator(nn.Module):
             LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.norm_z = norm_z
-        self.zeed = nn.Parameter(torch.ones(1, 1, z_dim) / (z_dim ** 0.5))
+        self.zeed = nn.Parameter(torch.ones(1, 1, z_dim))
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -83,7 +83,7 @@ class Generator(nn.Module):
         lat_proj = self.labs_to_proj(torch.cat([yembed, z], dim=1))
         lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
 
-        zeed = torch.cat([self.zeed] * batch_size, 0)
+        zeed = torch.cat([F.normalize(self.zeed)] * batch_size, 0)
         lat = torch.bmm(zeed, lat_proj).squeeze(1)
 
         return lat
