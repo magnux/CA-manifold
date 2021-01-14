@@ -31,9 +31,15 @@ class Discriminator(nn.Module):
         assert(lat.size(0) == y.size(0))
         batch_size = lat.size(0)
 
-        labs = self.lat_to_labs(lat)
-        index = torch.arange(0, batch_size, dtype=torch.long, device=lat.device)
-        score = labs[index, y]
+        if y.dtype is torch.int64:
+            if y.dim() == 1:
+                yembed = self.embedding_mat[y]
+            else:
+                yembed = y.to(torch.float32)
+        else:
+            yembed = y
+
+        score = (self.lat_to_labs(lat) * y).mean(1)
 
         return score
 
