@@ -22,7 +22,7 @@ class Discriminator(nn.Module):
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Sequential(
+        self.lat_to_labs = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.fhidden),
             LinearResidualBlock(self.fhidden, n_labels),
         )
@@ -31,7 +31,7 @@ class Discriminator(nn.Module):
         assert(lat.size(0) == y.size(0))
         batch_size = lat.size(0)
 
-        labs = self.labs(lat)
+        labs = self.lat_to_labs(lat)
         index = torch.arange(0, batch_size, device=lat.device)
         score = labs[index, y]
 
