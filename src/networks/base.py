@@ -17,33 +17,23 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, embed_size, **kwargs):
+    def __init__(self, n_labels, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
-        self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size),
-            LinearResidualBlock(self.embed_size, self.lat_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(self.lat_size, self.fhidden),
+            LinearResidualBlock(self.fhidden, n_labels),
         )
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
         batch_size = lat.size(0)
 
-        if y.dtype is torch.int64:
-            if y.dim() == 1:
-                yembed = self.embedding_mat[y]
-            else:
-                yembed = y.to(torch.float32)
-        else:
-            yembed = y
-
-        lat_proj = self.labs_to_proj(yembed)
-        lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
-        lat = lat.view(batch_size, 1, self.lat_size)
-        score = torch.bmm(lat, lat_proj).squeeze(1)
+        labs = self.labs(lat)
+        index = torch.arange(0, batch_size, device=lat.device)
+        score = labs[index, y]
 
         return score
 
@@ -56,12 +46,11 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels + z_dim, self.embed_size, int(self.embed_size ** 0.5)),
-            LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
+        self.z_to_lat = nn.Sequential(
+            LinearResidualBlock(n_labels + self.z_dim, self.fhidden),
+            LinearResidualBlock(self.fhidden, self.lat_size),
         )
         self.norm_z = norm_z
-        self.zeed = nn.Parameter(torch.ones(1, 1, z_dim))
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -80,11 +69,7 @@ class Generator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
-        lat_proj = self.labs_to_proj(torch.cat([yembed, z], dim=1))
-        lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
-
-        zeed = torch.cat([F.normalize(self.zeed)] * batch_size, 0)
-        lat = torch.bmm(zeed, lat_proj).squeeze(1)
+        lat = self.z_to_lat(torch.cat([yembed, z], dim=1))
 
         return lat
 
