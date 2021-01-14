@@ -39,7 +39,7 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        score = (self.lat_to_labs(lat) * y).mean(1)
+        score = (self.lat_to_labs(lat) * yembed).mean(1)
 
         return score
 
