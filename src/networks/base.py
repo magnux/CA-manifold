@@ -42,6 +42,7 @@ class Discriminator(nn.Module):
 
         lat_proj = self.labs_to_proj(torch.cat([yembed, lat], dim=1))
         lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
+
         lat = lat.view(batch_size, 1, self.lat_size)
         score = torch.bmm(lat, lat_proj).squeeze(1)
 
