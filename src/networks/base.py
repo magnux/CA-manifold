@@ -17,16 +17,17 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, embed_size, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, norm_lat=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels + lat_size, self.embed_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
             LinearResidualBlock(self.embed_size, self.lat_size * 1, int(self.embed_size ** 0.5)),
         )
+        self.norm_lat = norm_lat
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -40,8 +41,11 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        lat_proj = self.labs_to_proj(torch.cat([yembed, lat], dim=1))
+        lat_proj = self.labs_to_proj(yembed)
         lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
+
+        if self.norm_lat:
+            lat = F.normalize(lat, dim=1)
 
         lat = lat.view(batch_size, 1, self.lat_size)
         score = torch.bmm(lat, lat_proj).squeeze(1)
@@ -58,7 +62,7 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels + z_dim, self.embed_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
             LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.norm_z = norm_z
@@ -75,13 +79,13 @@ class Generator(nn.Module):
         else:
             yembed = y
 
+        lat_proj = self.labs_to_proj(yembed)
+        lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
+
         if self.norm_z:
             z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
-
-        lat_proj = self.labs_to_proj(torch.cat([yembed, z], dim=1))
-        lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
 
         z = z.view(batch_size, 1, self.z_dim)
         lat = torch.bmm(z, lat_proj).squeeze(1)
