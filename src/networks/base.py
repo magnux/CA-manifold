@@ -24,8 +24,8 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size),
-            LinearResidualBlock(self.embed_size, self.lat_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(n_labels + lat_size, self.embed_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(self.embed_size, self.lat_size * 1, int(self.embed_size ** 0.5)),
         )
 
     def forward(self, lat, y):
@@ -40,7 +40,7 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        lat_proj = self.labs_to_proj(yembed)
+        lat_proj = self.labs_to_proj(torch.cat([yembed, lat], dim=1))
         lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
         lat = lat.view(batch_size, 1, self.lat_size)
         score = torch.bmm(lat, lat_proj).squeeze(1)
@@ -57,8 +57,8 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels + z_dim, self.lat_size, int(self.lat_size ** 0.5)),
-            LinearResidualBlock(self.lat_size, self.z_dim * self.lat_size, int(self.lat_size ** 0.5)),
+            LinearResidualBlock(n_labels + z_dim, self.embed_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.norm_z = norm_z
 
