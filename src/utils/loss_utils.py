@@ -82,7 +82,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
         reg_ratio = (reg_loss / reg_loss_target)
         if reg_ratio <= 1.:
             reg_every += 1
-        elif reg_ratio > 2.0:
+        else:
             reg_every /= 2
             reg_param /= 2
 
