@@ -41,7 +41,7 @@ training:
   sample_every: 1
   sample_labels: 40
   d_reg_param: 10.
-  d_reg_every: 1
+  d_reg_every: 16
   g_reg_every: 0
   through_grads: True
   inception_every: 0
