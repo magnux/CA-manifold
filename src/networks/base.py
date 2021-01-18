@@ -45,7 +45,7 @@ class Discriminator(nn.Module):
         lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
 
         if self.norm_lat:
-            lat = F.normalize(F.relu(lat + 0.5), dim=1)
+            lat = F.normalize(lat, dim=1)
 
         lat = lat.view(batch_size, 1, self.lat_size)
         score = torch.bmm(lat, lat_proj).squeeze(1)
@@ -83,7 +83,7 @@ class Generator(nn.Module):
         lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
 
         if self.norm_z:
-            z = F.normalize(F.relu(z + 0.5), dim=1)
+            z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
 
@@ -136,7 +136,7 @@ class UnconditionalGenerator(nn.Module):
 
     def forward(self, z):
         if self.norm_z:
-            z = F.normalize(F.relu(z + 0.5), dim=1)
+            z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
 
@@ -338,7 +338,7 @@ class IRMGenerator(nn.Module):
         lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
 
         if self.norm_z:
-            z = F.normalize(F.relu(z + 0.5), dim=1)
+            z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
         lat = self.irm_layer(z).view(batch_size, 1, self.z_dim)
