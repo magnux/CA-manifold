@@ -176,14 +176,13 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        # self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter * self.n_filter)).reshape(n_seed, self.n_filter, self.n_filter))
+        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter * self.n_filter)).reshape(n_seed, self.n_filter, self.n_filter))
         self.in_conv = nn.Sequential(
             GaussianSmoothing(self.n_filter, 3, 1, 1),
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
-        self.register_buffer('seed', torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
@@ -236,15 +235,16 @@ class Decoder(nn.Module):
                 out = torch.cat([seed.to(float_type)] * batch_size, 0)
         else:
             if isinstance(seed_n, tuple):
-                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
             elif isinstance(seed_n, list):
-                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+                proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
             else:
-                seed = self.seed[seed_n:seed_n + 1, ...]
-            # proj = torch.cat([proj.to(float_type)] * batch_size, 0)
+                proj = self.in_proj[seed_n:seed_n + 1, ...]
+            proj = torch.cat([proj.to(float_type)] * batch_size, 0)
             # out = ca_init.permute(0, 2, 3, 1).reshape(batch_size, self.image_size * self.image_size, self.n_filter)
             # out = torch.bmm(out, proj).reshape(batch_size, self.image_size, self.image_size, self.n_filter).permute(0, 3, 1, 2).contiguous()
-            out = self.in_conv(ca_init) + torch.cat([seed.to(float_type)] * batch_size, 0)
+            # out = self.in_conv(out)
+            out = self.in_conv(ca_init) + proj
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
