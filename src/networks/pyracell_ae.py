@@ -176,7 +176,7 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter * self.n_filter)).reshape(n_seed, self.n_filter, self.n_filter))
+        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).reshape(n_seed, self.n_filter, 1, 1))
         self.in_conv = nn.Sequential(
             GaussianSmoothing(self.n_filter, 3, 1, 1),
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
