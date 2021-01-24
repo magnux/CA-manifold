@@ -209,14 +209,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
-                            if it % 3 == 0:
-                                lat_gen_half = generator(z_gen[batch_split_size // 2:, ...], labels[batch_split_size // 2:, ...])
-                                images_dec_half, out_embs, _ = decoder(lat_gen_half, seed_n=0)
-                                if one_dec_pass:
-                                    images_redec_half = images_dec_half
-                                else:
-                                    images_redec_half, _, _ = decoder(lat_gen_half, out_embs[-1], seed_n=(it % (n_seed - 1)) + 1)
-                                images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
 
@@ -238,8 +230,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         with torch.no_grad():
-                            if it % 3 == 1:
-                                z_gen[:batch_split_size // 2, ...].data.copy_(z_enc[:batch_split_size // 2, ...])
                             lat_gen = generator(z_gen, labels)
                             images_dec, out_embs, _ = decoder(lat_gen)
                             if one_dec_pass:
@@ -277,15 +267,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        if it % 3 == 0:
-                            with torch.no_grad():
-                                lat_gen_half = generator(z_gen[batch_split_size // 2:, ...], labels[batch_split_size // 2:, ...])
-                                images_dec_half, out_embs, _ = decoder(lat_gen_half, seed_n=0)
-                                if one_dec_pass:
-                                    images_redec_half = images_dec_half
-                                else:
-                                    images_redec_half, _, _ = decoder(lat_gen_half, out_embs[-1], seed_n=(it % (n_seed - 1)) + 1)
-                            images[batch_split_size // 2:, ...].data.copy_(images_redec_half)
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
                         images_dec, _, _ = decoder(lat_enc, seed_n=0)
@@ -301,8 +282,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        if it % 3 == 1:
-                            z_gen[:batch_split_size // 2, ...].data.copy_(z_enc[:batch_split_size // 2, ...])
                         lat_gen = generator(z_gen, labels)
                         images_dec, out_embs, _ = decoder(lat_gen)
 
