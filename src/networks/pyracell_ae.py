@@ -253,7 +253,7 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_layers * self.n_calls], device=lat.device))
 
         out_embs = [out]
-        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1.)
         auto_reg_grads = []
         for c in range(self.n_layers * self.n_calls):
             if self.causal:
