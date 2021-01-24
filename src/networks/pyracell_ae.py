@@ -41,7 +41,7 @@ class InjectedEncoder(nn.Module):
         self.conv_irm = conv_irm
         self.ce_in = ce_in
 
-        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        # self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * 16, self.n_filter * 16, 16 ** 2] if self.multi_cut else [self.n_filter]
 
@@ -90,7 +90,7 @@ class InjectedEncoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_layers * self.n_calls], device=x.device))
 
         out_embs = [out]
-        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        # leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for c in range(self.n_layers * self.n_calls):
             if self.causal:
@@ -272,7 +272,7 @@ class Decoder(nn.Module):
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(float_type)
-            out = out + (leak_factor * out_new)
+            out = out + (0.1 * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
