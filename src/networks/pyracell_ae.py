@@ -109,7 +109,7 @@ class InjectedEncoder(nn.Module):
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=x.device) <= self.fire_rate).to(float_type)
-            out = out + (leak_factor * out_new)
+            out = out + (0.1 * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
@@ -174,7 +174,7 @@ class Decoder(nn.Module):
         self.ce_out = ce_out
         self.n_seed = n_seed
 
-        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        # self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).reshape(n_seed, self.n_filter, 1, 1))
         self.in_conv = nn.Sequential(
@@ -253,7 +253,7 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_layers * self.n_calls], device=lat.device))
 
         out_embs = [out]
-        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1.)
+        # leak_factor = torch.clamp(self.leak_factor, 1e-3, 1.)
         auto_reg_grads = []
         for c in range(self.n_layers * self.n_calls):
             if self.causal:
