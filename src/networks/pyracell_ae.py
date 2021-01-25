@@ -214,7 +214,7 @@ class Decoder(nn.Module):
             nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         )
 
-    def forward(self, lat, ca_init=None, seed_n=0):
+    def forward(self, lat, ca_init=None, ca_noise=None, seed_n=0):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
@@ -233,6 +233,8 @@ class Decoder(nn.Module):
                 else:
                     seed = self.seed[seed_n:seed_n + 1, ...]
                 out = torch.cat([seed.to(float_type)] * batch_size, 0)
+                if ca_noise is not None:
+                    out = out + ca_noise
                 out = F.instance_norm(out)
         else:
             if isinstance(seed_n, tuple):

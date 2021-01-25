@@ -234,7 +234,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
                             rand_inits = torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-                            images_dec, _, _ = decoder(lat_gen, rand_inits)
+                            images_dec, _, _ = decoder(lat_gen, ca_noise=rand_inits)
 
                         lat_gen.requires_grad_()
                         images_dec.requires_grad_()
@@ -299,7 +299,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_gen = generator(z_gen, labels)
                         rand_inits = torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-                        images_dec, out_embs, _ = decoder(lat_gen, rand_inits)
+                        images_dec, out_embs, _ = decoder(lat_gen, ca_noise=rand_inits)
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen.detach())
                         labs_dec = discriminator(lat_top_dec, labels)
 
@@ -321,7 +321,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
                     rand_inits = torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-                    images_gen, out_embs, _ = decoder(lat_gen, rand_inits)
+                    images_gen, out_embs, _ = decoder(lat_gen, ca_noise=rand_inits)
                     # images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                     # images_gen = torch.cat([images_gen, images_regen], dim=3)
 
@@ -370,13 +370,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test, labels_test)
             rand_inits = torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-            images_gen, out_embs, _ = decoder(lat_gen, rand_inits)
+            images_gen, out_embs, _ = decoder(lat_gen, ca_noise=rand_inits)
             # images_regen, _, _ = decoder(lat_gen, out_embs[-1])
             # images_gen = torch.cat([images_gen, images_regen], dim=3)
             z_enc, _, _ = encoder(images, labels)
             lat_enc = generator(z_enc, labels)
             rand_inits = torch.randn(lat_enc.size(0), n_filter, image_size, image_size, device=device)
-            images_dec, out_embs, _ = decoder(lat_enc, rand_inits)
+            images_dec, out_embs, _ = decoder(lat_enc, ca_noise=rand_inits)
             # images_redec, _, _ = decoder(lat_enc, out_embs[-1])
             # images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
@@ -390,7 +390,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     fixed_lab[:, lab] = 1
                 lat_gen = generator(z_test, fixed_lab)
                 rand_inits = torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-                images_gen, out_embs, _ = decoder(lat_gen, rand_inits)
+                images_gen, out_embs, _ = decoder(lat_gen, ca_noise=rand_inits)
                 # images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                 # images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
