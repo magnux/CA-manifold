@@ -322,8 +322,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     lat_gen = generator(z_test, labels_test)
                     rand_inits = torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                     images_gen, out_embs, _ = decoder(lat_gen, rand_inits)
-                    images_regen, _, _ = decoder(lat_gen, out_embs[-1])
-                    images_gen = torch.cat([images_gen, images_regen], dim=3)
+                    # images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                    # images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/gaen', config['training']['out_dir'] + '/gaen')
 
