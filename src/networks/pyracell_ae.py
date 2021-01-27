@@ -9,6 +9,7 @@ from src.layers.gaussiansmoothing import GaussianSmoothing
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
+from src.layers.dynaconv import DynaConv
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
@@ -182,7 +183,8 @@ class Decoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter * 8)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
+        self.seed_select = DynaConv(self.lat_size, self.n_filter * 8, self.n_filter)
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
@@ -220,23 +222,23 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, 16, lat.device).to(float_type)
-            out = checkerboard_seed(batch_size, self.n_filter, 16, lat.device).to(float_type)
-            # if isinstance(seed_n, torch.Tensor):
-            #     if seed_n.dim() == 2:
-            #         out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed // (self.n_labels + 1), self.n_filter, 16, 16).mean(1)
-            #     elif seed_n.dim() == 1:
-            #         out = self.seed[seed_n, ...]
-            # else:
-            #     if isinstance(seed_n, tuple):
-            #         seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            #     elif isinstance(seed_n, list):
-            #         seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            #     else:
-            #         seed = self.seed[seed_n:seed_n + 1, ...]
-            #     out = torch.cat([seed.to(float_type)] * batch_size, 0)
-            #     if ca_noise is not None:
-            #         out = out + self.in_conv(ca_noise)
-            #     out = F.instance_norm(out)
+            if isinstance(seed_n, torch.Tensor):
+                if seed_n.dim() == 2:
+                    out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed // (self.n_labels + 1), self.n_filter, 16, 16).mean(1)
+                elif seed_n.dim() == 1:
+                    out = self.seed[seed_n, ...]
+            else:
+                if isinstance(seed_n, tuple):
+                    seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+                elif isinstance(seed_n, list):
+                    seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+                else:
+                    seed = self.seed[seed_n:seed_n + 1, ...]
+                out = torch.cat([seed.to(float_type)] * batch_size, 0)
+                if ca_noise is not None:
+                    out = out + self.in_conv(ca_noise)
+                out = F.instance_norm(out)
+                out = self.seed_select(out, lat)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
