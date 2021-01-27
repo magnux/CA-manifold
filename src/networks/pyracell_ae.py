@@ -12,7 +12,7 @@ from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
-from src.utils.model_utils import ca_seed
+from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
 import numpy as np
 from itertools import chain
@@ -41,7 +41,7 @@ class InjectedEncoder(nn.Module):
         self.conv_irm = conv_irm
         self.ce_in = ce_in
 
-        # self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * 16, self.n_filter * 16, 16 ** 2] if self.multi_cut else [self.n_filter]
 
@@ -90,7 +90,7 @@ class InjectedEncoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_layers * self.n_calls], device=x.device))
 
         out_embs = [out]
-        # leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
+        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for c in range(self.n_layers * self.n_calls):
             if self.causal:
@@ -109,7 +109,7 @@ class InjectedEncoder(nn.Module):
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=x.device) <= self.fire_rate).to(float_type)
-            out = out + (0.1 * out_new)
+            out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
@@ -174,7 +174,7 @@ class Decoder(nn.Module):
         self.ce_out = ce_out
         self.n_seed = n_seed
 
-        # self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).reshape(n_seed, self.n_filter, 1, 1))
         self.in_conv = nn.Sequential(
@@ -220,22 +220,23 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if isinstance(seed_n, torch.Tensor):
-                if seed_n.dim() == 2:
-                    out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed // (self.n_labels + 1), self.n_filter, 16, 16).mean(1)
-                elif seed_n.dim() == 1:
-                    out = self.seed[seed_n, ...]
-            else:
-                if isinstance(seed_n, tuple):
-                    seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-                elif isinstance(seed_n, list):
-                    seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-                else:
-                    seed = self.seed[seed_n:seed_n + 1, ...]
-                out = torch.cat([seed.to(float_type)] * batch_size, 0)
-                if ca_noise is not None:
-                    out = out + self.in_conv(ca_noise)
-                out = F.instance_norm(out)
+            out = checkerboard_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
+            # if isinstance(seed_n, torch.Tensor):
+            #     if seed_n.dim() == 2:
+            #         out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed // (self.n_labels + 1), self.n_filter, 16, 16).mean(1)
+            #     elif seed_n.dim() == 1:
+            #         out = self.seed[seed_n, ...]
+            # else:
+            #     if isinstance(seed_n, tuple):
+            #         seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            #     elif isinstance(seed_n, list):
+            #         seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            #     else:
+            #         seed = self.seed[seed_n:seed_n + 1, ...]
+            #     out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            #     if ca_noise is not None:
+            #         out = out + self.in_conv(ca_noise)
+            #     out = F.instance_norm(out)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
@@ -255,7 +256,7 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_layers * self.n_calls], device=lat.device))
 
         out_embs = [out]
-        # leak_factor = torch.clamp(self.leak_factor, 1e-3, 1.)
+        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for c in range(self.n_layers * self.n_calls):
             if self.causal:
@@ -274,7 +275,7 @@ class Decoder(nn.Module):
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(float_type)
-            out = out + (0.1 * out_new)
+            out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
