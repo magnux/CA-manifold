@@ -219,8 +219,8 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            out = checkerboard_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
+            # out = ca_seed(batch_size, self.n_filter, 16, lat.device).to(float_type)
+            out = checkerboard_seed(batch_size, self.n_filter, 16, lat.device).to(float_type)
             # if isinstance(seed_n, torch.Tensor):
             #     if seed_n.dim() == 2:
             #         out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed // (self.n_labels + 1), self.n_filter, 16, 16).mean(1)
