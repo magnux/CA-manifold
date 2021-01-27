@@ -235,10 +235,10 @@ class Decoder(nn.Module):
                 else:
                     seed = self.seed[seed_n:seed_n + 1, ...]
                 out = torch.cat([seed.to(float_type)] * batch_size, 0)
-                if ca_noise is not None:
-                    out = out + self.in_conv(ca_noise)
                 out = F.instance_norm(out)
                 out = self.seed_select(out, lat)
+                if ca_noise is not None:
+                    out = out + self.in_conv(ca_noise)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
