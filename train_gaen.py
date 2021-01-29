@@ -286,7 +286,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         # if config['training']['through_grads']:
                         #     images_dec, out_embs, _ = decoder(lat_enc)
-                        #     images_redec, _, _ = decoder(lat_enc, out_embs[-1].clone().detach())
+                        #     images_redec, _, _ = decoder(lat_enc, out_embs[-1])
                         # else:
                         #     with torch.no_grad():
                         #         images_dec, out_embs, _ = decoder(lat_enc)
@@ -300,7 +300,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_gen = generator(z_gen, labels)
                         rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                         images_dec, out_embs, _ = decoder(lat_gen, ca_noise=rand_inits)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen.detach())
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
