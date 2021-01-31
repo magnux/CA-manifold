@@ -309,9 +309,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
 
+                        torch.autograd.set_detect_anomaly(True)
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
+                        torch.autograd.set_detect_anomaly(False)
 
                     # enc_grad_norm = get_grad_norm(encoder).item()
                     # dec_grad_norm = get_grad_norm(decoder).item()
