@@ -172,6 +172,8 @@ d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean'
 pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
 pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
 
+torch.autograd.set_detect_anomaly(True)
+
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
 

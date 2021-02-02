@@ -41,6 +41,7 @@ class Discriminator(nn.Module):
             yembed = y
 
         lat_proj = self.labs_to_proj(yembed)
+        lat_proj = F.normalize(lat_proj, dim=1)
         lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
 
         lat = lat.view(batch_size, 1, self.lat_size)
@@ -76,6 +77,7 @@ class Generator(nn.Module):
             yembed = y
 
         lat_proj = self.labs_to_proj(yembed)
+        lat_proj = F.normalize(lat_proj, dim=2)
         lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
 
         if self.norm_z:
