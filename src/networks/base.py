@@ -41,8 +41,8 @@ class Discriminator(nn.Module):
             yembed = y
 
         lat_proj = self.labs_to_proj(yembed)
-        lat_proj = F.normalize(lat_proj, dim=1)
         lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
+        lat_proj = F.normalize(lat_proj, dim=1)
 
         lat = lat.view(batch_size, 1, self.lat_size)
         score = torch.bmm(lat, lat_proj).squeeze(1)
@@ -77,8 +77,8 @@ class Generator(nn.Module):
             yembed = y
 
         lat_proj = self.labs_to_proj(yembed)
-        lat_proj = F.normalize(lat_proj, dim=2)
         lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
+        lat_proj = F.normalize(lat_proj, dim=1)
 
         if self.norm_z:
             z = F.normalize(z, dim=1)
