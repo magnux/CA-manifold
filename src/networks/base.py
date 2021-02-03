@@ -23,10 +23,7 @@ class Discriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.lat_to_score = nn.Sequential(
-            LinearResidualBlock(self.lat_size + n_labels, self.fhidden, bias=False),
-            LinearResidualBlock(self.fhidden, 1, bias=False),
-        )
+        self.lat_to_score = nn.Linear(self.lat_size, n_labels)
         self.norm_lat = norm_lat
 
     def forward(self, lat, y):
@@ -44,7 +41,7 @@ class Discriminator(nn.Module):
         if self.norm_lat:
             lat = F.normalize(lat, dim=1)
 
-        score = self.lat_to_score(torch.cat([lat, yembed], dim=1))
+        score = (self.lat_to_score(lat) * yembed).mean(1)
 
         return score
 
@@ -58,8 +55,8 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.z_to_lat = nn.Sequential(
-            LinearResidualBlock(z_dim + n_labels, self.fhidden, bias=False),
-            LinearResidualBlock(self.fhidden, self.lat_size, bias=False),
+            LinearResidualBlock(z_dim + n_labels, self.fhidden),
+            LinearResidualBlock(self.fhidden, self.lat_size),
         )
         self.norm_z = norm_z
 
