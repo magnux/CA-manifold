@@ -183,8 +183,8 @@ class Decoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter * 8)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
-        self.seed_select = DynaConv(self.lat_size, self.n_filter * 8, self.n_filter)
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
+        # self.seed_select = DynaConv(self.lat_size, self.n_filter * 8, self.n_filter)
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
@@ -236,7 +236,7 @@ class Decoder(nn.Module):
                     seed = self.seed[seed_n:seed_n + 1, ...]
                 out = torch.cat([seed.to(float_type)] * batch_size, 0)
                 out = F.instance_norm(out)
-                out = self.seed_select(out, lat)
+                # out = self.seed_select(out, lat)
                 if ca_noise is not None:
                     out = out + self.in_conv(ca_noise)
         else:
