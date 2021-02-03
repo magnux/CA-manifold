@@ -7,7 +7,7 @@ from src.layers.posencoding import cos_pos_encoding_nd
 def compute_gan_loss(d_out, target, gan_type='standard'):
 
     if gan_type == 'standard':
-        # d_out = d_out.clamp(-2, 2)
+        d_out = d_out.clamp(-2, 2)
         target = d_out.new_full(size=d_out.size(), fill_value=target)
         loss = F.binary_cross_entropy_with_logits(d_out, target)
     elif gan_type == 'wgan':
