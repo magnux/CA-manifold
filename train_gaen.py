@@ -182,7 +182,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
         # Dynamic reg target for grad annealing
-        reg_dis_target = 0.1 * (1. - 0.99 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        reg_dis_target = 10 * (1. - 0.9999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
         # Fixed reg target
         # reg_dis_target = 1.
 
@@ -302,7 +302,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_gen = generator(z_gen, labels)
                         rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                         images_dec, out_embs, _ = decoder(lat_gen, ca_noise=rand_inits)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen.clone().detach())
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen.detach())
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
