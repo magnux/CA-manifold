@@ -56,7 +56,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
             LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
-            LinearResidualBlock(self.embed_size, (self.z_dim * self.lat_size) + self.lat_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.norm_z = norm_z
 
@@ -73,7 +73,6 @@ class Generator(nn.Module):
             yembed = y
 
         lat_proj = self.labs_to_proj(yembed)
-        lat_proj, lat_bias = torch.split(lat_proj, [self.z_dim * self.lat_size, self.lat_size], dim=1)
         lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
 
         if self.norm_z:
@@ -82,7 +81,7 @@ class Generator(nn.Module):
             z = z.clamp(-3, 3)
 
         z = z.view(batch_size, 1, self.z_dim)
-        lat = torch.bmm(z, lat_proj).squeeze(1) + lat_bias
+        lat = torch.bmm(z, lat_proj).squeeze(1)
 
         return lat
 
