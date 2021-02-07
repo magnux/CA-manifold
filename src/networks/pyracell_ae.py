@@ -46,10 +46,11 @@ class InjectedEncoder(nn.Module):
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * 16, self.n_filter * 16, 16 ** 2] if self.multi_cut else [self.n_filter]
 
-        self.in_conv = nn.Sequential(
-            nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0),
-            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
-        )
+        # self.in_conv = nn.Sequential(
+        #     nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0),
+        #     ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
+        # )
+        self.in_conv = DynaResidualBlock(self.lat_size, self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter)
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
@@ -84,7 +85,7 @@ class InjectedEncoder(nn.Module):
         if self.ce_in:
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
-        out = self.in_conv(x)
+        out = self.in_conv(x, inj_lat)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -210,11 +211,12 @@ class Decoder(nn.Module):
             self.register_buffer('ce_pos', ce_pos)
         else:
             out_f = self.out_chan
-        self.out_conv = nn.Sequential(
-            *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
-            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
-            nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
-        )
+        # self.out_conv = nn.Sequential(
+        #     *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
+        #     ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
+        #     nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
+        # )
+        self.out_conv = DynaResidualBlock(self.lat_size, self.n_filter, out_f)
 
     def forward(self, lat, ca_init=None, ca_noise=None, seed_n=0):
         batch_size = lat.size(0)
@@ -289,7 +291,7 @@ class Decoder(nn.Module):
                 out = self.frac_us(out)
             out_embs.append(out)
 
-        out = self.out_conv(out)
+        out = self.out_conv(out, lat)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
         out_raw = out
