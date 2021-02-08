@@ -85,7 +85,7 @@ class InjectedEncoder(nn.Module):
         if self.ce_in:
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
-        out = self.in_conv(x, inj_lat)
+        out = self.in_conv(x)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -291,7 +291,7 @@ class Decoder(nn.Module):
                 out = self.frac_us(out)
             out_embs.append(out)
 
-        out = self.out_conv(out, lat)
+        out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
         out_raw = out
