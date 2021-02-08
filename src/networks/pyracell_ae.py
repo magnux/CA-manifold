@@ -50,7 +50,7 @@ class InjectedEncoder(nn.Module):
         #     nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0),
         #     ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         # )
-        self.in_conv = DynaResidualBlock(self.lat_size, self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter)
+        self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
@@ -216,7 +216,7 @@ class Decoder(nn.Module):
         #     ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         #     nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         # )
-        self.out_conv = DynaResidualBlock(self.lat_size, self.n_filter, out_f)
+        self.out_conv = nn.Conv2d(self.n_filter, out_f, 1, 1, 0)
 
     def forward(self, lat, ca_init=None, ca_noise=None, seed_n=0):
         batch_size = lat.size(0)
