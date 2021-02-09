@@ -13,8 +13,6 @@ from src.utils.model_utils import compute_inception_score
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
-import itertools
-import random
 
 torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.benchmark = True
@@ -32,10 +30,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 n_seed = 16
-combs = []
-for r in range(n_seed):
-    combs += [list(i) for i in itertools.combinations(range(n_seed), r)]
-random.shuffle(combs)
 config['network']['kwargs']['n_seed'] = n_seed
 
 image_size = config['data']['image_size']
@@ -221,7 +215,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc, labels)
+                        labs_enc = discriminator(lat_enc, lat_top_enc, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                             reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images)
@@ -238,12 +232,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
-                            images_redec, _, _ = decoder(lat_gen, seed_n=combs[it % len(combs)])
+                            images_redec, _, _ = decoder(lat_gen, seed_n=it % n_seed)
 
                         lat_gen.requires_grad_()
                         images_redec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
-                        labs_dec = discriminator(lat_top_dec, labels)
+                        labs_dec = discriminator(lat_gen, lat_top_dec, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                             reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_redec)
@@ -274,17 +268,17 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc = generator(z_enc, labels)
 
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc, labels)
+                        labs_enc = discriminator(lat_enc, lat_top_enc, labels)
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
                         lat_gen = generator(z_gen, labels)
-                        images_redec, _, _ = decoder(lat_gen, seed_n=combs[it % len(combs)])
+                        images_redec, _, _ = decoder(lat_gen, seed_n=it % n_seed)
 
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
-                        labs_dec = discriminator(lat_top_dec, labels)
+                        labs_dec = discriminator(lat_gen, lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
@@ -293,7 +287,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen, seed_n=combs[it % len(combs)])
+                    images_gen, _, _ = decoder(lat_gen, seed_n=it % n_seed)
                     images_regen, _, _ = decoder(lat_gen, seed_n=(0, n_seed))
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
