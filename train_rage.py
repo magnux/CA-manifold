@@ -124,7 +124,7 @@ if pre_train:
                             lat_dec = generator(z_enc, labels)
                             images_dec, _, _ = decoder(lat_dec)
 
-                            loss_dec = (1 / batch_split) * F.relu(F.mse_loss(images_dec, images) - 0.1)
+                            loss_dec = (1 / batch_split) * F.mse_loss(images_dec, images)
                             model_manager.loss_backward(loss_dec, nets_to_train)
                             loss_dec_sum += loss_dec.item()
 
@@ -239,7 +239,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc = generator(z_enc, labels)
                         images_dec, out_embs, _ = decoder(lat_enc)
 
-                        loss_dec = (1 / batch_mult) * F.relu(F.mse_loss(images_dec, images) - 0.1)
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
