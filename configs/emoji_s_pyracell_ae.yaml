@@ -29,12 +29,12 @@ training:
   regeneration: False
   batch_size: 64
   batch_split: 1
-  batch_mult_steps: 1
+  batch_mult_steps: 4
   n_workers: 2
   optimizer: adamp
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 2048
+  n_epochs: 1024
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0
