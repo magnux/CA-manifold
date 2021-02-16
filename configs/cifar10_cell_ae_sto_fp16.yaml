@@ -27,12 +27,12 @@ training:
   out_dir: save/cifar10_cell_ae_sto_fp16
   batch_size: 64
   batch_split: 2
-  batch_mult_steps: 1
+  batch_mult_steps: 4
   n_workers: 2
   optimizer: adamp
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 256
+  n_epochs: 128
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0

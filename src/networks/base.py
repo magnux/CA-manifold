@@ -17,7 +17,7 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, embed_size, norm_lat=True, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, norm_lat=False, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
@@ -55,7 +55,7 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=True, norm_lat=True, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
@@ -67,7 +67,6 @@ class Generator(nn.Module):
             LinearResidualBlock(self.embed_size, (self.z_dim * self.lat_size) + self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.norm_z = norm_z
-        self.norm_lat = norm_lat
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -92,9 +91,6 @@ class Generator(nn.Module):
 
         z = z.view(batch_size, 1, self.z_dim)
         lat = torch.bmm(z, lat_proj).squeeze(1) + lat_bias
-
-        if self.norm_lat:
-            lat = F.normalize(lat, dim=1)
 
         return lat
 
