@@ -314,12 +314,12 @@ class IRMGenerator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size),
-            LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(self.embed_size, (self.z_dim * self.lat_size) + self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.irm_layer = nn.Sequential(
             nn.Linear(self.z_dim, self.fhidden),
-            IRMLinear(self.fhidden),
+            IRMLinear(self.fhidden, 4),
             nn.Linear(self.fhidden, self.z_dim),
         )
         self.norm_z = norm_z
@@ -337,6 +337,7 @@ class IRMGenerator(nn.Module):
             yembed = y
 
         lat_proj = self.labs_to_proj(yembed)
+        lat_proj, lat_bias = torch.split(lat_proj, [self.z_dim * self.lat_size, self.lat_size], dim=1)
         lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
 
         if self.norm_z:
@@ -344,7 +345,7 @@ class IRMGenerator(nn.Module):
         else:
             z = z.clamp(-3, 3)
         lat = self.irm_layer(z).view(batch_size, 1, self.z_dim)
-        lat = torch.bmm(lat, lat_proj).squeeze(1)
+        lat = torch.bmm(lat, lat_proj).squeeze(1) + lat_bias
 
         return lat
 

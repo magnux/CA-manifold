@@ -59,7 +59,7 @@ zdist = get_zdist(config['z_dist']['type'], z_dim, device=device)
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
-    'generator': {'class': 'base', 'sub_class': 'Generator'},
+    'generator': {'class': 'base', 'sub_class': 'IRMGenerator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
     'discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
 }
@@ -177,7 +177,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Dynamic reg target for grad annealing
         # reg_dis_target = 10 * (1. - 0.9999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
         # Fixed reg target
-        reg_dis_target = 0.1
+        reg_dis_target = 1e-3
 
         it = epoch * (len(trainloader) // batch_split)
 
