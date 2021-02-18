@@ -17,7 +17,7 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, embed_size, norm_lat=False, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, norm_lat=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
@@ -50,12 +50,13 @@ class Discriminator(nn.Module):
             lat = F.normalize(lat, dim=1)
             top_lat = F.normalize(top_lat, dim=1)
 
-        if self.turn:
-            lat = torch.cat([lat, top_lat], dim=1)
-        else:
-            lat = torch.cat([top_lat, lat], dim=1)
-        self.turn = not self.turn
+        # if self.turn:
+        #     lat = torch.cat([lat, top_lat], dim=1)
+        # else:
+        #     lat = torch.cat([top_lat, lat], dim=1)
+        # self.turn = not self.turn
 
+        lat = torch.cat([lat, top_lat], dim=1)
         lat = lat.view(batch_size, 1, self.lat_size * 2)
         score = torch.bmm(lat, lat_proj).squeeze(1) + lat_bias
 
