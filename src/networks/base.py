@@ -275,7 +275,7 @@ class IRMTranslator(nn.Module):
         self.irm_layer = IRMLinear(self.lat_size, 4)
 
     def forward(self, lat):
-        return self.irm_layer(lat)
+        return self.irm_layer(lat) + 1.
 
 
 class IRMGenerator(nn.Module):
