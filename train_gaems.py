@@ -206,7 +206,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
-                with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
+                with model_manager.on_step(['dis_encoder', 'discriminator', 'translator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -214,9 +214,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
-                            lat_enc = translator(lat_enc)
 
                         lat_enc.requires_grad_()
+                        lat_enc = translator(lat_enc)
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_enc, lat_top_enc, labels)
 
@@ -236,10 +236,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
                             images_redec, _, _ = decoder(lat_gen, seed_n=it % n_seed)
-                            lat_gen = translator(lat_gen)
 
                         lat_gen.requires_grad_()
                         images_redec.requires_grad_()
+                        lat_gen = translator(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_gen, lat_top_dec, labels)
 
@@ -263,7 +263,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
                                                                                     reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                with model_manager.on_step(['encoder', 'decoder', 'generator', 'translator']) as nets_to_train:
+                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
