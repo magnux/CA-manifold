@@ -28,6 +28,7 @@ class Discriminator(nn.Module):
             LinearResidualBlock(self.embed_size, (self.lat_size * 2) + 1, int(self.embed_size ** 0.5)),
         )
         self.norm_lat = norm_lat
+        self.turn = True
 
     def forward(self, lat, top_lat, y):
         assert(lat.size(0) == y.size(0))
@@ -49,7 +50,12 @@ class Discriminator(nn.Module):
             lat = F.normalize(lat, dim=1)
             top_lat = F.normalize(top_lat, dim=1)
 
-        lat = torch.cat([lat, top_lat], dim=1)
+        if self.turn:
+            lat = torch.cat([lat, top_lat], dim=1)
+        else:
+            lat = torch.cat([top_lat, lat], dim=1)
+        self.turn = not self.turn
+
         lat = lat.view(batch_size, 1, self.lat_size * 2)
         score = torch.bmm(lat, lat_proj).squeeze(1) + lat_bias
 
