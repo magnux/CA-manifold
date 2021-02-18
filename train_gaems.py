@@ -216,8 +216,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_enc = generator(z_enc, labels)
 
                         lat_enc.requires_grad_()
-                        lat_enc = translator(lat_enc)
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
+                        lat_enc = translator(lat_enc)
                         labs_enc = discriminator(lat_enc, lat_top_enc, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -239,8 +239,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_gen.requires_grad_()
                         images_redec.requires_grad_()
-                        lat_gen = translator(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
+                        lat_gen = translator(lat_gen)
                         labs_dec = discriminator(lat_gen, lat_top_dec, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -270,8 +270,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
-                        lat_enc = translator(lat_enc)
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
+                        lat_enc = translator(lat_enc)
                         labs_enc = discriminator(lat_enc, lat_top_enc, labels)
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
@@ -280,8 +280,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_gen = generator(z_gen, labels)
                         images_redec, _, _ = decoder(lat_gen, seed_n=it % n_seed)
-                        lat_gen = translator(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
+                        lat_gen = translator(lat_gen)
                         labs_dec = discriminator(lat_gen, lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
