@@ -60,6 +60,7 @@ networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
+    'translator': {'class': 'base', 'sub_class': 'IRMTranslator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
     'discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
 }
@@ -69,6 +70,7 @@ model_manager = ModelManager('frae', networks_dict, config)
 encoder = model_manager.get_network('encoder')
 decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
+translator = model_manager.get_network('translator')
 dis_encoder = model_manager.get_network('dis_encoder')
 discriminator = model_manager.get_network('discriminator')
 
@@ -208,6 +210,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
+                            lat_enc = translator(lat_enc)
 
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
@@ -233,6 +236,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 images_redec = images_dec
                             else:
                                 images_redec, _, _ = decoder(lat_gen, out_embs[-1])
+                            lat_gen = translator(lat_gen)
 
                         lat_gen.requires_grad_()
                         images_redec.requires_grad_()
@@ -272,6 +276,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
+                        lat_enc = translator(lat_enc)
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_enc, lat_top_enc, labels)
 
@@ -290,6 +295,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             else:
                                 images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
 
+                        lat_gen = translator(lat_gen)
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_gen, lat_top_dec, labels)
 

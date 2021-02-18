@@ -28,7 +28,6 @@ class Discriminator(nn.Module):
             LinearResidualBlock(self.embed_size, (self.lat_size * 2) + 1, int(self.embed_size ** 0.5)),
         )
         self.norm_lat = norm_lat
-        self.irm_layer = IRMLinear(self.lat_size, 4)
 
     def forward(self, lat, top_lat, y):
         assert(lat.size(0) == y.size(0))
@@ -49,8 +48,6 @@ class Discriminator(nn.Module):
         if self.norm_lat:
             lat = F.normalize(lat, dim=1)
             top_lat = F.normalize(top_lat, dim=1)
-
-        lat = self.irm_layer(lat)
 
         lat = torch.cat([lat, top_lat], dim=1)
         lat = lat.view(batch_size, 1, self.lat_size * 2)
@@ -272,42 +269,13 @@ class UnconditionalIRMTranslator(nn.Module):
 
 
 class IRMTranslator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
+    def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.fhidden = lat_size if lat_size > 3 else 512
-        self.z_dim = z_dim
-        self.embed_size = embed_size
-        self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size),
-            LinearResidualBlock(self.embed_size, self.z_dim * self.lat_size, int(self.embed_size ** 0.5)),
-        )
-        self.irm_layer = nn.Sequential(
-            nn.Linear(self.lat_size, self.fhidden),
-            IRMLinear(self.fhidden),
-            nn.Linear(self.fhidden, self.z_dim),
-        )
+        self.irm_layer = IRMLinear(self.lat_size, 4)
 
-    def forward(self, lat, y):
-        assert (lat.size(0) == y.size(0))
-        batch_size = lat.size(0)
-
-        if y.dtype is torch.int64:
-            if y.dim() == 1:
-                yembed = self.embedding_mat[y]
-            else:
-                yembed = y.to(torch.float32)
-        else:
-            yembed = y
-
-        lat_proj = self.labs_to_proj(yembed)
-        lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
-
-        lat = self.irm_layer(lat).view(batch_size, 1, self.z_dim)
-        lat = torch.bmm(lat, lat_proj).squeeze(1)
-
-        return lat
+    def forward(self, lat):
+        return self.irm_layer(lat)
 
 
 class IRMGenerator(nn.Module):
