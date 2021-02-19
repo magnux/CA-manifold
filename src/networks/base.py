@@ -25,11 +25,11 @@ class Discriminator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
             LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
-            LinearResidualBlock(self.embed_size, (self.lat_size * 2) + 1, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(self.embed_size, (self.lat_size * 1) + 1, int(self.embed_size ** 0.5)),
         )
         self.norm_lat = norm_lat
 
-    def forward(self, lat, top_lat, y):
+    def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
         batch_size = lat.size(0)
 
@@ -42,15 +42,13 @@ class Discriminator(nn.Module):
             yembed = y
 
         lat_proj = self.labs_to_proj(yembed)
-        lat_proj, lat_bias = torch.split(lat_proj, [self.lat_size * 2, 1], dim=1)
-        lat_proj = lat_proj.view(batch_size, self.lat_size * 2, 1)
+        lat_proj, lat_bias = torch.split(lat_proj, [self.lat_size, 1], dim=1)
+        lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
 
         if self.norm_lat:
             lat = F.normalize(lat, dim=1)
-            top_lat = F.normalize(top_lat, dim=1)
 
-        lat = torch.cat([lat, top_lat], dim=1)
-        lat = lat.view(batch_size, 1, self.lat_size * 2)
+        lat = lat.view(batch_size, 1, self.lat_size)
         score = torch.bmm(lat, lat_proj).squeeze(1) + lat_bias
 
         return score
