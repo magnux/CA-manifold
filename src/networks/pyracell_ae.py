@@ -15,6 +15,7 @@ from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
+from src.layers.centroids import Centroids
 import numpy as np
 from itertools import chain
 
@@ -69,6 +70,7 @@ class InjectedEncoder(nn.Module):
 
         self.out_conv = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
+            Centroids(self.n_filter, 1024, normed_init=True),
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
         self.out_to_lat = nn.Sequential(
