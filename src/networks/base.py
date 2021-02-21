@@ -24,7 +24,8 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
+            nn.Linear(n_labels, self.embed_size),
+            IRMLinear(self.embed_size, 4),
             LinearResidualBlock(self.embed_size, (self.lat_size * 1) + 1, int(self.embed_size ** 0.5)),
         )
         self.norm_lat = norm_lat
@@ -63,7 +64,8 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
+            nn.Linear(n_labels, self.embed_size),
+            IRMLinear(self.embed_size, 4),
             LinearResidualBlock(self.embed_size, (self.z_dim * self.lat_size) + self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.norm_z = norm_z
