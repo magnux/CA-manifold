@@ -70,7 +70,6 @@ class InjectedEncoder(nn.Module):
 
         self.out_conv = nn.Sequential(
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
-            *([Centroids(self.n_filter, 1024)] if z_out else []),
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
         self.out_to_lat = nn.Sequential(

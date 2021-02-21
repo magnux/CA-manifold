@@ -229,15 +229,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen)
-                            images_redec, _, _ = decoder(lat_gen, seed_n=labels)
+                            images_dec, _, _ = decoder(lat_gen, seed_n=labels)
 
                         lat_gen.requires_grad_()
-                        images_redec.requires_grad_()
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
+                        images_dec.requires_grad_()
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_redec)
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
@@ -272,9 +272,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_enc_sum += loss_gen_enc.item()
 
                         lat_gen = generator(z_gen)
-                        images_redec, _, _ = decoder(lat_gen, seed_n=labels)
+                        images_dec, _, _ = decoder(lat_gen, seed_n=labels)
 
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen.clone().detach())
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
