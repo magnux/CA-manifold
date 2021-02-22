@@ -63,12 +63,18 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
+        self.z_mem = nn.Sequential(
+            LinearResidualMemory(self.z_dim),
+            LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim ** 0.5),
+            LinearResidualMemory(self.z_dim),
+            LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim ** 0.5),
+            LinearResidualMemory(self.z_dim),
+        )
         self.labs_to_proj = nn.Sequential(
             LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
             LinearResidualBlock(self.embed_size, (self.z_dim * self.lat_size) + self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.norm_z = norm_z
-        self.lat_mem = LinearResidualMemory(self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -91,9 +97,9 @@ class Generator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
+        z = self.z_mem(z)
         z = z.view(batch_size, 1, self.z_dim)
         lat = torch.bmm(z, lat_proj).squeeze(1) + lat_bias
-        lat = self.lat_mem(lat)
 
         return lat
 
