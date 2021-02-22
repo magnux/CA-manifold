@@ -67,7 +67,7 @@ class Generator(nn.Module):
         self.n_filter = n_filter
         self.n_calls = n_calls
         self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], dim=3)
-        self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+        self.frac_norm = nn.InstanceNorm3d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(n_labels, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter, dim=3)
 
         self.cube_size = int(np.ceil(self.lat_size ** (1 / 3)))
