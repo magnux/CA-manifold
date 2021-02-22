@@ -7,7 +7,7 @@ from src.layers.lambd import LambdaLayer
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, norm_weights=True):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, norm_weights=False):
         super(DynaResidualBlock, self).__init__()
 
         self.lat_size = lat_size if lat_size > 3 else 512
@@ -40,10 +40,8 @@ class DynaResidualBlock(nn.Module):
 
         self.dyna_k = nn.Sequential(
             nn.Linear(lat_size, self.lat_size),
-            LambdaLayer(lambda x: F.normalize(x, dim=1)),
             LinearResidualMemory(self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            LambdaLayer(lambda x: F.normalize(x, dim=1)),
             LinearResidualMemory(self.lat_size),
             LinearResidualBlock(self.lat_size, k_total_size, self.lat_size * 2),
         )
