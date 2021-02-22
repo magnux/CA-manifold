@@ -40,8 +40,10 @@ class DynaResidualBlock(nn.Module):
 
         self.dyna_k = nn.Sequential(
             nn.Linear(lat_size, self.lat_size),
+            LambdaLayer(lambda x: F.normalize(x, dim=1)),
             LinearResidualMemory(self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
+            LambdaLayer(lambda x: F.normalize(x, dim=1)),
             LinearResidualMemory(self.lat_size),
             LinearResidualBlock(self.lat_size, k_total_size, self.lat_size * 2),
         )
