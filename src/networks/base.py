@@ -64,11 +64,12 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
+        self.labs_to_inj = nn.Linear(n_labels, self.lat_size)
         self.n_filter = n_filter
         self.n_calls = n_calls
         self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], dim=3)
         self.frac_norm = nn.InstanceNorm3d(self.n_filter * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(n_labels, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter, dim=3)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter, dim=3)
 
         self.cube_size = int(np.ceil(self.lat_size ** (1 / 3)))
         self.pad_size = int((self.cube_size ** 3) - self.z_dim)
@@ -88,6 +89,8 @@ class Generator(nn.Module):
         else:
             yembed = y
 
+        inj_lat = self.labs_to_inj(yembed)
+
         if self.norm_z:
             z = F.normalize(z, dim=1)
         else:
@@ -100,7 +103,7 @@ class Generator(nn.Module):
         for c in range(self.n_calls):
             out_new = self.frac_sobel(out)
             out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, yembed.clone())
+            out_new = self.frac_dyna_conv(out_new, inj_lat)
             out = out + (0.1 * out_new)
 
         out = out.mean(1).view(batch_size, -1)
