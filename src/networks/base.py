@@ -63,16 +63,13 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.z_mem = nn.Sequential(
+        self.z_to_lat = nn.Sequential(
+            LinearResidualBlock(self.z_dim + n_labels, self.z_dim),
             LinearResidualMemory(self.z_dim),
-            LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim),
+            LinearResidualBlock(self.z_dim, self.z_dim),
             LinearResidualMemory(self.z_dim),
-            LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim),
-            LinearResidualMemory(self.z_dim),
-        )
-        self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
-            LinearResidualBlock(self.embed_size, (self.z_dim * self.lat_size) + self.lat_size, int(self.embed_size ** 0.5)),
+            LinearResidualBlock(self.z_dim, self.lat_size),
+            LinearResidualMemory(self.lat_size),
         )
         self.norm_z = norm_z
 
@@ -88,18 +85,12 @@ class Generator(nn.Module):
         else:
             yembed = y
 
-        lat_proj = self.labs_to_proj(yembed)
-        lat_proj, lat_bias = torch.split(lat_proj, [self.z_dim * self.lat_size, self.lat_size], dim=1)
-        lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
-
         if self.norm_z:
             z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
 
-        z = self.z_mem(z)
-        z = z.view(batch_size, 1, self.z_dim)
-        lat = torch.bmm(z, lat_proj).squeeze(1) + lat_bias
+        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
 
