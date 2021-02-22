@@ -5,6 +5,7 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.linearresidualmemory import LinearResidualMemory
+from src.layers.lambd import LambdaLayer
 
 
 class Classifier(nn.Module):
@@ -65,10 +66,13 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.z_to_lat = nn.Sequential(
             LinearResidualBlock(self.z_dim + n_labels, self.z_dim),
+            LambdaLayer(lambda x: F.normalize(x, dim=1)),
             LinearResidualMemory(self.z_dim),
             LinearResidualBlock(self.z_dim, self.z_dim),
+            LambdaLayer(lambda x: F.normalize(x, dim=1)),
             LinearResidualMemory(self.z_dim),
             LinearResidualBlock(self.z_dim, self.lat_size),
+            LambdaLayer(lambda x: F.normalize(x, dim=1)),
             LinearResidualMemory(self.lat_size),
         )
         self.norm_z = norm_z
