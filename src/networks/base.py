@@ -26,7 +26,6 @@ class Discriminator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
             LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
-            LinearResidualMemory(self.embed_size),
             LinearResidualBlock(self.embed_size, (self.lat_size * 1) + 1, int(self.embed_size ** 0.5)),
         )
         self.norm_lat = norm_lat
@@ -66,10 +65,10 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_proj = nn.Sequential(
             LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
-            LinearResidualMemory(self.embed_size),
             LinearResidualBlock(self.embed_size, (self.z_dim * self.lat_size) + self.lat_size, int(self.embed_size ** 0.5)),
         )
         self.norm_z = norm_z
+        self.lat_mem = LinearResidualMemory(self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -94,6 +93,7 @@ class Generator(nn.Module):
 
         z = z.view(batch_size, 1, self.z_dim)
         lat = torch.bmm(z, lat_proj).squeeze(1) + lat_bias
+        lat = self.lat_mem(lat)
 
         return lat
 

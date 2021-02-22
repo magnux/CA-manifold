@@ -6,10 +6,11 @@ import numpy as np
 
 
 class ResidualMemory(nn.Module):
-    def __init__(self, size, fin, n_mem=8, dim=1, dropout=0.1):
+    def __init__(self, size, fin, n_mem=64, dim=1, dropout=0.1):
         super(ResidualMemory, self).__init__()
 
         self.fin = fin
+        self.sqrt_fin = int(self.fin ** 0.5)
         self.n_mem = n_mem
         self.dim = dim
 
@@ -24,8 +25,8 @@ class ResidualMemory(nn.Module):
 
         self.pos_encoding = PosEncoding(size, dim)
 
-        self.q = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.fin, 1, 1, 0)
-        self.k = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.fin, 1, 1, 0)
+        self.q = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.sqrt_fin, 1, 1, 0)
+        self.k = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.sqrt_fin, 1, 1, 0)
         self.v = nn.Parameter(nn.init.orthogonal_(torch.empty(self.n_mem, self.fin + 1)).unsqueeze(0))
 
         self.dropout = None
@@ -38,8 +39,8 @@ class ResidualMemory(nn.Module):
 
         x_pos = self.pos_encoding(x)
 
-        x_q = self.q(x_pos).view(batch_size,  self.n_mem, self.fin, -1).permute(0, 3, 1, 2).contiguous().view(-1, self.n_mem, self.fin)
-        x_k = self.k(x_pos).view(batch_size,  self.n_mem, self.fin, -1).permute(0, 3, 2, 1).contiguous().view(-1, self.fin, self.n_mem)
+        x_q = self.q(x_pos).view(batch_size,  self.n_mem, self.sqrt_fin, -1).permute(0, 3, 1, 2).contiguous().view(-1, self.n_mem, self.sqrt_fin)
+        x_k = self.k(x_pos).view(batch_size,  self.n_mem, self.sqrt_fin, -1).permute(0, 3, 2, 1).contiguous().view(-1, self.sqrt_fin, self.n_mem)
         x_v = torch.cat([self.v] * x_q.size(0), 0)
 
         mem_x = torch.bmm(x_q, x_k)
