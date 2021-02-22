@@ -65,9 +65,9 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.z_mem = nn.Sequential(
             LinearResidualMemory(self.z_dim),
-            LinearResidualBlock(self.z_dim, self.z_dim, int(self.z_dim ** 0.5)),
+            LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim),
             LinearResidualMemory(self.z_dim),
-            LinearResidualBlock(self.z_dim, self.z_dim, int(self.z_dim ** 0.5)),
+            LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim),
             LinearResidualMemory(self.z_dim),
         )
         self.labs_to_proj = nn.Sequential(
