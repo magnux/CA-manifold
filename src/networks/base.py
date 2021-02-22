@@ -100,7 +100,7 @@ class Generator(nn.Module):
         for c in range(self.n_calls):
             out_new = self.frac_sobel(out)
             out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, yembed)
+            out_new = self.frac_dyna_conv(out_new, yembed.clone())
             out = out + (0.1 * out_new)
 
         out = out.mean(1).view(batch_size, -1)
