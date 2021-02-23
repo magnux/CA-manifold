@@ -73,7 +73,9 @@ class InjectedEncoder(nn.Module):
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
         pos_enc_w = cos_pos_encoding_nd(16, 2).view(1, 2, 16, 16).sum(1, keepdim=True)
-        pos_enc_w += (-pos_enc_w.min()) + 1.
+        pos_enc_w -= pos_enc_w.min()
+        pos_enc_w /= pos_enc_w.max()
+        pos_enc_w += 1.
         self.register_buffer('pos_enc_w', pos_enc_w)
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
