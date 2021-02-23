@@ -72,7 +72,7 @@ class InjectedEncoder(nn.Module):
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
-        pos_enc_w = cos_pos_encoding_nd(16, 2).view(1, 2, 16, 16).sum(1, keepdim=True)
+        pos_enc_w = cos_pos_encoding_nd(16, 2).sum(1, keepdim=True)
         pos_enc_w -= pos_enc_w.min()
         pos_enc_w /= pos_enc_w.max()
         pos_enc_w += 1.
