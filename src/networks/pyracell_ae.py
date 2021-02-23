@@ -185,7 +185,7 @@ class Decoder(nn.Module):
 
         # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         self.register_buffer('pos_enc_seed',  cos_pos_encoding_nd(16, 2))
-        self.in_conv = DynaResidualBlock(self.lat_size, self.pos_enc_seed.size(1), self.n_filter)
+        self.in_conv = DynaResidualBlock(self.lat_size, self.pos_enc_seed.size(1), self.n_filter, self.n_filter)
 
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
