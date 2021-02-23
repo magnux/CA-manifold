@@ -25,10 +25,7 @@ class Discriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
-            LinearResidualBlock(self.embed_size, (self.lat_size * 1) + 1, int(self.embed_size ** 0.5)),
-        )
+        self.lat_to_score = nn.Linear(self.lat_size + n_labels, self.lat_size)
         self.norm_lat = norm_lat
 
     def forward(self, lat, y):
@@ -43,38 +40,23 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        lat_proj = self.labs_to_proj(yembed)
-        lat_proj, lat_bias = torch.split(lat_proj, [self.lat_size, 1], dim=1)
-        lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
-
         if self.norm_lat:
             lat = F.normalize(lat, dim=1)
 
-        lat = lat.view(batch_size, 1, self.lat_size)
-        score = torch.bmm(lat, lat_proj).squeeze(1) + lat_bias
+        score = self.lat_to_score(torch.cat([lat, yembed], dim=1))
 
         return score
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, n_filter, n_calls, z_dim, embed_size, norm_z=True, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_inj = nn.Linear(n_labels, self.lat_size)
-        self.n_filter = n_filter
-        self.n_calls = n_calls
-        self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], dim=3)
-        self.frac_norm = nn.InstanceNorm3d(self.n_filter * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter, dim=3)
-
-        self.cube_size = int(np.ceil(self.lat_size ** (1 / 3)))
-        self.pad_size = int((self.cube_size ** 3) - self.z_dim)
-        self.register_buffer('cube_pad', torch.zeros(1, self.pad_size))
-
+        self.z_to_lat = nn.Linear(self.z_dim + n_labels, 1)
         self.norm_z = norm_z
 
     def forward(self, z, y):
@@ -89,25 +71,12 @@ class Generator(nn.Module):
         else:
             yembed = y
 
-        inj_lat = self.labs_to_inj(yembed)
-
         if self.norm_z:
             z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
 
-        out = torch.cat([z, self.cube_pad.expand(batch_size, -1)], dim=1)
-        out = out.view(batch_size, 1, self.cube_size, self.cube_size, self.cube_size)
-        out = out.repeat(1, self.n_filter, 1, 1, 1)
-
-        for c in range(self.n_calls):
-            out_new = self.frac_sobel(out)
-            out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, inj_lat)
-            out = out + (0.1 * out_new)
-
-        out = out.mean(1).view(batch_size, -1)
-        lat = out[:, :self.lat_size]
+        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
 
