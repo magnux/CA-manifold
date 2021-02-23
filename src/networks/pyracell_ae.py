@@ -15,7 +15,7 @@ from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
-from src.layers.posencoding import cos_pos_encoding_nd
+from src.layers.posencoding import PosEncoding
 import numpy as np
 from itertools import chain
 
@@ -68,15 +68,11 @@ class InjectedEncoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False)),
         )
 
+        self.pos_enc = PosEncoding(16, 2)
         self.out_conv = nn.Sequential(
-            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
+            ResidualBlock(self.n_filter + self.pos_enc.size(), self.n_filter, None, 1, 1, 0),
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
-        pos_enc_w = cos_pos_encoding_nd(16, 2).sum(1, keepdim=True)
-        pos_enc_w -= pos_enc_w.min()
-        pos_enc_w /= pos_enc_w.max()
-        pos_enc_w += 1.
-        self.register_buffer('pos_enc_w', pos_enc_w)
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -129,8 +125,8 @@ class InjectedEncoder(nn.Module):
                 out = self.frac_ds(out)
             out_embs.append(out)
 
+        out = self.pos_enc(out)
         out = self.out_conv(out)
-        out = out * self.pos_enc_w
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
             conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
