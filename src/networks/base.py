@@ -3,8 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.sobel import SinSobel
+from src.layers.equallinear import EqualLinear
 from src.layers.irm import IRMLinear
 import numpy as np
 
@@ -56,7 +55,7 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.z_to_lat = nn.Linear(self.z_dim + n_labels, self.lat_size)
+        self.z_to_lat = EqualLinear(self.z_dim + n_labels, self.lat_size)
         self.norm_z = norm_z
 
     def forward(self, z, y):
