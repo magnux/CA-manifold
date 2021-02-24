@@ -15,7 +15,7 @@ from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
-from src.layers.posencoding import PosEncoding, cos_pos_encoding_nd
+from src.layers.posencoding import PosEncoding
 import numpy as np
 from itertools import chain
 
@@ -50,7 +50,7 @@ class InjectedEncoder(nn.Module):
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
-        self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
+        self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
                                             for _ in range(1 if self.shared_params else self.n_layers)])
@@ -183,13 +183,10 @@ class Decoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
-        self.register_buffer('pos_enc_seed',  cos_pos_encoding_nd(16, 2))
-        self.in_conv = DynaResidualBlock(self.lat_size, self.pos_enc_seed.size(1), self.n_filter, self.n_filter)
-
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
-        self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
+        self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
                                             for _ in range(1 if self.shared_params else self.n_layers)])
@@ -223,24 +220,22 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, 16, lat.device).to(float_type)
-            # if isinstance(seed_n, torch.Tensor):
-            #     if seed_n.dim() == 2:
-            #         out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed // (self.n_labels + 1), self.n_filter, 16, 16).mean(1)
-            #     elif seed_n.dim() == 1:
-            #         out = self.seed[seed_n, ...]
-            # else:
-            #     if isinstance(seed_n, tuple):
-            #         seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            #     elif isinstance(seed_n, list):
-            #         seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            #     else:
-            #         seed = self.seed[seed_n:seed_n + 1, ...]
-            #     out = torch.cat([seed.to(float_type)] * batch_size, 0)
-            #     out = F.instance_norm(out)
-            out = torch.cat([self.pos_enc_seed.to(float_type)] * batch_size, 0)
-            out = self.in_conv(out, lat)
-            if ca_noise is not None:
-                out = out + self.in_ds(ca_noise)
+            if isinstance(seed_n, torch.Tensor):
+                if seed_n.dim() == 2:
+                    out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed // (self.n_labels + 1), self.n_filter, 16, 16).mean(1)
+                elif seed_n.dim() == 1:
+                    out = self.seed[seed_n, ...]
+            else:
+                if isinstance(seed_n, tuple):
+                    seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+                elif isinstance(seed_n, list):
+                    seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+                else:
+                    seed = self.seed[seed_n:seed_n + 1, ...]
+                out = torch.cat([seed.to(float_type)] * batch_size, 0)
+                out = F.instance_norm(out)
+                if ca_noise is not None:
+                    out = out + self.in_conv(ca_noise)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
