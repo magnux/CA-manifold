@@ -170,6 +170,8 @@ if pre_train:
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', d_reg_every if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
+reg_dis_mean = 0.1
+loss_dis_mean = 0.1
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -253,8 +255,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                        reg_dis_mean = (reg_dis_enc_sum + reg_dis_dec_sum) / 2
-                        loss_dis_mean = (loss_dis_enc_sum + loss_dis_dec_sum) / 2
+                        reg_dis_mean = 0.5 * reg_dis_mean + 0.25 * (reg_dis_enc_sum + reg_dis_dec_sum)
+                        loss_dis_mean = 0.5 * loss_dis_mean + 0.25 * (loss_dis_enc_sum + loss_dis_dec_sum) / 2
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean, d_reg_param,
                                                                                     reg_dis_mean, reg_dis_target, loss_dis_mean)
