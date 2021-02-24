@@ -235,7 +235,7 @@ class Decoder(nn.Module):
                 out = torch.cat([seed.to(float_type)] * batch_size, 0)
                 out = F.instance_norm(out)
                 if ca_noise is not None:
-                    out = out + self.in_conv(ca_noise)
+                    out = out + self.in_ds(ca_noise)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
