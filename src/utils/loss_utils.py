@@ -66,7 +66,7 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
 
 
 def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss_target,
-                      loss_dis=None, update_every=True, maximize=True, lr=0.1):
+                      loss_dis=None, update_every=False, maximize=True, lr=0.1):
     # reg_param update
     delta_reg = reg_loss_target - reg_loss
     reg_scale = 2 * reg_param / (reg_loss_target + reg_loss)
