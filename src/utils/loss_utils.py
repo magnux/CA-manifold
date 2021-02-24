@@ -69,7 +69,8 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss
                       loss_dis=None, update_every=True, maximize=True, lr=0.1):
     # reg_param update
     delta_reg = reg_loss_target - reg_loss
-    reg_update = lr * delta_reg
+    reg_scale = 2 * reg_param / (reg_loss_target + reg_loss)
+    reg_update = lr * reg_scale * delta_reg
     if maximize:
         reg_param += reg_update
     else:
