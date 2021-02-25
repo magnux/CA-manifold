@@ -183,8 +183,8 @@ class Decoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter * 64)).unsqueeze(2).unsqueeze(3) * checkerboard_seed(1, self.n_filter, 16, 'cpu'))
-        self.seed_select = DynaConv(self.lat_size, self.n_filter * 64, self.n_filter)
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter * 16)).unsqueeze(2).unsqueeze(3) * checkerboard_seed(1, self.n_filter * 16, 16, 'cpu'))
+        self.seed_select = DynaConv(self.lat_size, self.n_filter * 16, self.n_filter)
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], left_sided=self.causal)
