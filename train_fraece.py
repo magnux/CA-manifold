@@ -142,7 +142,7 @@ if pre_train:
                             lat_enc = generator(z_enc, labels)
                             _, _, images_dec_raw = decoder(lat_enc)
 
-                            loss_dec = (1 / batch_split) * F.cross_entropy(images_dec_raw[1], ((images + 1) * 127.5).long())
+                            loss_dec = (1 / batch_split) * 1e-2 * F.cross_entropy(images_dec_raw[1], ((images + 1) * 127.5).long())
                             model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=config['training']['through_grads'])
                             loss_dec_sum += loss_dec.item()
 
@@ -270,7 +270,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc = generator(z_enc, labels)
                         _, _, images_dec_raw = decoder(lat_enc)
 
-                        loss_dec = (1 / batch_mult) * F.cross_entropy(images_dec_raw[1], ((images + 1) * 127.5).long())
+                        loss_dec = (1 / batch_mult) * 1e-2 * F.cross_entropy(images_dec_raw[1], ((images + 1) * 127.5).long())
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
