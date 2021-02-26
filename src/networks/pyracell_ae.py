@@ -210,6 +210,7 @@ class Decoder(nn.Module):
             out_f = self.out_chan
         self.out_conv = nn.Sequential(
             *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
+            IRMConv(self.n_filter, 4),
             nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         )
 
