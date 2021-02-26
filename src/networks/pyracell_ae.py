@@ -15,7 +15,6 @@ from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
-from src.layers.posencoding import PosEncoding
 import numpy as np
 from itertools import chain
 
@@ -64,16 +63,13 @@ class InjectedEncoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False)),
         )
 
-        self.pos_enc = PosEncoding(16, 2)
-        self.out_conv = nn.Sequential(
-            ResidualBlock(self.n_filter + self.pos_enc.size(), self.n_filter, None, 1, 1, 0),
-            nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
-        )
-        self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
-        )
+        self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
+        # self.out_to_lat = nn.Sequential(
+        #     LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+        #     LinearResidualBlock(self.lat_size, self.lat_size),
+        #     nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        # )
+        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -121,7 +117,6 @@ class InjectedEncoder(nn.Module):
                 out = self.frac_ds(out)
             out_embs.append(out)
 
-        out = self.pos_enc(out)
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
