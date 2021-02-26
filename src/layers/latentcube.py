@@ -16,10 +16,7 @@ class LatentCube(nn.Module):
         self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], dim=3)
         self.frac_norm = nn.InstanceNorm3d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter, dim=3)
-
         self.cube_size = int(np.ceil(self.lat_size ** (1 / 3)))
-        self.pad_size = int((self.cube_size ** 3) - self.z_dim)
-        self.register_buffer('cube_pad', torch.zeros(1, self.pad_size))
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).view(1, self.n_filter, 1, 1, 1).repeat(1, 1, self.cube_size, self.cube_size, self.cube_size))
 
