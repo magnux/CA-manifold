@@ -55,7 +55,7 @@ class InjectedEncoder(nn.Module):
         )
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
-        self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], left_sided=self.causal)
+        self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
                                             for _ in range(1 if self.shared_params else self.n_layers)])

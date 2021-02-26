@@ -15,7 +15,7 @@ class LatentCube(nn.Module):
         self.n_filter = n_filter
         self.n_calls = n_calls
 
-        self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], dim=3)
+        self.frac_sobel = SinSobel(self.n_filter, 3, 1, dim=3)
         self.frac_norm = nn.InstanceNorm3d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter, dim=3)
 
