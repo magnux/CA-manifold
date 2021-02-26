@@ -54,7 +54,7 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.z_to_qz = QLinear(self.lat_size, self.lat_size)
+        self.z_to_qz = QLinear(self.z_dim, self.z_dim)
         self.qz_to_lat = DynaLinear(n_labels, self.z_dim, self.lat_size)
         self.norm_z = norm_z
 
