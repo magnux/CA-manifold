@@ -25,7 +25,6 @@ class LatentCube(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
-        out = out.repeat(1, self.n_filter, 1, 1, 1)
 
         for c in range(self.n_calls):
             out_new = self.frac_sobel(out)
