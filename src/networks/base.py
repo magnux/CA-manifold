@@ -5,6 +5,7 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.equallinear import EqualLinear
 from src.layers.irm import IRMLinear
+from src.layers.dynalinear import DynaLinear
 import numpy as np
 
 class Classifier(nn.Module):
@@ -24,13 +25,11 @@ class Discriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.lat_to_score = nn.Linear(self.lat_size + n_labels, 1)
+        self.lat_to_score = DynaLinear(n_labels, self.lat_size, 1)
         self.norm_lat = norm_lat
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
-        batch_size = lat.size(0)
-
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -42,7 +41,7 @@ class Discriminator(nn.Module):
         if self.norm_lat:
             lat = F.normalize(lat, dim=1)
 
-        score = self.lat_to_score(torch.cat([lat, yembed], dim=1))
+        score = self.lat_to_score(lat, yembed)
 
         return score
 
@@ -55,13 +54,11 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.z_to_lat = EqualLinear(self.z_dim + n_labels, self.lat_size)
+        self.z_to_lat = DynaLinear(n_labels, self.z_dim, self.lat_size)
         self.norm_z = norm_z
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
-        batch_size = z.size(0)
-
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -75,7 +72,7 @@ class Generator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
-        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
+        lat = self.z_to_lat(z, yembed)
 
         return lat
 
@@ -269,10 +266,7 @@ class IRMGenerator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size, int(self.embed_size ** 0.5)),
-            LinearResidualBlock(self.embed_size, (self.z_dim * self.lat_size) + self.lat_size, int(self.embed_size ** 0.5)),
-        )
+        self.z_to_lat = DynaLinear(n_labels, self.z_dim, self.lat_size)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.z_dim, self.fhidden),
             IRMLinear(self.fhidden, 4),
@@ -282,8 +276,6 @@ class IRMGenerator(nn.Module):
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
-        batch_size = z.size(0)
-
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -292,16 +284,13 @@ class IRMGenerator(nn.Module):
         else:
             yembed = y
 
-        lat_proj = self.labs_to_proj(yembed)
-        lat_proj, lat_bias = torch.split(lat_proj, [self.z_dim * self.lat_size, self.lat_size], dim=1)
-        lat_proj = lat_proj.view(batch_size, self.z_dim, self.lat_size)
-
         if self.norm_z:
             z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
-        lat = self.irm_layer(z).view(batch_size, 1, self.z_dim)
-        lat = torch.bmm(lat, lat_proj).squeeze(1) + lat_bias
+
+        z = self.irm_layer(z)
+        lat = self.z_to_lat(z, yembed)
 
         return lat
 
@@ -313,16 +302,11 @@ class IRMDiscriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_proj = nn.Sequential(
-            LinearResidualBlock(n_labels, self.embed_size),
-            LinearResidualBlock(self.embed_size, self.lat_size, int(self.embed_size ** 0.5)),
-        )
+        self.lat_to_score = DynaLinear(n_labels, self.lat_size, 1)
         self.irm_layer = IRMLinear(self.fhidden)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
-        batch_size = lat.size(0)
-
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -331,10 +315,8 @@ class IRMDiscriminator(nn.Module):
         else:
             yembed = y
 
-        lat_proj = self.labs_to_proj(yembed)
-        lat_proj = lat_proj.view(batch_size, self.lat_size, 1)
-        lat = self.irm_layer(lat).view(batch_size, 1, self.lat_size)
-        score = torch.bmm(lat, lat_proj).squeeze(1)
+        lat = self.irm_layer(lat)
+        score = self.lat_to_score(lat, yembed)
 
         return score
 
