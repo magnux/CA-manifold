@@ -27,11 +27,11 @@ class DynaLinear(nn.Module):
         batch_size = x.size(0)
 
         if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
-            self.w = self.dyna_w(lat)
+            w = self.dyna_w(lat)
             if self.bias:
-                self.w, self.b = torch.split(self.w, [self.w_size, self.b_size], dim=1)
-
-            self.w = self.w.view(batch_size, self.fin, self.fout)
+                w, b = torch.split(w, [self.w_size, self.b_size], dim=1)
+                self.b = b
+            self.w = w.view(batch_size, self.fin, self.fout)
 
             self.prev_lat = lat
 
