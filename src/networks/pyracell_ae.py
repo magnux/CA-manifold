@@ -65,7 +65,7 @@ class InjectedEncoder(nn.Module):
         )
 
         self.out_conv = DynaConv(lat_size, self.n_filter, sum(self.split_sizes))
-        self.out_norm = nn.InstanceNorm2d(self.n_filter, sum(self.split_sizes))
+        self.out_norm = nn.InstanceNorm2d(sum(self.split_sizes))
         self.out_to_lat = DynaLinear(lat_size, sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):

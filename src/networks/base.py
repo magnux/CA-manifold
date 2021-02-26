@@ -3,10 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.equallinear import EqualLinear
 from src.layers.irm import IRMLinear
 from src.layers.dynalinear import DynaLinear
-import numpy as np
 
 
 class Classifier(nn.Module):
@@ -26,10 +24,7 @@ class Discriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.lat_to_score = nn.Sequential(
-            LinearResidualBlock(self.lat_size + n_labels, self.lat_size),
-            LinearResidualBlock(self.lat_size, 1),
-        )
+        self.lat_to_score = DynaLinear(n_labels, self.lat_size, 1)
         self.norm_lat = norm_lat
 
     def forward(self, lat, y):
@@ -45,7 +40,7 @@ class Discriminator(nn.Module):
         if self.norm_lat:
             lat = F.normalize(lat, dim=1)
 
-        score = self.lat_to_score(torch.cat([lat, yembed], dim=1))
+        score = self.lat_to_score(lat, yembed)
 
         return score
 
