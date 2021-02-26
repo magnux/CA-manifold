@@ -33,6 +33,8 @@ class DynaLinear(nn.Module):
 
             self.w = self.w.view(batch_size, self.fin, self.fout)
 
+            self.prev_lat = lat
+
         x_new = x.view(batch_size, 1, self.fin)
         x_new = torch.bmm(x_new, self.w).squeeze(1) + self.b
 
