@@ -74,7 +74,7 @@ class Generator(nn.Module):
             z = z.clamp(-3, 3)
 
         qz = self.z_to_qz(z)
-        lat = self.z_to_lat(qz, yembed)
+        lat = self.qz_to_lat(qz, yembed)
 
         return lat
 
