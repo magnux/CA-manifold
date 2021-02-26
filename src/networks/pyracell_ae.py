@@ -70,7 +70,7 @@ class InjectedEncoder(nn.Module):
         )
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            DenseLinearBlock(self.lat_size),
+            *(chain(*[(LinearResidualBlock(self.lat_size, self.lat_size), nn.ReLU(True)) for _ in range(4)])),
             nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
         )
 
