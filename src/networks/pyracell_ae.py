@@ -64,7 +64,10 @@ class InjectedEncoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False)),
         )
 
-        self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
+        self.out_conv = nn.Sequential(
+            nn.InstanceNorm2d(self.n_filter),
+            nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
+        )
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             *(chain(*[(LinearResidualBlock(self.lat_size, self.lat_size), nn.ReLU(True)) for _ in range(4)])),
