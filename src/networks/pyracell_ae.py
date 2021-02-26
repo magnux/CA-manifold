@@ -13,6 +13,7 @@ from src.layers.denselinearblock import DenseLinearBlock
 from src.layers.dynaconv import DynaConv
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMConv
+from src.layers.hard_nl import HardSwish
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -70,7 +71,7 @@ class InjectedEncoder(nn.Module):
         )
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            *(chain(*[(LinearResidualBlock(self.lat_size, self.lat_size), nn.ReLU(True)) for _ in range(4)])),
+            *(chain(*[(LinearResidualBlock(self.lat_size, self.lat_size), HardSwish(True)) for _ in range(4)])),
             nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
         )
 
