@@ -48,7 +48,10 @@ class InjectedEncoder(nn.Module):
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * 16, self.n_filter * 16, 16 ** 2] if self.multi_cut else [self.n_filter]
 
-        self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
+        self.in_conv = nn.Sequential(
+            nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0),
+            IRMConv(self.n_filter, 4),
+        )
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
         self.frac_sobel = SinSobel(self.n_filter, [3, 5], [1, 2], left_sided=self.causal)
