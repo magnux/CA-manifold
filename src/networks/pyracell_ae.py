@@ -17,6 +17,7 @@ from src.layers.hard_nl import HardSwish
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
+from src.layers.latentcube import LatentCube
 import numpy as np
 from itertools import chain
 
@@ -73,9 +74,8 @@ class InjectedEncoder(nn.Module):
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
         self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+            LatentCube(self.lat_size, self.n_filter, self.n_calls),
+            nn.Linear(self.lat_size, lat_size if not z_out else z_dim),
         )
 
     def forward(self, x, inj_lat=None):
