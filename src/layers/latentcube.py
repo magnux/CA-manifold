@@ -20,12 +20,14 @@ class LatentCube(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter, dim=3)
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).view(1, self.n_filter, 1, 1, 1).repeat(1, 1, self.cube_size, self.cube_size, self.cube_size))
+        self.seed_norm = nn.InstanceNorm3d(self.n_filter)
 
     def forward(self, lat):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
+        out = self.seed_norm(out)
 
         for c in range(self.n_calls):
             out_new = self.frac_sobel(out)

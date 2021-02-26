@@ -24,7 +24,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=False, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -74,7 +74,8 @@ class InjectedEncoder(nn.Module):
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
         self.out_to_lat = nn.Sequential(
-            LatentCube(sum(self.conv_state_size), self.lat_size, self.n_filter, self.n_calls),
+            nn.Linear(sum(self.conv_state_size), self.lat_size),
+            LatentCube(self.lat_size, self.lat_size, self.n_filter, self.n_calls * 2),
             nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
         )
 
