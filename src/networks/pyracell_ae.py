@@ -50,7 +50,7 @@ class InjectedEncoder(nn.Module):
 
         self.in_conv = nn.Sequential(
             nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0),
-            IRMConv(self.n_filter, 4),
+            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         )
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
@@ -69,7 +69,7 @@ class InjectedEncoder(nn.Module):
         )
 
         self.out_conv = nn.Sequential(
-            IRMConv(self.n_filter, 4),
+            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
         self.out_to_lat = nn.Sequential(
@@ -213,7 +213,7 @@ class Decoder(nn.Module):
             out_f = self.out_chan
         self.out_conv = nn.Sequential(
             *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
-            IRMConv(self.n_filter, 4),
+            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
             nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         )
 
