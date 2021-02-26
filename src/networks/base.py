@@ -8,6 +8,7 @@ from src.layers.irm import IRMLinear
 from src.layers.dynalinear import DynaLinear
 import numpy as np
 
+
 class Classifier(nn.Module):
     def __init__(self, n_labels, lat_size, **kwargs):
         super().__init__()
@@ -195,9 +196,7 @@ class LetterEncoder(nn.Module):
         self.letter_bits = letter_bits
         self.lat_to_letters = nn.Sequential(
             ResidualBlock(1, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
+            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d) for _ in range(3)]),
         )
 
     def forward(self, lat):
@@ -216,9 +215,7 @@ class LetterDecoder(nn.Module):
         self.letter_channels = letter_channels
         self.letter_bits = letter_bits
         self.letters_to_lat = nn.Sequential(
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
+            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d) for _ in range(3)]),
             ResidualBlock(letter_channels * letter_bits, 1, None, 1, 1, 0, nn.Conv1d),
         )
 
