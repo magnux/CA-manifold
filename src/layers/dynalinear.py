@@ -20,17 +20,20 @@ class DynaLinear(nn.Module):
             LinearResidualBlock(self.lat_size, self.w_size + self.b_size, self.lat_size * 2),
         )
 
+        self.prev_lat = None
+        self.w, self.b = None, 0
+
     def forward(self, x, lat):
         batch_size = x.size(0)
 
-        w = self.dyna_w(lat)
-        if self.bias:
-            w, b = torch.split(w, [self.w_size, self.b_size], dim=1)
+        if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
+            self.w = self.dyna_w(lat)
+            if self.bias:
+                self.w, self.b = torch.split(self.w, [self.w_size, self.b_size], dim=1)
 
-        w = w.view(batch_size, self.fin, self.fout)
+            self.w = self.w.view(batch_size, self.fin, self.fout)
+
         x_new = x.view(batch_size, 1, self.fin)
-        x_new = torch.bmm(x_new, w).squeeze(1)
-        if self.bias:
-            x_new = x_new + b
+        x_new = torch.bmm(x_new, self.w).squeeze(1) + self.b
 
         return x_new
