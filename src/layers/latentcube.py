@@ -7,7 +7,8 @@ import numpy as np
 
 class LatentCube(nn.Module):
     def __init__(self, lat_size, n_filter, n_calls):
-        super(LatentCube).__init__()
+        super(LatentCube, self).__init__()
+
         self.lat_size = lat_size
         self.n_filter = n_filter
         self.n_calls = n_calls
