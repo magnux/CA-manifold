@@ -9,6 +9,8 @@ from src.layers.gaussiansmoothing import GaussianSmoothing
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
+from src.layers.dynalinear import DynaLinear
+from src.layers.dynaconv import DynaConv
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
@@ -20,7 +22,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=False, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -62,12 +64,9 @@ class InjectedEncoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False)),
         )
 
-        self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(4)]),
-            LinearResidualBlock(self.lat_size, lat_size if not z_out else z_dim)
-        )
+        self.out_conv = DynaConv(lat_size, self.n_filter, sum(self.split_sizes))
+        self.out_norm = nn.InstanceNorm2d(self.n_filter, sum(self.split_sizes))
+        self.out_to_lat = DynaLinear(lat_size, sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -115,7 +114,8 @@ class InjectedEncoder(nn.Module):
                 out = self.frac_ds(out)
             out_embs.append(out)
 
-        out = self.out_conv(out)
+        out = self.out_conv(out, inj_lat)
+        out = self.out_norm(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
             conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
@@ -124,7 +124,7 @@ class InjectedEncoder(nn.Module):
                                     conv_state_hw.view(batch_size, -1)], dim=1)
         else:
             conv_state = out.mean(dim=(2, 3))
-        lat = self.out_to_lat(conv_state)
+        lat = self.out_to_lat(conv_state, inj_lat)
 
         return lat, out_embs, None
 
