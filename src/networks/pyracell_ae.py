@@ -64,9 +64,17 @@ class InjectedEncoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False)),
         )
 
-        self.out_conv = DynaConv(lat_size, self.n_filter, sum(self.split_sizes))
-        self.out_norm = nn.InstanceNorm2d(sum(self.split_sizes))
-        self.out_to_lat = DynaLinear(lat_size, sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_conv = nn.Sequential(
+            nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
+            nn.InstanceNorm2d(sum(self.split_sizes))
+        )
+        self.out_to_lat = nn.Sequential(
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(2)]),
+            LambdaLayer(lambda x: F.normalize(x, dim=1)),
+            *([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(2)]),
+            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -114,8 +122,7 @@ class InjectedEncoder(nn.Module):
                 out = self.frac_ds(out)
             out_embs.append(out)
 
-        out = self.out_conv(out, inj_lat)
-        out = self.out_norm(out)
+        out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
             conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
@@ -124,7 +131,7 @@ class InjectedEncoder(nn.Module):
                                     conv_state_hw.view(batch_size, -1)], dim=1)
         else:
             conv_state = out.mean(dim=(2, 3))
-        lat = self.out_to_lat(conv_state, inj_lat)
+        lat = self.out_to_lat(conv_state)
 
         return lat, out_embs, None
 
