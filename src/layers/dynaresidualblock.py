@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.lambd import LambdaLayer
 from src.layers.denselinearblock import DenseLinearBlock
-from src.layers.hard_nl import HardSwish
 from itertools import chain
 
 
@@ -42,7 +41,7 @@ class DynaResidualBlock(nn.Module):
 
         self.dyna_k = nn.Sequential(
             nn.Linear(lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
+            *(chain(*[(LinearResidualBlock(self.lat_size, self.lat_size), LambdaLayer(lambda x: F.normalize(x, dim=1))) for _ in range(4)])),
             LinearResidualBlock(self.lat_size, k_total_size, self.lat_size * 2),
         )
 
