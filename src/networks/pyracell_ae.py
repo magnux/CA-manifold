@@ -65,7 +65,10 @@ class InjectedEncoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False)),
         )
 
-        self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
+        self.out_conv = nn.Sequential(
+            IRMConv(self.n_filter, 4),
+            nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
+        )
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             *(chain(*[(LinearResidualBlock(self.lat_size, self.lat_size), LambdaLayer(lambda x: F.normalize(x, dim=1))) for _ in range(4)])),
@@ -207,7 +210,7 @@ class Decoder(nn.Module):
             out_f = self.out_chan
         self.out_conv = nn.Sequential(
             *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
-            ResidualBlock(self.n_filter, out_f, None, 1, 1, 0),
+            nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         )
 
     def forward(self, lat, ca_init=None, ca_noise=None, seed_n=0):
