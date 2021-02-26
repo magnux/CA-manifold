@@ -74,8 +74,8 @@ class InjectedEncoder(nn.Module):
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
         self.out_to_lat = nn.Sequential(
-            LatentCube(self.lat_size, self.n_filter, self.n_calls),
-            nn.Linear(self.lat_size, lat_size if not z_out else z_dim),
+            LatentCube(sum(self.conv_state_size), self.lat_size, self.n_filter, self.n_calls),
+            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
         )
 
     def forward(self, x, inj_lat=None):
