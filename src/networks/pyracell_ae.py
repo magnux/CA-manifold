@@ -74,7 +74,7 @@ class InjectedEncoder(nn.Module):
                                             for _ in range(1 if self.shared_params else self.n_layers)])
         self.frac_conv = nn.ModuleList([nn.Sequential(
             ResidualBlock((self.n_filter * self.frac_sobel.c_factor) + (0 if self.adain or self.dyncin else self.n_filter), self.n_filter, None, 1, 1, 0),
-            ResidualMemory(self.image_size // (2 ** i), self.n_filter),
+            ResidualMemory(self.image_size // (2 ** i), self.n_filter, dim=2),
             ResidualBlock(self.n_filter, self.n_filter * (2 if self.gated else 1), None, 1, 1, 0),
         ) for i in range(1 if self.shared_params else self.n_layers)])
 
