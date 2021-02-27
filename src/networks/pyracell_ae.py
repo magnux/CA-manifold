@@ -4,11 +4,13 @@ import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
+from src.layers.residualmemory import ResidualMemory
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.gaussiansmoothing import GaussianSmoothing
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
+from src.layers.dynaconv import DynaConv
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
@@ -51,14 +53,27 @@ class InjectedEncoder(nn.Module):
         )
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
+        if self.adain:
+            self.inj_cond = nn.Sequential(
+                LinearResidualBlock(self.lat_size, self.lat_size),
+                LinearResidualBlock(self.lat_size, self.n_filter * 2 * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
+            )
+        elif self.dyncin:
+            self.inj_cond = nn.ModuleList([DynaConv(self.lat_size, self.n_filter, self.n_filter) for _ in range(1 if self.shared_params else self.n_layers)])
+        else:
+            self.inj_cond = nn.Sequential(
+                LinearResidualBlock(self.lat_size, self.lat_size),
+                LinearResidualBlock(self.lat_size, self.n_filter * (1 if self.shared_params else self.n_calls), self.lat_size * 2),
+            )
         self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
                                             for _ in range(1 if self.shared_params else self.n_layers)])
-        self.frac_dyna_conv = nn.ModuleList([
-            DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
-                              self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
-            for _ in range(1 if self.shared_params else self.n_layers)])
+        self.frac_conv = nn.ModuleList([nn.Sequential(
+            ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter),
+            ResidualMemory(self.image_size / (2 ** i), self.n_filter),
+            ResidualBlock(self.n_filter, self.n_filter * (2 if self.gated else 1)),
+        ) for i in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
@@ -79,6 +94,15 @@ class InjectedEncoder(nn.Module):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
         batch_size = x.size(0)
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
+
+        if self.adain:
+            cond_factors = self.inj_cond(inj_lat)
+            cond_factors = torch.split(cond_factors, self.n_filter * 2, dim=1)
+        elif self.dyncin:
+            pass
+        else:
+            cond_factors = self.inj_cond(inj_lat)
+            cond_factors = torch.split(cond_factors, self.n_filter, dim=1)
 
         if self.ce_in:
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
@@ -103,7 +127,17 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
-            out_new = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
+            if self.adain:
+                s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
+                s_fact = s_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
+                b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
+                out_new = (s_fact * out_new) + b_fact
+            elif self.dyncin:
+                out_new = self.inj_cond[0 if self.shared_params else c](out_new, inj_lat)
+            else:
+                c_fact = cond_factors[0 if self.shared_params else c].view(batch_size, self.n_filter, 1, 1).contiguous().repeat(1, 1, out.size(2), out.size(3))
+                out_new = torch.cat([out_new, c_fact], dim=1)
+            out_new = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
