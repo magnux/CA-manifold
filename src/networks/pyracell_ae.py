@@ -131,14 +131,14 @@ class InjectedEncoder(nn.Module):
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
             if self.adain:
-                s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c], self.n_filter, dim=1)
+                s_fact, b_fact = torch.split(cond_factors[0 if self.shared_params else c // self.n_calls], self.n_filter, dim=1)
                 s_fact = s_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
                 b_fact = b_fact.view(batch_size, self.n_filter, 1, 1).contiguous()
                 out_new = (s_fact * out_new) + b_fact
             elif self.dyncin:
-                out_new = self.inj_cond[0 if self.shared_params else c](out_new, inj_lat)
+                out_new = self.inj_cond[0 if self.shared_params else c // self.n_calls](out_new, inj_lat)
             else:
-                c_fact = cond_factors[0 if self.shared_params else c].view(batch_size, self.n_filter, 1, 1).contiguous().repeat(1, 1, out.size(2), out.size(3))
+                c_fact = cond_factors[0 if self.shared_params else c // self.n_calls].view(batch_size, self.n_filter, 1, 1).contiguous().repeat(1, 1, out.size(2), out.size(3))
                 out_new = torch.cat([out_new, c_fact], dim=1)
             out_new = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
             if self.gated:
