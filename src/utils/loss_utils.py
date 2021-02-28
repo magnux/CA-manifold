@@ -97,7 +97,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss
     return reg_every, reg_param
 
 
-def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, reg_factor=1., noise_mode='normal', out_mode='mul'):
+def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, reg_factor=1., noise_mode='dct', out_mode='sum'):
     if g_out.dim() == 2:
         g_out = g_out.unsqueeze(1)
 
