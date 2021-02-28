@@ -140,7 +140,7 @@ if pre_train:
                             lat_enc = generator(z_enc, labels)
                             images_dec, _, _ = decoder(lat_enc)
 
-                            loss_dec = (1 / batch_split) * 0.1 * F.mse_loss(images_dec, images)
+                            loss_dec = (1 / batch_split) * F.mse_loss(images_dec, images)
                             model_manager.loss_backward(loss_dec, nets_to_train)
                             loss_dec_sum += loss_dec.item()
 
@@ -268,7 +268,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc = generator(z_enc, labels)
                         images_dec, _, _ = decoder(lat_enc)
 
-                        loss_dec = (1 / batch_mult) * 0.1 * F.mse_loss(images_dec, images)
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
@@ -290,7 +290,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             else:
                                 images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
 
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen.clone().detach())
+                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)

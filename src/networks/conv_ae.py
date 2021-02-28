@@ -64,7 +64,7 @@ class Encoder(nn.Module):
 
         self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
         self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(sum(self.conv_state_size) + (self.lat_size if self.injected else 0), self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
             nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
         )
@@ -121,8 +121,6 @@ class Encoder(nn.Module):
                                     conv_state_hw.view(batch_size, -1)], dim=1)
         else:
             conv_state = out.mean(dim=(2, 3))
-        if self.injected:
-            conv_state = torch.cat([conv_state, inj_lat], dim=1)
         lat = self.out_to_lat(conv_state)
 
         return lat, out_embs, None
