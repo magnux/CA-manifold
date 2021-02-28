@@ -168,7 +168,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
-                            images_dec, _, _ = decoder(lat_gen)
+                            rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
+                            images_dec, _, _ = decoder(lat_gen, ca_noise=rand_inits)
                             lat_gen = (lat_gen + 1. / 128 * torch.randn_like(lat_gen))
                             images_dec = (images_dec + 1. / 128 * torch.randn_like(images_dec)).clamp_(-1.0, 1.0)
                             images_dec = rand_erase_images(images_dec)
@@ -201,7 +202,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_gen = generator(z_gen, labels)
-                        images_dec, _, _ = decoder(lat_gen)
+                        rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
+                        images_dec, _, _ = decoder(lat_gen, ca_noise=rand_inits)
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec, labels)
 
@@ -218,7 +220,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen)
+                    rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
+                    images_gen, _, _ = decoder(lat_gen, ca_noise=rand_inits)
 
                 stream_images(images_gen, config_name + '/gan', config['training']['out_dir'] + '/gan')
 
@@ -253,8 +256,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
+            rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
             lat_gen = generator(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen)
+            images_gen, _, _ = decoder(lat_gen, ca_noise=rand_inits)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             for lab in range(config['training']['sample_labels']):
@@ -264,7 +268,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
                 lat_gen = generator(z_test, fixed_lab)
-                images_gen, _, _ = decoder(lat_gen)
+                images_gen, _, _ = decoder(lat_gen, ca_noise=rand_inits)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
