@@ -103,7 +103,7 @@ if config['training']['inception_every'] > 0:
     fid_real_samples = torch.cat(fid_real_samples, dim=0)[:10000, ...].detach().numpy()
 
 
-d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', d_reg_every if d_reg_every > 0 else 0)
+d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', 1 if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
 
@@ -193,7 +193,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_mean = 0.5 * (loss_dis_enc_sum + loss_dis_dec_sum)
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
-                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
+                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean, update_every=False)
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
