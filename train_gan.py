@@ -34,8 +34,8 @@ image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
 d_reg_param = config['training']['d_reg_param']
-d_reg_every = 1  # config['training']['d_reg_every']
-g_reg_every = 4  # config['training']['g_reg_every']
+d_reg_every = config['training']['d_reg_every']
+g_reg_every = config['training']['g_reg_every']
 batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
@@ -193,7 +193,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_mean = 0.5 * (loss_dis_enc_sum + loss_dis_dec_sum)
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
-                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean, update_every=False)
+                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
