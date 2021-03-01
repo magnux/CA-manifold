@@ -154,7 +154,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_out=False, n_seed=1, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -172,13 +172,14 @@ class Decoder(nn.Module):
         self.env_feedback = env_feedback
         self.auto_reg = auto_reg
         self.conv_irm = conv_irm
+        self.ce_in = ce_in
         self.ce_out = ce_out
         self.n_seed = n_seed
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         self.in_conv = nn.Sequential(
-            nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0),
+            nn.Conv2d(self.out_chan if not self.ce_in else self.out_chan * 256, self.n_filter, 1, 1, 0),
             ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
         )
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).reshape(n_seed, self.n_filter, 1, 1))
