@@ -295,7 +295,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec = images
                             images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
 
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
+                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen.clone().detach())
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
