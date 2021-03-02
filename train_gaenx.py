@@ -175,7 +175,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
         # Dynamic reg target for grad annealing
-        reg_dis_target = 10 * (1. - 0.9999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        reg_dis_target = 1. * (1. - 0.99 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
         # Fixed reg target
         # reg_dis_target = 0.1
 
@@ -290,7 +290,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec = images
                             images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
 
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen.clone().detach())
+                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
@@ -301,9 +301,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
-                    if not one_dec_pass:
-                        images_regen, _, _ = decoder(lat_gen, img_init=images_dec)
-                        images_gen = torch.cat([images_gen, images_regen], dim=3)
+                    # if not one_dec_pass:
+                    #     images_regen, _, _ = decoder(lat_gen, img_init=images_dec)
+                    #     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/gaenx', config['training']['out_dir'] + '/gaenx')
 
@@ -334,15 +334,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test, labels_test)
             images_gen, _, _ = decoder(lat_gen)
-            if not one_dec_pass:
-                images_regen, _, _ = decoder(lat_gen, img_init=images_gen)
-                images_gen = torch.cat([images_gen, images_regen], dim=3)
+            # if not one_dec_pass:
+            #     images_regen, _, _ = decoder(lat_gen, img_init=images_gen)
+            #     images_gen = torch.cat([images_gen, images_regen], dim=3)
             z_enc, _, _ = encoder(images, labels)
             lat_enc = generator(z_enc, labels)
             images_dec, _, _ = decoder(lat_enc)
-            if not one_dec_pass:
-                images_redec, _, _ = decoder(lat_enc, img_init=images_dec)
-                images_dec = torch.cat([images_dec, images_redec], dim=3)
+            # if not one_dec_pass:
+            #     images_redec, _, _ = decoder(lat_enc, img_init=images_dec)
+            #     images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
@@ -354,9 +354,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     fixed_lab[:, lab] = 1
                 lat_gen = generator(z_test, fixed_lab)
                 images_gen, _, _ = decoder(lat_gen)
-                if not one_dec_pass:
-                    images_regen, _, _ = decoder(lat_gen, img_init=images_dec)
-                    images_gen = torch.cat([images_gen, images_regen], dim=3)
+                # if not one_dec_pass:
+                #     images_regen, _, _ = decoder(lat_gen, img_init=images_dec)
+                #     images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
