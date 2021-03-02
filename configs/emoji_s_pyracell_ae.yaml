@@ -10,7 +10,7 @@ network:
   class: pyracell_ae
   kwargs:
     ds_size: 32
-    n_filter: 8
+    n_filter: 32
     embed_size: 256
     lat_size: 512
     n_calls: 4
@@ -42,7 +42,7 @@ training:
   sample_every: 16
   sample_labels: 9
   d_reg_param: 10.
-  d_reg_every: 16
+  d_reg_every: 1
   g_reg_every: 0
   through_grads: True
   inception_every: 0
