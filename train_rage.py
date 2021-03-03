@@ -182,17 +182,17 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                        with torch.no_grad():
-                            lat_gen = generator(z_gen, labels)
-                            images_dec, _, _ = decoder(lat_gen)
-                            images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
-
-                        z_dec, _, _ = encoder(images_redec, labels)
-                        lat_dec = generator(z_dec, labels)
-
-                        loss_dis_dec = (1 / batch_mult) * 0.5 * kl_factor * -age_gaussian_kl_loss(lat_dec)
-                        model_manager.loss_backward(loss_dis_dec, nets_to_train)
-                        loss_dis_dec_sum -= loss_dis_dec.item()
+                        # with torch.no_grad():
+                        #     lat_gen = generator(z_gen, labels)
+                        #     images_dec, _, _ = decoder(lat_gen)
+                        #     images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
+                        #
+                        # z_dec, _, _ = encoder(images_redec, labels)
+                        # lat_dec = generator(z_dec, labels)
+                        #
+                        # loss_dis_dec = (1 / batch_mult) * 0.5 * kl_factor * -age_gaussian_kl_loss(lat_dec)
+                        # model_manager.loss_backward(loss_dis_dec, nets_to_train)
+                        # loss_dis_dec_sum -= loss_dis_dec.item()
 
                         with torch.no_grad():
                             z_enc, _, _ = encoder(images, labels)
@@ -202,7 +202,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_dec, _, _ = encoder(images_redec, labels)
                         lat_dec = generator(z_dec, labels)
 
-                        loss_dis_dec = (1 / batch_mult) * 0.5 * kl_factor * -age_gaussian_kl_loss(lat_dec)
+                        loss_dis_dec = (1 / batch_mult) * kl_factor * -age_gaussian_kl_loss(lat_dec)
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum -= loss_dis_dec.item()
 
@@ -212,15 +212,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        lat_gen = generator(z_gen, labels)
-                        images_dec, _, _ = decoder(lat_gen)
-                        images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
-                        z_dec, _, _ = encoder(images_redec, labels)
-                        lat_dec = generator(z_dec, labels)
-
-                        loss_gen_dec = (1 / batch_mult) * 0.5 * kl_factor * age_gaussian_kl_loss(lat_dec)
-                        model_manager.loss_backward(loss_gen_dec, nets_to_train)
-                        loss_gen_dec_sum += loss_gen_dec.item()
+                        # lat_gen = generator(z_gen, labels)
+                        # images_dec, _, _ = decoder(lat_gen)
+                        # images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
+                        # z_dec, _, _ = encoder(images_redec, labels)
+                        # lat_dec = generator(z_dec, labels)
+                        #
+                        # loss_gen_dec = (1 / batch_mult) * 0.5 * kl_factor * age_gaussian_kl_loss(lat_dec)
+                        # model_manager.loss_backward(loss_gen_dec, nets_to_train)
+                        # loss_gen_dec_sum += loss_gen_dec.item()
 
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
@@ -228,7 +228,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_dec, _, _ = encoder(images_redec, labels)
                         lat_dec = generator(z_dec, labels)
 
-                        loss_gen_dec = (1 / batch_mult) * 0.5 * kl_factor * age_gaussian_kl_loss(lat_dec)
+                        loss_gen_dec = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(lat_dec)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
