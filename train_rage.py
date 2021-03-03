@@ -183,8 +183,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
-                            images_dec, out_embs, _ = decoder(lat_gen)
-                            images_redec, _, _ = decoder(lat_gen, out_embs[-1])
+                            images_dec, _, _ = decoder(lat_gen)
+                            images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
 
                         z_dec, _, _ = encoder(images_redec, labels)
 
@@ -195,12 +195,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
-                            images_dec, out_embs, _ = decoder(lat_enc)
-                            images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+                            images_redec, _, _ = decoder(lat_enc, img_init=images)
 
-                        z_dec, _, _ = encoder(images_redec, labels)
+                        z_reenc, _, _ = encoder(images_redec, labels)
 
-                        loss_dis_dec = (1 / batch_mult) * 0.5 * kl_factor * -age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
+                        loss_dis_dec = (1 / batch_mult) * 0.5 * kl_factor * -age_gaussian_kl_loss(F.normalize(z_reenc, dim=1))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
@@ -212,8 +211,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
-                        images_dec, out_embs, _ = decoder(lat_enc)
-                        images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+                        images_redec, _, _ = decoder(lat_enc, img_init=images)
                         z_reenc, _, _ = encoder(images_redec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * 0.5 * kl_factor * age_gaussian_kl_loss(F.normalize(z_reenc, dim=1))
@@ -221,8 +219,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec_sum += loss_gen_dec.item()
 
                         lat_gen = generator(z_gen, labels)
-                        images_dec, out_embs, _ = decoder(lat_gen)
-                        images_redec, _, _ = decoder(lat_gen, out_embs[-1])
+                        images_dec, _, _ = decoder(lat_gen)
+                        images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
                         z_dec, _, _ = encoder(images_redec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * 0.5 * kl_factor * age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
@@ -237,7 +235,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
-                        images_dec, out_embs, _ = decoder(lat_enc)
+                        images_dec, _, _ = decoder(lat_enc)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train)
@@ -246,8 +244,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
-                    images_gen, out_embs, _ = decoder(lat_gen)
-                    images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                    images_gen, _, _ = decoder(lat_gen)
+                    images_regen, _, _ = decoder(lat_gen, img_init=images_gen)
                     images_gen = torch.cat([images_gen, images_regen], dim=3)
 
                 stream_images(images_gen, config_name + '/rage', config['training']['out_dir'] + '/rage')
@@ -276,13 +274,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             t.write('Creating samples...')
             images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test, labels_test)
-            images_gen, out_embs, _ = decoder(lat_gen)
-            images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+            images_gen, _, _ = decoder(lat_gen)
+            images_regen, _, _ = decoder(lat_gen, img_init=images_gen)
             images_gen = torch.cat([images_gen, images_regen], dim=3)
             z_enc, _, _ = encoder(images, labels)
             lat_enc = generator(z_enc, labels)
-            images_dec, out_embs, _ = decoder(lat_enc)
-            images_redec, _, _ = decoder(lat_enc, out_embs[-1])
+            images_dec, _, _ = decoder(lat_enc)
+            images_redec, _, _ = decoder(lat_enc, img_init=images_gen)
             images_dec = torch.cat([images_dec, images_redec], dim=3)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
@@ -294,8 +292,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
                 lat_gen = generator(z_test, fixed_lab)
-                images_gen, out_embs, _ = decoder(lat_gen)
-                images_regen, _, _ = decoder(lat_gen, out_embs[-1])
+                images_gen, _, _ = decoder(lat_gen)
+                images_regen, _, _ = decoder(lat_gen, img_init=images_gen)
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
