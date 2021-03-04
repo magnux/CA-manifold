@@ -85,7 +85,7 @@ def get_inputs(trainiter, batch_size, device):
         images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
     images = images.detach().requires_grad_()
-    z_gen = F.normalize(zdist.sample((images.size(0),)))
+    z_gen = F.normalize(zdist.sample((images.size(0),)), dim=1)
     z_gen.detach_().requires_grad_()
     return images, labels, z_gen, trainiter
 
@@ -206,7 +206,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
 
-                    for _ in range(batch_mult):
+                    for _ in range(batch_mult * 2):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_gen = generator(z_gen, labels)
@@ -223,7 +223,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_redec, _, _ = decoder(lat_enc, img_init=images)
                         z_redec, _, _ = encoder(images_redec, labels)
 
-                        loss_enc = (1 / batch_mult) * (2 - (F.normalize(z_gen, dim=1)).mul(F.normalize(z_redec, dim=1)).mean())
+                        loss_enc = (1 / batch_mult) * (2 - z_gen.mul(F.normalize(z_redec, dim=1)).mean())
                         model_manager.loss_backward(loss_enc, nets_to_train)
                         loss_enc_sum += loss_enc.item()
 
