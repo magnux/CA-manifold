@@ -218,7 +218,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train, retain_graph=True)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        loss_gen_dec = (1 / batch_mult) * 0.5 * kl_factor * age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
+                        loss_gen_dec = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
@@ -227,7 +227,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_redec, _, _ = decoder(lat_enc, img_init=images)
                         z_dec, _, _ = encoder(images_redec, labels)
 
-                        loss_gen_dec = (1 / batch_mult) * 0.5 * kl_factor * age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
+                        loss_gen_dec = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
