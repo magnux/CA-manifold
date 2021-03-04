@@ -241,10 +241,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
-                        images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
-                        z_dec, _, _ = encoder(images_redec, labels)
+                        z_dec, _, _ = encoder(images_dec, labels)
+                        lat_dec = generator(z_dec, labels)
 
-                        loss_enc = (1 / batch_mult) * F.l1_loss(z_dec, z_gen)
+                        loss_enc = (1 / batch_mult) * F.l1_loss(lat_dec, lat_gen)
                         model_manager.loss_backward(loss_enc, nets_to_train)
                         loss_enc_sum += loss_enc.item()
 
