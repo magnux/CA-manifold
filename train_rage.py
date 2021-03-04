@@ -166,7 +166,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             with model_manager.on_batch():
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
-                loss_gen_dec_sum = 0, 0
+                loss_gen_dec_sum = 0
                 loss_dec_sum = 0
 
                 # Discriminator step
