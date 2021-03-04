@@ -184,9 +184,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
-                            images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
 
-                        z_dec, _, _ = encoder(images_redec, labels)
+                        z_dec, _, _ = encoder(images_dec, labels)
 
                         loss_dis_dec = (1 / batch_mult) * kl_factor * -age_gaussian_kl_loss(F.normalize(z_dec, dim=1))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
