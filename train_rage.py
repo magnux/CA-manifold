@@ -38,7 +38,7 @@ batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
 kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 1.
-gen_steps = config['training']['gen_steps'] if 'gen_steps' in config['training'] else 2
+gen_steps = config['training']['gen_steps'] if 'gen_steps' in config['training'] else 4
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -86,7 +86,7 @@ def get_inputs(trainiter, batch_size, device):
         images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
     images = images.detach().requires_grad_()
-    z_gen = F.normalize(zdist.sample((images.size(0),)), dim=1)
+    z_gen = zdist.sample((images.size(0),))
     z_gen.detach_().requires_grad_()
     return images, labels, z_gen, trainiter
 
