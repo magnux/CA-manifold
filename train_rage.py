@@ -167,7 +167,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 loss_gen_dec_sum = 0
-                loss_dec_sum = 0
+                loss_enc_sum, loss_dec_sum = 0, 0
 
                 # Discriminator step
                 with model_manager.on_step(['encoder']) as nets_to_train:
@@ -223,9 +223,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_redec, _, _ = decoder(lat_enc, img_init=images)
                         z_redec, _, _ = encoder(images_redec, labels)
 
-                        loss_gen_dec = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_redec, dim=1))
-                        model_manager.loss_backward(loss_gen_dec, nets_to_train)
-                        loss_gen_dec_sum += loss_gen_dec.item()
+                        loss_enc = (1 / batch_mult) * (2 - (F.normalize(z_gen, dim=1)).mul(F.normalize(z_redec, dim=1)).mean())
+                        model_manager.loss_backward(loss_enc, nets_to_train)
+                        loss_enc_sum += loss_enc.item()
 
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
@@ -258,6 +258,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
+                model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 it += 1
