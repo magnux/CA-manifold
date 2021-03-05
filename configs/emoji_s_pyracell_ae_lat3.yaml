@@ -24,7 +24,7 @@ z_dist:
   type: gauss
   z_dim: 256
 training:
-  out_dir: save/emoji_s_pyracell_ae
+  out_dir: save/emoji_s_pyracell_ae_lat3
   persistence: False
   regeneration: False
   batch_size: 64
