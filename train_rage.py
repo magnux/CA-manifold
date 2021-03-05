@@ -222,20 +222,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
+                            images_dec, _, _ = decoder(lat_enc)
+
+                            loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                            model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
+                            loss_dec_sum += loss_dec.item()
+
                             images_redec, _, _ = decoder(lat_enc, img_init=images)
                             z_redec, _, _ = encoder(images_redec, labels)
 
                             loss_gen_dec = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_redec, dim=1))
                             model_manager.loss_backward(loss_gen_dec, nets_to_train)
                             loss_gen_dec_sum += loss_gen_dec.item()
-
-                            z_enc, _, _ = encoder(images, labels)
-                            lat_enc = generator(z_enc, labels)
-                            images_dec, _, _ = decoder(lat_enc)
-
-                            loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                            model_manager.loss_backward(loss_dec, nets_to_train)
-                            loss_dec_sum += loss_dec.item()
 
                 # Streaming Images
                 with torch.no_grad():
