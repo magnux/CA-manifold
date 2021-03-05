@@ -38,6 +38,7 @@ batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
 kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 1.
+gen_steps = config['training']['gen_steps'] if 'gen_steps' in config['training'] else 2
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -166,6 +167,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             with model_manager.on_batch():
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
+                loss_gen_dec_sum = 0
+                loss_dec_sum = 0
 
                 # Discriminator step
                 with model_manager.on_step(['encoder']) as nets_to_train:
@@ -190,10 +193,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum -= loss_dis_dec.item()
 
-                loss_gen_dec_sum_mean = loss_dis_dec_sum * 1.001
-                while loss_gen_dec_sum_mean > loss_dis_dec_sum:
-                    loss_dec_sum = 0
-                    loss_gen_dec_sum = 0
+                for _ in range(gen_steps):
 
                     # Generator step
                     with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
@@ -219,8 +219,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(loss_gen_dec, nets_to_train)
                             loss_gen_dec_sum += loss_gen_dec.item()
 
-                    loss_gen_dec_sum_mean = 0.5 * loss_gen_dec_sum_mean + 0.5 * loss_gen_dec_sum
-
                     # AE step
                     with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
@@ -234,8 +232,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                             model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                             loss_dec_sum += loss_dec.item()
-
-                loss_gen_dec_sum = loss_gen_dec_sum_mean
 
                 # Streaming Images
                 with torch.no_grad():
