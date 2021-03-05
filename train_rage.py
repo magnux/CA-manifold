@@ -225,7 +225,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_enc)
                             z_redec, _, _ = encoder(images_dec, labels)
 
-                            loss_enc = (1 / batch_mult) * (2 - z_enc.mul(F.normalize(z_redec, dim=1)).mean())
+                            loss_enc = (1 / batch_mult) * (2 - F.normalize(z_enc, dim=1).mul(F.normalize(z_redec, dim=1)).mean())
                             model_manager.loss_backward(loss_enc, nets_to_train)
                             loss_enc_sum += loss_enc.item()
 
