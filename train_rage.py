@@ -168,7 +168,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 loss_gen_dec_sum = 0
-                loss_enc_sum, loss_dec_sum = 0, 0
+                loss_dec_sum = 0
 
                 # Discriminator step
                 with model_manager.on_step(['encoder']) as nets_to_train:
@@ -258,7 +258,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
-                model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 it += 1
