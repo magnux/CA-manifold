@@ -191,7 +191,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum -= loss_dis_dec.item()
 
-                loss_gen_dec_sum_mean = loss_dis_dec_sum * 1.001
+                loss_gen_dec_sum_mean = loss_dis_dec_sum * 1.5
                 while loss_gen_dec_sum_mean > loss_dis_dec_sum:
                     loss_gen_dec_sum = 0
 
@@ -219,23 +219,23 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(loss_gen_dec, nets_to_train)
                             loss_gen_dec_sum += loss_gen_dec.item()
 
+                    # AE step
+                    with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+
+                        for _ in range(batch_mult):
+                            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                            z_enc, _, _ = encoder(images, labels)
+                            lat_enc = generator(z_enc, labels)
+                            images_dec, _, _ = decoder(lat_enc)
+
+                            loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                            model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
+                            loss_dec_sum += loss_dec.item()
+
                     loss_dis_dec_sum_mean = 0.5 * loss_gen_dec_sum_mean + 0.5 * loss_gen_dec_sum
 
                 loss_gen_dec_sum = loss_gen_dec_sum_mean
-
-                # AE step
-                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
-
-                    for _ in range(batch_mult):
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-
-                        z_enc, _, _ = encoder(images, labels)
-                        lat_enc = generator(z_enc, labels)
-                        images_dec, _, _ = decoder(lat_enc)
-
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
-                        loss_dec_sum += loss_dec.item()
 
                 # Streaming Images
                 with torch.no_grad():
