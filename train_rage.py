@@ -193,8 +193,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum -= loss_dis_dec.item()
 
-                diss_loss_ratio = min(1., loss_dis_dec_sum / loss_dis_enc_sum)
-
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
 
@@ -206,7 +204,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
                         z_redec, _, _ = encoder(images_redec, labels)
 
-                        loss_gen_dec = (1 / batch_mult) * diss_loss_ratio * kl_factor * 0.5 * age_gaussian_kl_loss(F.normalize(z_redec, dim=1))
+                        loss_gen_dec = (1 / batch_mult) * (loss_dis_dec_sum / loss_dis_enc_sum) * kl_factor * 0.5 * age_gaussian_kl_loss(F.normalize(z_redec, dim=1))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
@@ -221,7 +219,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_redec, _, _ = decoder(lat_enc, img_init=images)
                         z_redec, _, _ = encoder(images_redec, labels)
 
-                        loss_gen_dec = (1 / batch_mult) * diss_loss_ratio * kl_factor * 0.5 * age_gaussian_kl_loss(F.normalize(z_redec, dim=1))
+                        loss_gen_dec = (1 / batch_mult) * (loss_dis_enc_sum / loss_dis_dec_sum) * kl_factor * 0.5 * age_gaussian_kl_loss(F.normalize(z_redec, dim=1))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
