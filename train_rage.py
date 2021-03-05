@@ -190,11 +190,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec.requires_grad_()
                         images_redec.requires_grad_()
 
-                        z_dec, _, _ = encoder(images_dec, labels)
-
-                        loss_enc = (1 / batch_mult) * F.l1_loss(z_dec, z_gen)
-                        model_manager.loss_backward(loss_enc, nets_to_train)
-                        loss_enc_sum += loss_enc.item()
+                        # z_dec, _, _ = encoder(images_dec, labels)
+                        #
+                        # loss_enc = (1 / batch_mult) * F.l1_loss(z_dec, z_gen)
+                        # model_manager.loss_backward(loss_enc, nets_to_train)
+                        # loss_enc_sum += loss_enc.item()
 
                         z_redec, _, _ = encoder(images_redec, labels)
                         lat_redec = generator(z_redec, labels)
