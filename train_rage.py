@@ -209,6 +209,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_gen)
                             images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
 
+                        images_redec.requires_grad_()
                         z_redec, _, _ = encoder(images_redec, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
