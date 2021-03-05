@@ -38,7 +38,7 @@ batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
 kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 1.
-gen_steps = config['training']['gen_steps'] if 'gen_steps' in config['training'] else 4
+gen_steps = config['training']['gen_steps'] if 'gen_steps' in config['training'] else 2
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -211,14 +211,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         for _ in range(batch_mult):
                             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                            # lat_gen = generator(z_gen, labels)
-                            # images_dec, _, _ = decoder(lat_gen)
-                            # images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
-                            # z_redec, _, _ = encoder(images_redec, labels)
-                            #
-                            # loss_gen_dec = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_redec, dim=1))
-                            # model_manager.loss_backward(loss_gen_dec, nets_to_train)
-                            # loss_gen_dec_sum += loss_gen_dec.item()
+                            lat_gen = generator(z_gen, labels)
+                            images_dec, _, _ = decoder(lat_gen)
+                            images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
+                            z_redec, _, _ = encoder(images_redec, labels)
+
+                            loss_gen_dec = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_redec, dim=1))
+                            model_manager.loss_backward(loss_gen_dec, nets_to_train)
+                            loss_gen_dec_sum += loss_gen_dec.item()
 
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
