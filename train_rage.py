@@ -176,8 +176,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         z_enc, _, _ = encoder(images, labels)
+                        z_norm = z_enc.norm(2, dim=1)
 
                         loss_dis_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_enc, dim=1))
+                        loss_dis_enc += F.mse_loss(z_norm, torch.ones_like(z_norm))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
@@ -188,8 +190,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         images_redec.requires_grad_()
                         z_redec, _, _ = encoder(images_redec, labels)
+                        z_norm = z_redec.norm(2, dim=1)
 
                         loss_dis_dec = (1 / batch_mult) * kl_factor * -age_gaussian_kl_loss(F.normalize(z_redec, dim=1))
+                        loss_dis_dec += F.mse_loss(z_norm, torch.ones_like(z_norm))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum -= loss_dis_dec.item()
 
