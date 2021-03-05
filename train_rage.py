@@ -191,7 +191,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum -= loss_dis_dec.item()
 
-                loss_gen_dec_sum_mean = loss_dis_dec_sum * 1.5
+                loss_gen_dec_sum_mean = loss_dis_dec_sum * 1.001
                 while loss_gen_dec_sum_mean > loss_dis_dec_sum:
                     loss_gen_dec_sum = 0
 
