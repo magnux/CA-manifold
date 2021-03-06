@@ -182,6 +182,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum -= loss_dis_enc.item()
 
+                        clip_grad_norm_(encoder.parameters(), 0.5, torch._six.inf)
+
                 with model_manager.on_step(['encoder']) as nets_to_train:
 
                     for _ in range(batch_mult):
@@ -214,6 +216,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec = (1 / batch_mult) * kl_factor * 0.5 * -age_gaussian_kl_loss(F.normalize(z_redec))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum -= loss_gen_dec.item()
+
+                        clip_grad_norm_(encoder.parameters(), 0.5, torch._six.inf)
 
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
 
