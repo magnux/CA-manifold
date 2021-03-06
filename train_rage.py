@@ -239,19 +239,19 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        # z_enc, _, _ = encoder(images, labels)
-                        # lat_enc = generator(z_enc, labels)
-                        # images_dec, _, _ = decoder(lat_enc)
-                        #
-                        # loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        # model_manager.loss_backward(loss_dec, nets_to_train)
-                        # loss_dec_sum += loss_dec.item()
+                        z_enc, _, _ = encoder(images, labels)
+                        lat_enc = generator(z_enc, labels)
+                        images_dec, _, _ = decoder(lat_enc)
+
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                        model_manager.loss_backward(loss_dec, nets_to_train)
+                        loss_dec_sum += loss_dec.item()
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, _, _ = decoder(lat_gen)
                         z_dec, _, _ = encoder(images_dec, labels)
 
-                        loss_enc = (1 / batch_mult) * F.l1_loss(z_dec, z_gen)
+                        loss_enc = (1 / batch_mult) * F.mse_loss(z_dec, z_gen)
                         model_manager.loss_backward(loss_enc, nets_to_train)
                         loss_enc_sum += loss_enc.item()
 
