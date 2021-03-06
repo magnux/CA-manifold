@@ -195,7 +195,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum -= loss_dis_dec.item()
 
-                    clip_grad_norm_(encoder.parameters(), 0.9, torch._six.inf)
+                    clip_grad_norm_(encoder.parameters(), 0.1, torch._six.inf)
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
