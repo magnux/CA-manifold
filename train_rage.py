@@ -234,7 +234,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec_sum -= loss_gen_dec.item()
 
                 # AE step
-                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+                with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -251,7 +251,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec, _, _ = decoder(lat_gen)
                         z_dec, _, _ = encoder(images_dec, labels)
 
-                        loss_enc = (1 / batch_mult) * F.mse_loss(z_dec, z_gen)
+                        loss_enc = (1 / batch_mult) * F.l1_loss(z_dec, z_gen)
                         model_manager.loss_backward(loss_enc, nets_to_train)
                         loss_enc_sum += loss_enc.item()
 
