@@ -247,13 +247,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
-                        lat_gen = generator(z_gen, labels)
-                        images_dec, _, _ = decoder(lat_gen)
-                        z_dec, _, _ = encoder(images_dec, labels)
-
-                        loss_enc = (1 / batch_mult) * F.mse_loss(z_dec, z_gen)
-                        model_manager.loss_backward(loss_enc, nets_to_train)
-                        loss_enc_sum += loss_enc.item()
+                        # lat_gen = generator(z_gen, labels)
+                        # images_dec, _, _ = decoder(lat_gen)
+                        # z_dec, _, _ = encoder(images_dec, labels)
+                        #
+                        # loss_enc = (1 / batch_mult) * F.mse_loss(z_dec, z_gen)
+                        # model_manager.loss_backward(loss_enc, nets_to_train)
+                        # loss_enc_sum += loss_enc.item()
 
                 # Streaming Images
                 with torch.no_grad():
@@ -278,7 +278,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
-                model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
+                # model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 it += 1
