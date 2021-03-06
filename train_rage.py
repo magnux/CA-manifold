@@ -38,7 +38,7 @@ batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
-kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 0.1
+kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 1.0
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -244,16 +244,16 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec, _, _ = decoder(lat_enc)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
+                        model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
-                        # lat_gen = generator(z_gen, labels)
-                        # images_dec, _, _ = decoder(lat_gen)
-                        # z_dec, _, _ = encoder(images_dec, labels)
-                        #
-                        # loss_enc = (1 / batch_mult) * F.l1_loss(z_dec, z_gen)
-                        # model_manager.loss_backward(loss_enc, nets_to_train)
-                        # loss_enc_sum += loss_enc.item()
+                        lat_gen = generator(z_gen, labels)
+                        images_dec, _, _ = decoder(lat_gen)
+                        z_dec, _, _ = encoder(images_dec, labels)
+
+                        loss_enc = (1 / batch_mult) * F.l1_loss(z_dec, z_gen)
+                        model_manager.loss_backward(loss_enc, nets_to_train)
+                        loss_enc_sum += loss_enc.item()
 
                 # Streaming Images
                 with torch.no_grad():
@@ -278,7 +278,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
-                # model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 it += 1
