@@ -178,11 +178,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_enc, _, _ = encoder(images, labels)
 
-                        loss_dis_enc = (1 / batch_mult) * kl_factor * 0.5 * age_gaussian_kl_loss(F.normalize(z_enc))
+                        loss_dis_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_enc))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
-
-                        clip_grad_norm_(encoder.parameters(), 0.5, torch._six.inf)
 
                 with model_manager.on_step(['encoder']) as nets_to_train:
 
@@ -198,11 +196,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_redec, _, _ = encoder(images_redec, labels)
 
-                        loss_dis_dec = (1 / batch_mult) * kl_factor * 0.25 * -age_gaussian_kl_loss(F.normalize(z_redec))
+                        loss_dis_dec = (1 / batch_mult) * kl_factor * -age_gaussian_kl_loss(F.normalize(z_redec))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum -= loss_dis_dec.item()
-
-                        clip_grad_norm_(encoder.parameters(), 0.25, torch._six.inf)
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
@@ -229,7 +225,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_redec, _, _ = decoder(lat_enc, img_init=images)
                         z_redec, _, _ = encoder(images_redec, labels)
 
-                        loss_gen_enc = (1 / batch_mult) * (1 / (0.1 + F.normalize(z_redec, dim=1).mul(F.normalize(z_enc, dim=1)).pow(2).mean()))
+                        loss_gen_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_redec))
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
