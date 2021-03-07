@@ -324,7 +324,4 @@ def age_gaussian_kl_loss(samples, kl_dir_pq=False):
 
     KL = (t1 + t2 - 0.5).mean()
 
-    # rocksteady grads
-    samples.register_hook(lambda grad: grad - grad.mean(0, keepdim=True))
-
     return KL
