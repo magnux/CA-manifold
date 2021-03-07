@@ -150,14 +150,6 @@ if pre_train:
     print('Pre-training is complete...')
     model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 8)
 
-
-z_ramp = torch.linspace(0, 1, config['z_dist']['z_dim'], device=device).view(1, config['z_dist']['z_dim'])
-z_div = min(len(trainloader) // batch_split, 64)
-def mask_z(z, it):
-    mask = (z_ramp <= (((it % z_div) + (z_div / 2)) / z_div)).float()
-    return mask * z + ((1 - mask) * z).detach()
-
-
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
 
@@ -178,14 +170,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
                 loss_enc_sum, loss_dec_sum = 0, 0
 
-                # Discriminator steps
+                # Discriminator step
                 with model_manager.on_step(['encoder']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         z_enc, _, _ = encoder(images, labels)
-                        z_enc = mask_z(z_enc, it)
 
                         loss_dis_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_enc))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
@@ -204,13 +195,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_redec.requires_grad_()
 
                         z_redec, _, _ = encoder(images_redec, labels)
-                        z_redec = mask_z(z_redec, it)
 
-                        loss_dis_dec = (1 / batch_mult) * kl_factor * -age_gaussian_kl_loss(F.normalize(z_redec))
+                        loss_dis_dec = (1 / batch_mult) * kl_factor * 0.1 * -age_gaussian_kl_loss(F.normalize(z_redec))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum -= loss_dis_dec.item()
 
-                # Generator steps
+                        clip_grad_norm_(encoder.parameters(), 0.1, torch._six.inf)
+
+                # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
@@ -235,11 +227,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_redec, _, _ = decoder(lat_enc, img_init=images)
                         z_redec, _, _ = encoder(images_redec, labels)
 
-                        loss_gen_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_redec))
+                        loss_gen_enc = (1 / batch_mult) * kl_factor * 0.1 * age_gaussian_kl_loss(F.normalize(z_redec))
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                # AE steps
+                        clip_grad_norm_(encoder.parameters(), 0.1, torch._six.inf)
+
+                # AE step
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
