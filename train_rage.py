@@ -153,7 +153,7 @@ if pre_train:
 
 z_ramp = torch.linspace(0, 1, config['z_dist']['z_dim'], device=device).view(1, config['z_dist']['z_dim'])
 def mask_z(z, it):
-    mask = z_ramp < (it % min(len(trainloader) // batch_split, 64))
+    mask = (z_ramp < (it % min(len(trainloader) // batch_split, 64))).float()
     return mask * z + ((1 - mask) * z).detach()
 
 
