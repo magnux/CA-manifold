@@ -177,11 +177,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         z_enc, _, _ = encoder(images, labels)
-                        lat_enc = generator(z_enc, labels)
-                        images_redec, _, _ = decoder(lat_enc, img_init=images)
-                        z_redec, _, _ = encoder(images_redec, labels)
+                        if (it % 2) == 1:
+                            lat_enc = generator(z_enc, labels)
+                            images_redec, _, _ = decoder(lat_enc, img_init=images)
+                            z_enc, _, _ = encoder(images_redec, labels)
 
-                        loss_dis_enc = (1 / batch_mult) * kl_factor * 0.5 * -age_gaussian_kl_loss(F.normalize(z_redec))
+                        loss_dis_enc = (1 / batch_mult) * kl_factor * 0.5 * -age_gaussian_kl_loss(F.normalize(z_enc))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum -= loss_dis_enc.item()
 
