@@ -282,18 +282,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if (it % 2) == 0:
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
-
-                            if one_dec_pass:
-                                images_redec = images_dec
-                            else:
-                                if config['training']['through_grads']:
-                                    images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
-                                else:
-                                    images_redec, _, _ = decoder(lat_gen.clone().detach(), img_init=images_dec.clone().detach())
                         else:
                             lat_gen = generator(z_enc.clone().detach(), labels)
-                            images_dec = images
-                            images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
+                            images_dec, _, _ = decoder(lat_gen)
+                            images_dec = images_dec + (images - images_dec).detach()
+
+                        if one_dec_pass:
+                            images_redec = images_dec
+                        else:
+                            if config['training']['through_grads']:
+                                images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
+                            else:
+                                images_redec, _, _ = decoder(lat_gen.clone().detach(), img_init=images_dec.clone().detach())
 
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
