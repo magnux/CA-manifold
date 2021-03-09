@@ -291,7 +291,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 else:
                                     images_redec, _, _ = decoder(lat_gen.clone().detach(), img_init=images_dec.clone().detach())
                         else:
-                            lat_gen = lat_enc.clone().detach()
+                            lat_gen = generator(z_enc.clone().detach(), labels)
                             images_dec = images
                             images_redec, _, _ = decoder(lat_gen, img_init=images_dec)
 
