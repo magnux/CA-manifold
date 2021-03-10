@@ -283,7 +283,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_gen = generator(z_gen, labels)
                             images_dec, _, _ = decoder(lat_gen)
                         else:
-                            lat_gen = generator(z_enc.clone().detach(), labels)
+                            z_enc, _, _ = encoder(images, labels)
+                            lat_gen = generator(z_enc, labels)
                             images_dec, _, _ = decoder(lat_gen)
                             images_dec = images_dec + (images - images_dec).detach()
 
