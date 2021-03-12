@@ -178,10 +178,6 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        self.in_conv = nn.Sequential(
-            nn.Conv2d(self.out_chan if not self.ce_in else self.out_chan * 256, self.n_filter, 1, 1, 0),
-            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
-        )
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).reshape(n_seed, self.n_filter, 1, 1))
         self.in_ds = nn.Sequential(
             GaussianSmoothing(self.n_filter, 3, 1, 1),
@@ -220,7 +216,7 @@ class Decoder(nn.Module):
             nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         )
 
-    def forward(self, lat, ca_init=None, ca_noise=None, seed_n=0, img_init=None):
+    def forward(self, lat, ca_init=None, ca_noise=None, seed_n=0):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
@@ -242,7 +238,7 @@ class Decoder(nn.Module):
                 out = F.instance_norm(out)
                 if ca_noise is not None:
                     out = out + self.in_ds(ca_noise)
-        elif img_init is None:
+        else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
             elif isinstance(seed_n, list):
@@ -255,9 +251,6 @@ class Decoder(nn.Module):
             # out = self.in_conv(out)
             out = self.in_ds(ca_init) + proj
             out = F.instance_norm(out)
-        else:
-            ca_init = self.in_conv(img_init)
-            out = self.in_ds(ca_init)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
