@@ -271,7 +271,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Print progress
                 running_loss_dis[batch % window_size] = loss_dis_enc_sum + loss_dis_dec_sum
-                running_loss_gen[batch % window_size] = loss_gen_enc_sum + loss_gen_dec_sum
+                running_loss_gen[batch % window_size] = loss_gen_dec_sum
                 running_factor = window_size if batch > window_size else batch + 1
                 t.set_postfix(loss_dis='%.2e' % (np.sum(running_loss_dis) / running_factor),
                               loss_gen='%.2e' % (np.sum(running_loss_gen) / running_factor))
