@@ -179,7 +179,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
-                loss_dec_sum = 0
+                loss_enc_sum, loss_dec_sum = 0, 0
 
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
@@ -213,7 +213,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, out_embs, _ = decoder(lat_gen)
                             images_redec, _, _ = decoder(lat_gen, out_embs[-1])
 
+                        images_dec.requires_grad_()
                         images_redec.requires_grad_()
+
+                        z_dec, _, _ = encoder(images_dec, labels)
+
+                        loss_enc = (1 / batch_mult) * (2 - (F.normalize(z_dec)).mul(F.normalize(z_gen)).mean())
+                        model_manager.loss_backward(loss_enc, nets_to_train)
+                        loss_enc_sum += loss_enc.item()
 
                         z_redec, _, _ = encoder(images_redec, labels)
 
@@ -295,6 +302,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
+                model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
