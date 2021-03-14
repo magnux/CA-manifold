@@ -197,7 +197,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_enc, _, _ = encoder(images, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(z_enc, images)
+                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(z_enc, [images, labels])
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
@@ -215,7 +215,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_redec, _, _ = encoder(images_redec, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(z_redec, images_redec)
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(z_redec, [images_redec, labels])
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
