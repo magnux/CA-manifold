@@ -88,7 +88,6 @@ def get_inputs(trainiter, batch_size, device):
     if batch_size % config['training']['batch_size'] > 0:
         images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
-    labels = labels.detach().requires_grad_()
     images = images.detach().requires_grad_()
     z_gen = zdist.sample((images.size(0),))
     z_gen.detach_().requires_grad_()
@@ -198,7 +197,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_enc, _, _ = encoder(images, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(z_enc, [images, labels])
+                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(z_enc, [images, encoder.inj_lat])
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
@@ -216,7 +215,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_redec, _, _ = encoder(images_redec, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(z_redec, [images_redec, labels])
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(z_redec, [images_redec, encoder.inj_lat])
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
