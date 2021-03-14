@@ -35,7 +35,7 @@ def compute_gan_loss(d_out, target, gan_type='standard'):
 
 
 def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
-    batch_size = d_in[0].size(0) if isinstance(d_in, list) else d_in.size(0)
+    batch_size = d_in.size(0)
     grad_dout = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
     assert(grad_dout.size() == d_in.size())
