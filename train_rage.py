@@ -41,7 +41,6 @@ batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
 kl_factor = config['training']['kl_factor'] if 'kl_factor' in config['training'] else 1.
-ae_steps = config['training']['ae_steps'] if 'ae_steps' in config['training'] else 2
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -179,8 +178,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
-                loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
-                loss_enc_sum, loss_dec_sum = 0, 0
+                loss_gen_dec_sum = 0
+                loss_dec_sum = 0
 
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
@@ -253,28 +252,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                for _ in range(ae_steps):
-                    # AE step
-                    with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+                        z_enc, _, _ = encoder(images, labels)
+                        lat_enc = generator(z_enc, labels)
+                        images_dec, _, _ = decoder(lat_enc)
 
-                        for _ in range(batch_mult):
-                            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-
-                            z_enc, _, _ = encoder(images, labels)
-                            lat_enc = generator(z_enc, labels)
-                            images_dec, _, _ = decoder(lat_enc)
-
-                            loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                            model_manager.loss_backward(loss_dec, nets_to_train)
-                            loss_dec_sum += loss_dec.item()
-
-                            # lat_gen = generator(z_gen, labels)
-                            # images_dec, _, _ = decoder(lat_gen)
-                            # z_dec, _, _ = encoder(images_dec, labels)
-                            #
-                            # loss_enc = (1 / batch_mult) * F.mse_loss(z_dec, z_gen)
-                            # model_manager.loss_backward(loss_enc, nets_to_train)
-                            # loss_enc_sum += loss_enc.item()
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                        model_manager.loss_backward(loss_dec, nets_to_train)
+                        loss_dec_sum += loss_dec.item()
 
                 # Streaming Images
                 with torch.no_grad():
@@ -297,10 +281,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
-                # model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
-                # model_manager.log_manager.add_scalar('losses', 'loss_enc', loss_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
