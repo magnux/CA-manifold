@@ -272,7 +272,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
-                        z_enc.register_hook(lambda grad: grad + 2 * grad.norm(dim=1, keepdim=True))
+                        z_enc.register_hook(lambda grad: grad - grad.mean(dim=0, keepdim=True))
 
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
@@ -292,7 +292,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             else:
                                 images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
 
-                        images_redec.register_hook(lambda grad: grad + 2 * grad.norm(dim=1, keepdim=True))
+                        images_redec.register_hook(lambda grad: grad - grad.mean(dim=0, keepdim=True))
 
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
