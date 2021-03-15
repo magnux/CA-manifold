@@ -226,8 +226,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 reg_dis_dec = (1 / batch_mult) * compute_grad_reg(z_redec, images_redec)
                                 reg_dis_dec_sum += reg_dis_dec.item()
 
-                                reg_dis_dec = (1 / batch_mult) * compute_grad_reg(z_redec, encoder.inj_lat)
-                                reg_dis_dec_sum += reg_dis_dec.item()
+                                # reg_dis_dec = (1 / batch_mult) * compute_grad_reg(z_redec, encoder.inj_lat)
+                                # reg_dis_dec_sum += reg_dis_dec.item()
 
                             loss_gen_dec = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_redec))
                             model_manager.loss_backward(loss_gen_dec, nets_to_train)
@@ -247,8 +247,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 reg_dis_enc = (1 / batch_mult) * compute_grad_reg(z_redec, images_redec)
                                 reg_dis_enc_sum += reg_dis_enc.item()
 
-                                reg_dis_enc = (1 / batch_mult) * compute_grad_reg(z_redec, encoder.inj_lat)
-                                reg_dis_enc_sum += reg_dis_enc.item()
+                                # reg_dis_enc = (1 / batch_mult) * compute_grad_reg(z_redec, encoder.inj_lat)
+                                # reg_dis_enc_sum += reg_dis_enc.item()
 
                             loss_gen_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_redec))
                             model_manager.loss_backward(loss_gen_enc, nets_to_train)
