@@ -215,6 +215,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 images_redec, _, _ = decoder(lat_enc, out_embs[-1])
 
                         lat_enc.requires_grad_()
+                        images_redec.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images_redec, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
