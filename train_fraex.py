@@ -279,20 +279,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train, retain_graph=True)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        if one_dec_pass:
-                            images_redec = images_dec
-                        else:
-                            if config['training']['through_grads']:
-                                images_redec, _, _ = decoder(lat_enc, out_embs[-1])
-                            else:
-                                images_redec, _, _ = decoder(lat_enc.clone().detach(), out_embs[-1].clone().detach())
-
-                        lat_top_enc, _, _ = dis_encoder(images_redec, lat_enc.clone().detach())
-                        labs_enc = discriminator(lat_top_enc, labels)
-
-                        loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
-                        model_manager.loss_backward(loss_gen_enc, nets_to_train)
-                        loss_gen_enc_sum += loss_gen_enc.item()
+                        zero_grad(generator)
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, out_embs, _ = decoder(lat_gen)
@@ -304,13 +291,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 images_redec, _, _ = decoder(lat_gen, out_embs[-1])
                             else:
                                 images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
-
-                        lat_top_dec, _, _ = dis_encoder(images_redec.clone().detach(), lat_gen)
-                        labs_dec = discriminator(lat_top_dec, labels)
-
-                        loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
-                        model_manager.loss_backward(loss_gen_dec, nets_to_train, retain_graph=True)
-                        loss_gen_dec_sum += loss_gen_dec.item()
 
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen.clone().detach())
                         labs_dec = discriminator(lat_top_dec, labels)
