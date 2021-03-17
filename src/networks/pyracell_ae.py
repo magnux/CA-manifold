@@ -140,11 +140,9 @@ class LabsInjectedEncoder(InjectedEncoder):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.labs_encoder = LabsEncoder(**kwargs)
-        self.inj_lat = None
 
     def forward(self, x, labels):
         inj_lat = self.labs_encoder(labels)
-        self.inj_lat = inj_lat
         return super().forward(x, inj_lat)
 
 
