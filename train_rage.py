@@ -259,17 +259,26 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_enc = generator(z_enc, labels)
                         images_dec, out_embs, _ = decoder(lat_enc)
-
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
-                        loss_dec_sum += loss_dec.item()
-
                         images_redec, _, _ = decoder(lat_enc, out_embs[-1])
                         z_redec, _, _ = encoder(images_redec, labels)
 
                         loss_gen_enc = (1 / batch_mult) * kl_factor * age_gaussian_kl_loss(F.normalize(z_redec))
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
+
+                # AE step
+                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+
+                    for _ in range(batch_mult):
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                        z_enc, _, _ = encoder(images, labels)
+                        lat_enc = generator(z_enc, labels)
+                        images_dec, _, _ = decoder(lat_enc)
+
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                        model_manager.loss_backward(loss_dec, nets_to_train)
+                        loss_dec_sum += loss_dec.item()
 
                 # Streaming Images
                 with torch.no_grad():
