@@ -57,7 +57,7 @@ zdist = get_zdist(config['z_dist']['type'], z_dim, device=device)
 
 # Networks
 networks_dict = {
-    'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
+    'encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
@@ -136,8 +136,7 @@ if pre_train:
                         for _ in range(batch_split):
                             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                            z_enc, _, _ = encoder(images, labels)
-                            lat_enc = generator(z_enc, labels)
+                            lat_enc, _, _ = encoder(images, labels)
                             images_dec, _, _ = decoder(lat_enc)
 
                             loss_dec = (1 / batch_split) * F.mse_loss(images_dec, images)
@@ -146,8 +145,7 @@ if pre_train:
 
                 # Streaming Images
                 with torch.no_grad():
-                    z_enc, _, _ = encoder(images_test, labels_test)
-                    lat_enc = generator(z_enc, labels_test)
+                    lat_enc, _, _ = encoder(images_test, labels_test)
                     images_dec, _, _ = decoder(lat_enc)
 
                 stream_images(images_dec, config_name + '/fraex_pretrain', config['training']['out_dir'] + '/fraex_pretrain')
@@ -206,8 +204,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
-                            z_enc, _, _ = encoder(images, labels)
-                            lat_enc = generator(z_enc, labels)
+                            lat_enc, _, _ = encoder(images, labels)
 
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
@@ -259,19 +256,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                                                                                     reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+                with model_manager.on_step(['encoder']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        z_enc, _, _ = encoder(images, labels)
-                        lat_enc = generator(z_enc, labels)
-
-                        images_dec, _, _ = decoder(lat_enc.clone().detach())
-
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
-                        model_manager.loss_backward(loss_dec, nets_to_train)
-                        loss_dec_sum += loss_dec.item()
+                        lat_enc, _, _ = encoder(images, labels)
 
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
@@ -279,6 +269,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
+
+                with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
+
+                    for _ in range(batch_mult):
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, out_embs, _ = decoder(lat_gen)
@@ -297,6 +292,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
+
+                        lat_enc, _, _ = encoder(images, labels)
+                        images_dec, _, _ = decoder(lat_enc)
+                        lat_reenc, _, _ = encoder(images_dec, labels)
+
+                        loss_dec = (1 / batch_mult) * F.mse_loss(lat_reenc, lat_enc)
+                        model_manager.loss_backward(loss_dec, nets_to_train)
+                        loss_dec_sum += loss_dec.item()
 
                 # Streaming Images
                 with torch.no_grad():
@@ -339,8 +342,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             if not one_dec_pass:
                 images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
-            z_enc, _, _ = encoder(images, labels)
-            lat_enc = generator(z_enc, labels)
+            lat_enc, _, _ = encoder(images, labels)
             images_dec, out_embs, _ = decoder(lat_enc)
             if not one_dec_pass:
                 images_redec, _, _ = decoder(lat_enc, out_embs[-1])
