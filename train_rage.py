@@ -256,9 +256,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc.requires_grad_()
 
                         images_dec, out_embs, _ = decoder(lat_enc)
-                        lat_dec, _, _ = encoder(images_dec, labels)
 
-                        loss_dec = (1 / batch_mult) * F.mse_loss(lat_dec, lat_enc)
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                         loss_dec_sum += loss_dec.item()
 
