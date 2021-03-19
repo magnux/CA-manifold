@@ -235,7 +235,7 @@ class UnconditionalIRMTranslator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.irm_layer = nn.Sequential(
             nn.Linear(self.lat_size, self.fhidden),
-            IRMLinear(self.fhidden, 3),
+            IRMLinear(self.fhidden, 4),
         )
         self.lat_out = nn.Linear(self.fhidden, self.lat_size)
 
@@ -267,7 +267,7 @@ class IRMGenerator(nn.Module):
         self.z_to_lat = DynaLinear(n_labels, self.z_dim, self.lat_size)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.z_dim, self.fhidden),
-            IRMLinear(self.fhidden, 2),
+            IRMLinear(self.fhidden, 4),
             nn.Linear(self.fhidden, self.z_dim),
         )
         self.norm_z = norm_z
@@ -303,7 +303,7 @@ class IRMDiscriminator(nn.Module):
         self.lat_to_score = DynaLinear(n_labels, self.lat_size, 1)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.lat_size, self.fhidden),
-            IRMLinear(self.fhidden, 2),
+            IRMLinear(self.fhidden, 4),
             nn.Linear(self.fhidden, self.lat_size),
         )
 
