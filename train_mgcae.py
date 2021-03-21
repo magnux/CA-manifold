@@ -81,7 +81,7 @@ def get_inputs(trainiter, batch_size, device):
 
 
 goals_test = []
-for _ in n_goals:
+for g in range(n_goals):
     images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
     goals_test.append(images_test)
 
