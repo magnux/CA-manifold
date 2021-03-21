@@ -337,3 +337,18 @@ class LatEncoder(nn.Module):
         lat = self.lat_to_lat(lat)
 
         return lat
+
+
+class LatCompressor(nn.Module):
+    def __init__(self, lat_size, n_goals, **kwargs):
+        super().__init__()
+        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_to_lat = nn.Sequential(
+            LinearResidualBlock(lat_size * n_goals, self.lat_size),
+            LinearResidualBlock(self.lat_size, lat_size),
+        )
+
+    def forward(self, lats):
+        lat = self.lat_to_lat(torch.cat(lats, dim=1))
+
+        return lat
