@@ -81,8 +81,9 @@ def get_inputs(trainiter, batch_size, device):
 
 
 goals_test = []
+trainiter = iter(trainloader)
 for g in range(n_goals):
-    images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
+    images_test, labels_test, trainiter = get_inputs(trainiter, batch_size, device)
     goals_test.append(images_test)
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
