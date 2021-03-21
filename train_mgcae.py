@@ -142,7 +142,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     init_samples = None
                     images_dec_l = []
                     for g in range(n_goals):
-                        images_dec, out_embs, _ = decoder(lat_enc)
+                        images_dec, out_embs, _ = decoder(lat_enc, init_samples)
                         init_samples = out_embs[-1]
                         images_dec_l.append(images_dec)
                     images_dec = torch.cat(images_dec_l, dim=3)
@@ -168,7 +168,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             goals = []
             for g in range(n_goals):
-                images, _, trainiter = get_inputs(trainiter, batch_split_size, device)
+                images, _, trainiter = get_inputs(trainiter, batch_size, device)
                 goals.append(images)
 
             lats = []
@@ -181,7 +181,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             init_samples = None
             images_dec_l = []
             for g in range(n_goals):
-                images_dec, out_embs, _ = decoder(lat_enc)
+                images_dec, out_embs, _ = decoder(lat_enc, init_samples)
                 init_samples = out_embs[-1]
                 images_dec_l.append(images_dec)
 
