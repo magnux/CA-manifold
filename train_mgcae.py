@@ -109,19 +109,19 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
 
                         goals = []
-                        for g in n_goals:
+                        for g in range(n_goals):
                             images, _, trainiter = get_inputs(trainiter, batch_split_size, device)
                             goals.append(images)
 
                         lats = []
-                        for g in n_goals:
+                        for g in range(n_goals):
                             lat_enc, _, _ = encoder(goals[g])
                             lats.append(lat_enc)
 
                         lat_enc = lat_compressor(lats)
 
                         init_samples = None
-                        for g in n_goals:
+                        for g in range(n_goals):
                             _, out_embs, images_redec_raw = decoder(lat_enc, init_samples)
                             init_samples = out_embs[-1]
 
@@ -132,7 +132,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lats = []
-                    for g in n_goals:
+                    for g in range(n_goals):
                         lat_enc, _, _ = encoder(goals_test[g])
                         lats.append(lat_enc)
 
@@ -140,7 +140,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     init_samples = None
                     images_dec_l = []
-                    for g in n_goals:
+                    for g in range(n_goals):
                         images_dec, out_embs, _ = decoder(lat_enc)
                         init_samples = out_embs[-1]
                         images_dec_l = []
@@ -166,12 +166,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             t.write('Creating samples...')
 
             goals = []
-            for g in n_goals:
+            for g in range(n_goals):
                 images, _, trainiter = get_inputs(trainiter, batch_split_size, device)
                 goals.append(images)
 
             lats = []
-            for g in n_goals:
+            for g in range(n_goals):
                 lat_enc, _, _ = encoder(goals[g])
                 lats.append(lat_enc)
 
@@ -179,7 +179,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             init_samples = None
             images_dec_l = []
-            for g in n_goals:
+            for g in range(n_goals):
                 images_dec, out_embs, _ = decoder(lat_enc)
                 init_samples = out_embs[-1]
                 images_dec_l = []
