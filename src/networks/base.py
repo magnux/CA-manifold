@@ -5,6 +5,7 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.dynalinear import DynaLinear
+from src.layers.quantize import QLinear
 
 
 class Classifier(nn.Module):
@@ -53,7 +54,8 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.z_to_lat = DynaLinear(n_labels, self.z_dim, self.lat_size)
+        self.z_to_qz = QLinear(self.z_dim, self.z_dim, num_bits=8, num_bits_grad=8)
+        self.qz_to_lat = DynaLinear(n_labels, self.z_dim, self.lat_size)
         self.norm_z = norm_z
 
     def forward(self, z, y):
@@ -71,7 +73,8 @@ class Generator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
-        lat = self.z_to_lat(z, yembed)
+        qz = self.z_to_qz(z)
+        lat = self.qz_to_lat(qz, yembed)
 
         return lat
 
@@ -263,9 +266,9 @@ class IRMGenerator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.z_to_lat = DynaLinear(n_labels, self.z_dim, self.lat_size)
         self.irm_layer = nn.Sequential(
-            nn.Linear(self.lat_size, self.fhidden),
+            nn.Linear(self.z_dim, self.fhidden),
             IRMLinear(self.fhidden, 4),
-            nn.Linear(self.fhidden, self.lat_size),
+            nn.Linear(self.fhidden, self.z_dim),
         )
         self.norm_z = norm_z
 
@@ -284,8 +287,8 @@ class IRMGenerator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
+        z = self.irm_layer(z)
         lat = self.z_to_lat(z, yembed)
-        lat = self.irm_layer(lat)
 
         return lat
 

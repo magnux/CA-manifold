@@ -56,7 +56,7 @@ zdist = get_zdist(config['z_dist']['type'], config['z_dist']['z_dim'], device=de
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
-    'generator': {'class': 'base', 'sub_class': 'IRMGenerator'},
+    'generator': {'class': 'base', 'sub_class': 'Generator'},
 }
 # to_avg = ['encoder', 'decoder', 'generator']
 
