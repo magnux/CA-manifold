@@ -35,7 +35,7 @@ batch_split_size = batch_size // batch_split
 n_workers = config['training']['n_workers']
 n_goals = config['network']['kwargs']['n_goals'] if 'n_goals' in config['network']['kwargs'] else 2
 config['network']['kwargs']['n_goals'] = n_goals
-last_ret = config['network']['kwargs']['last_ret'] if 'last_ret' in config['network']['kwargs'] else False
+last_ret = config['network']['kwargs']['last_ret'] if 'last_ret' in config['network']['kwargs'] else True
 config['network']['kwargs']['last_ret'] = last_ret
 
 
@@ -122,11 +122,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc = lat_compressor(lats)
 
                         init_samples = None
-                        for g in range(n_goals):
+                        for g in range(n_goals + (1 if last_ret else 0)):
                             _, out_embs, images_redec_raw = decoder(lat_enc, init_samples)
                             init_samples = out_embs[-1]
 
-                            loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, goals[g])
+                            loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, goals[g % n_goals])
                             model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
                             loss_dec_sum += loss_dec.item()
 
@@ -141,7 +141,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     init_samples = None
                     images_dec_l = []
-                    for g in range(n_goals):
+                    for g in range(n_goals + (n_goals if last_ret else 0)):
                         images_dec, out_embs, _ = decoder(lat_enc, init_samples)
                         init_samples = out_embs[-1]
                         images_dec_l.append(images_dec)
@@ -180,7 +180,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             init_samples = None
             images_dec_l = []
-            for g in range(n_goals):
+            for g in range(n_goals + (n_goals if last_ret else 0)):
                 images_dec, out_embs, _ = decoder(lat_enc, init_samples)
                 init_samples = out_embs[-1]
                 images_dec_l.append(images_dec)
