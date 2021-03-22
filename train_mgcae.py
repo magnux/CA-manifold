@@ -122,9 +122,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc = lat_compressor(lats)
 
                         init_samples = None
-                        for g in range(n_goals + (1 if last_ret else 0)):
+                        for g in range(n_goals * (2 if last_ret else 1)):
+                            if g == n_goals:
+                                lat_enc = lat_enc.detach()
                             _, out_embs, images_redec_raw = decoder(lat_enc, init_samples)
-                            init_samples = out_embs[-1]
+                            init_samples = out_embs[-1].detach()
 
                             loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, goals[g % n_goals])
                             model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
@@ -141,7 +143,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     init_samples = None
                     images_dec_l = []
-                    for g in range(n_goals + (n_goals if last_ret else 0)):
+                    for g in range(n_goals * (3 if last_ret else 1)):
                         images_dec, out_embs, _ = decoder(lat_enc, init_samples)
                         init_samples = out_embs[-1]
                         images_dec_l.append(images_dec)
@@ -180,7 +182,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             init_samples = None
             images_dec_l = []
-            for g in range(n_goals + (n_goals if last_ret else 0)):
+            for g in range(n_goals * (3 if last_ret else 1)):
                 images_dec, out_embs, _ = decoder(lat_enc, init_samples)
                 init_samples = out_embs[-1]
                 images_dec_l.append(images_dec)
