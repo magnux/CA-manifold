@@ -122,14 +122,23 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc = lat_compressor(lats)
 
                         init_samples = None
-                        for g in range(n_goals * (2 if last_ret else 1)):
-                            if g == n_goals:
-                                lat_enc = lat_enc.detach()
+                        for g in range(n_goals):
                             _, out_embs, images_redec_raw = decoder(lat_enc, init_samples)
                             init_samples = out_embs[-1].detach()
 
-                            loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, goals[g % n_goals])
+                            loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, goals[g])
                             model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
+                            loss_dec_sum += loss_dec.item()
+
+                            if last_ret and g == 0:
+                                first_init = init_samples.detach()
+                                first_lat = lat_enc.detach()
+
+                        if last_ret:
+                            _, out_embs, _ = decoder(first_lat, init_samples)
+
+                            loss_dec = (1 / batch_mult) * F.mse_loss(out_embs[-1], first_init)
+                            model_manager.loss_backward(loss_dec, nets_to_train)
                             loss_dec_sum += loss_dec.item()
 
                 # Streaming Images
