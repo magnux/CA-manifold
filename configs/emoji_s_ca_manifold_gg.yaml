@@ -25,7 +25,7 @@ z_dist:
   type: gauss
   z_dim: 256
 training:
-  out_dir: save/emoji_s_ca_manifold
+  out_dir: save/emoji_s_ca_manifold_gg
   persistence: False
   regeneration: False
   batch_size: 64
