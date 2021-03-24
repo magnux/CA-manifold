@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.sobel import Sobel
+from src.layers.gaussgrads import GaussGrads
 from src.layers.dynaconvblock import DynaConvBlock
 from src.utils.model_utils import ca_seed
 
@@ -12,7 +13,7 @@ from src.networks.conv_ae import Encoder, InjectedEncoder
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 fixed_conv=False, alive_masking=False, deactivate_norm=False, leak_factor=None, **kwargs):
+                 fixed_conv=False, alive_masking=False, deactivate_norm=False, leak_factor=None, gauss_grads=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -33,19 +34,22 @@ class Decoder(nn.Module):
         else:
             self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        self.frac_sobel = Sobel(self.n_filter)
+        if gauss_grads:
+            self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
+        else:
+            self.frac_sobel = Sobel(self.n_filter)
 
         if not self.deactivate_norm:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter * 3)
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
 
         if self.fixed_conv:
             self.frac_conv = nn.Sequential(
-                nn.Conv2d(self.n_filter, self.n_filter * 8, 1, 1, 0),
+                nn.Conv2d(self.n_filter * self.frac_sobel.c_factor, self.n_filter * 8, 1, 1, 0),
                 nn.ReLU(True),
                 nn.Conv2d(self.n_filter * 8, self.n_filter, 1, 1, 0),
             )
         else:
-            self.frac_dyna_conv = DynaConvBlock(self.lat_size, self.n_filter * 3, self.n_filter)
+            self.frac_dyna_conv = DynaConvBlock(self.lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter)
 
     def forward(self, lat, ca_init=None):
         assert self.fixed_conv == (lat is None), 'when using fixed convs, the model is fixed to produce a single output, thus the latent should be None'

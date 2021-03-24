@@ -41,6 +41,7 @@ class Sobel(nn.Module):
             raise RuntimeError(
                 'Only 1 and 2 dimensions are supported. Received {}.'.format(dim)
             )
+        self.c_factor = 1 + dim
 
     def forward(self, x):
         s_out = [x]
