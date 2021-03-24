@@ -4,10 +4,9 @@ from torch.nn import functional as F
 from src.layers.posencoding import cos_pos_encoding_nd
 
 
-def compute_gan_loss(d_out, target, gan_type='standard'):
+def compute_gan_loss(d_out, target, gan_type='softplus'):
 
     if gan_type == 'standard':
-        d_out = d_out.clamp(-4, 4)
         target = d_out.new_full(size=d_out.size(), fill_value=target)
         loss = F.binary_cross_entropy_with_logits(d_out, target)
     elif gan_type == 'wgan':
@@ -15,19 +14,21 @@ def compute_gan_loss(d_out, target, gan_type='standard'):
     elif gan_type == 'abs':
         loss = (2*target - 1) * d_out.mean()
         loss = loss.abs() if target == 1 else loss
-    elif gan_type == 'rectified':
-        loss = (2*target - 1) * (d_out.clamp(-1, 1) + 1e-3 * d_out).mean()
-    elif gan_type == 'tanh':
-        loss = (2*target - 1) * (0.1 * d_out).tanh().mean()
-    elif gan_type == 'dssqrt':
-        loss = (2*target - 1) * (d_out / d_out.abs().sqrt()).mean()
-    elif gan_type == 'saddle':
-        loss = (2*target - 1) * (d_out.pow(3) / d_out.abs().pow(1.5)).mean()
-    elif gan_type == 'relu':
-        loss = F.relu(1 + (2*target - 1) * d_out).mean()
     elif gan_type == 'mse':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
         loss = F.mse_loss(d_out.clamp(0., 1.),  target)
+    elif gan_type == 'rectified':
+        loss = (2*target - 1) * (d_out.clamp(-1, 1) + 1e-3 * d_out).mean()
+    elif gan_type == 'tanh':
+        loss = (1 - 2*target) * (0.1 * d_out).tanh().mean()
+    elif gan_type == 'dssqrt':
+        loss = (1 - 2*target) * (d_out / d_out.abs().sqrt()).mean()
+    elif gan_type == 'saddle':
+        loss = (1 - 2*target) * (d_out.pow(3) / d_out.abs().pow(1.5)).mean()
+    elif gan_type == 'relu':
+        loss = F.relu((1 - 2*target) * d_out).mean()
+    elif gan_type == 'softplus':
+        loss = F.softplus(d_out * (1 - 2*target)).mean()
     else:
         raise NotImplementedError
 
