@@ -356,5 +356,5 @@ class LatCompressor(nn.Module):
 
 
 class EasyAugmentPipe(AugmentPipe):
-    def __init__(self, spec_name='bgc'):
+    def __init__(self, spec_name='bgc', **kwargs):
         super().__init__(**augpipe_specs[spec_name])

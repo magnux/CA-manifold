@@ -42,7 +42,10 @@ class ModelManager(object):
                         self.networks_dict[net_name]['avg'] = torch.nn.DataParallel(self.networks_dict[net_name]['avg'])
                 toggle_grad(self.networks_dict[net_name]['avg'], False)
 
-            self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], self.config)
+            if len(list(self.networks_dict[net_name]['net'].parameters())) == 0:
+                print('Warning, network without trainable parameters: ', self.networks_dict[net_name]['net'])
+            else:
+                self.networks_dict[net_name]['optimizer'] = build_optimizer(self.networks_dict[net_name]['net'], self.config)
 
             if self.fp16:
                 self.networks_dict[net_name]['net'], self.networks_dict[net_name]['optimizer'] = amp.initialize(
@@ -54,8 +57,9 @@ class ModelManager(object):
         if len(self.to_avg) > 0:
             self.checkpoint_manager.register_modules(**{'%s_avg' % net_name: self.networks_dict[net_name]['avg']
                                                         for net_name in self.to_avg})
-        self.checkpoint_manager.register_modules(**{'%s_optimizer' % net_name: self.networks_dict[net_name]['optimizer']
-                                                    for net_name in self.networks_dict.keys()})
+        if 'optimizer' in self.networks_dict[net_name]:
+            self.checkpoint_manager.register_modules(**{'%s_optimizer' % net_name: self.networks_dict[net_name]['optimizer']
+                                                        for net_name in self.networks_dict.keys()})
         self.start_epoch = self.checkpoint_manager.load_last(self.model_name)
 
         if self.config['training']['lr_anneal_every'] > 0:

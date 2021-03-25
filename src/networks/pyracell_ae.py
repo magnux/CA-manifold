@@ -9,6 +9,7 @@ from src.layers.gaussiansmoothing import GaussianSmoothing
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
+from src.layers.gaussgrads import GaussGrads
 from src.layers.dynaconv import DynaConv
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.layers.irm import IRMConv
@@ -21,7 +22,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, gauss_grads=True, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -52,7 +53,12 @@ class InjectedEncoder(nn.Module):
         )
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
-        self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
+
+        if gauss_grads:
+            self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
+        else:
+            self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
+
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
                                             for _ in range(1 if self.shared_params else self.n_layers)])
@@ -63,7 +69,7 @@ class InjectedEncoder(nn.Module):
 
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
-            LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False)),
+            LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False, recompute_scale_factor=True)),
         )
 
         self.out_conv = nn.Sequential(
@@ -154,7 +160,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, gauss_grads=True, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -187,7 +193,12 @@ class Decoder(nn.Module):
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
-        self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
+
+        if gauss_grads:
+            self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
+        else:
+            self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
+
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
                                             for _ in range(1 if self.shared_params else self.n_layers)])
