@@ -6,6 +6,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.dynalinear import DynaLinear
 from src.layers.quantize import QLinear
+from src.layers.augment.augment import AugmentPipe, augpipe_specs
 
 
 class Classifier(nn.Module):
@@ -352,3 +353,8 @@ class LatCompressor(nn.Module):
         lat = self.lat_to_lat(torch.cat(lats, dim=1))
 
         return lat
+
+
+class EasyAugmentPipe(AugmentPipe):
+    def __init__(self, spec_name='bgc'):
+        super().__init__(**augpipe_specs[spec_name])

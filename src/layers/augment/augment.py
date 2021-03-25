@@ -112,6 +112,25 @@ def rotate2d_inv(theta, **kwargs):
 # All augmentations are disabled by default; individual augmentations can
 # be enabled by setting their probability multipliers to 1.
 
+
+augpipe_specs = {
+    'blit':   dict(xflip=1, rotate90=1, xint=1),
+    'geom':   dict(scale=1, rotate=1, aniso=1, xfrac=1),
+    'color':  dict(brightness=1, contrast=1, lumaflip=1, hue=1, saturation=1),
+    'filter': dict(imgfilter=1),
+    'noise':  dict(noise=1),
+    'cutout': dict(cutout=1),
+    'bg':     dict(xflip=1, rotate90=1, xint=1, scale=1, rotate=1, aniso=1, xfrac=1),
+    'bgc':    dict(xflip=1, rotate90=1, xint=1, scale=1, rotate=1, aniso=1, xfrac=1, brightness=1, contrast=1, lumaflip=1, hue=1, saturation=1),
+    'bgcf':   dict(xflip=1, rotate90=1, xint=1, scale=1, rotate=1, aniso=1, xfrac=1, brightness=1, contrast=1, lumaflip=1, hue=1, saturation=1, imgfilter=1),
+    'bgcfn':  dict(xflip=1, rotate90=1, xint=1, scale=1, rotate=1, aniso=1, xfrac=1, brightness=1, contrast=1, lumaflip=1, hue=1, saturation=1, imgfilter=1, noise=1),
+    'bgcfnc': dict(xflip=1, rotate90=1, xint=1, scale=1, rotate=1, aniso=1, xfrac=1, brightness=1, contrast=1, lumaflip=1, hue=1, saturation=1, imgfilter=1, noise=1, cutout=1),
+# !!!
+    'bgf_cnc':  dict(xflip=1, rotate90=1, xint=1, scale=1, rotate=1, aniso=1, xfrac=1, contrast=0.23, imgfilter=1, noise=0.11, cutout=0.11),
+    'gf_bnc':   dict(xflip=.5, xint=.5, scale=1, rotate=1, aniso=1, xfrac=1, rotate_max=.25, imgfilter=1, noise=.5, cutout=.5), # aug0
+}
+
+
 class AugmentPipe(torch.nn.Module):
     def __init__(self,
         xflip=0, rotate90=0, xint=0, xint_max=0.125,
@@ -354,8 +373,12 @@ class AugmentPipe(torch.nn.Module):
         # Execute if the transform is not identity.
         if C is not I_4:
             images = images.reshape([batch_size, num_channels, height * width])
-            if num_channels == 3:
+            if num_channels == 3 or num_channels == 4:
+                if num_channels == 4:
+                    images, alpha_channel = torch.split(images, [3, 1], dim=1)
                 images = C[:, :3, :3] @ images + C[:, :3, 3:]
+                if num_channels == 4:
+                    images = torch.stack([images, alpha_channel], dim=1)
             elif num_channels == 1:
                 C = C[:, :3, :].mean(dim=1, keepdims=True)
                 images = images * C[:, :, :3].sum(dim=2, keepdims=True) + C[:, :, 3:]

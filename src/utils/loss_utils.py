@@ -134,8 +134,8 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, reg_factor=1., 
     return pl_reg, new_pl_mean
 
 
-def update_ada_augment_p(current_p, loss_sign_mean, ada_target=0.6, lr=1e-4):
-    adjust = (loss_sign_mean - ada_target).sign() * lr
+def update_ada_augment_p(current_p, logits_sign_mean, ada_target=0.6, lr=1e-4):
+    adjust = (logits_sign_mean - ada_target).sign() * lr
     return F.relu(current_p + adjust)
 
 
