@@ -208,8 +208,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
+                        images = aug_pipe(images)
+
                         with torch.no_grad():
-                            images = aug_pipe(images)
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
 
