@@ -18,7 +18,7 @@ def compute_gan_loss(d_out, target, gan_type='softplus'):
         target = d_out.new_full(size=d_out.size(), fill_value=target)
         loss = F.mse_loss(d_out.clamp(0., 1.),  target)
     elif gan_type == 'rectified':
-        loss = (2*target - 1) * (d_out.clamp(-1, 1) + 1e-3 * d_out).mean()
+        loss = (1 - 2*target) * (d_out.clamp(-1, 1) + 1e-3 * d_out).mean()
     elif gan_type == 'tanh':
         loss = (1 - 2*target) * (0.1 * d_out).tanh().mean()
     elif gan_type == 'dssqrt':
@@ -28,7 +28,7 @@ def compute_gan_loss(d_out, target, gan_type='softplus'):
     elif gan_type == 'relu':
         loss = F.relu((1 - 2*target) * d_out).mean()
     elif gan_type == 'softplus':
-        loss = F.softplus(d_out * (1 - 2*target)).mean()
+        loss = F.softplus((1 - 2*target) * d_out).mean()
     else:
         raise NotImplementedError
 
