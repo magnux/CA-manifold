@@ -239,13 +239,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 images_redec = images_dec
                             else:
                                 images_redec, _, _ = decoder(lat_gen, out_embs[-1])
-                            images_redec = aug_pipe(images_redec)
-                            z_reenc, _, _ = encoder(images_redec, labels)
-                            lat_reenc = generator(z_reenc, labels)
 
-                        lat_reenc.requires_grad_()
+                        lat_gen.requires_grad_()
                         images_redec.requires_grad_()
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_reenc)
+                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -253,7 +250,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, lat_reenc)
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, lat_gen)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
@@ -302,11 +299,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             else:
                                 images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
 
-                        images_redec = aug_pipe(images_redec)
-                        z_reenc, _, _ = encoder(images_redec, labels)
-                        lat_reenc = generator(z_reenc, labels)
-
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_reenc)
+                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
