@@ -268,7 +268,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                     #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    aug_pipe.p.copy_(update_ada_augment_p(aug_pipe.p, labs_dis_enc_sign))
+                    aug_pipe.p.copy_(update_ada_augment_p(aug_pipe.p, labs_dis_enc_sign, batch_size * batch_mult // batch_split))
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 

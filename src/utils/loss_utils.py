@@ -134,8 +134,8 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, reg_factor=1., 
     return pl_reg, new_pl_mean
 
 
-def update_ada_augment_p(current_p, logits_sign_mean, ada_target=0.1, lr=1e-4):
-    adjust = np.sign(logits_sign_mean - ada_target) * lr
+def update_ada_augment_p(current_p, logits_sign_mean, batch_size, ada_target=0.1, kimgs=5e5):
+    adjust = np.sign(logits_sign_mean - ada_target) * batch_size / kimgs
     return F.relu(current_p + adjust)
 
 
