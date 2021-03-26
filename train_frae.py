@@ -274,9 +274,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc = generator(z_enc, labels)
                         images_dec, _, _ = decoder(lat_enc)
 
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                        loss_dec = (1 / batch_mult) * reg_dis_enc_sum * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
-                        loss_dec_sum += loss_dec.item()
+                        loss_dec_sum += loss_dec.item() / reg_dis_enc_sum
 
                         lat_top_enc, _, _ = dis_encoder(aug_pipe(images), lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
@@ -322,11 +322,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('learning_rates', 'all', model_manager.lr, it=it)
 
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'labs_dis_enc_sign', labs_dis_enc_sign, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
+                model_manager.log_manager.add_scalar('regs', 'aug_pipe_p', aug_pipe.p.item(), it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_enc', reg_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'd_reg_every_mean', d_reg_every_mean, it=it)

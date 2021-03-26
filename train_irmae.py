@@ -126,7 +126,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_dec = irm_translator(lat_enc)
                         images_dec, _, _ = decoder(lat_dec)
 
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                        loss_dec = (1 / batch_mult) * reg_dis_enc_sum * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train)
                         loss_dec_sum += loss_dec.item()
 
