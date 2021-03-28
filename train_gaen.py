@@ -308,7 +308,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_gen = generator(z_gen, labels)
                         rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-                        images_dec, out_embs, _ = decoder(lat_gen, ca_noise=rand_inits)
+                        images_dec, _, _ = decoder(lat_gen, ca_noise=rand_inits)
 
                         lat_top_dec, _, _ = dis_encoder(aug_pipe(images_dec), lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
@@ -409,7 +409,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             t.write('Computing inception/fid!')
             inception_mean, inception_std, fid = compute_inception_score(generator, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
-                                                                         zdist, ydist, fid_real_samples, device, 1)
+                                                                         zdist, ydist, fid_real_samples, device)
             model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
             model_manager.log_manager.add_scalar('inception_score', 'stddev', inception_std, it=it)
             model_manager.log_manager.add_scalar('inception_score', 'fid', fid, it=it)
