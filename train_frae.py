@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, update_ada_augment_p
-from src.utils.model_utils import compute_inception_score, zero_grad
+from src.utils.model_utils import compute_inception_score
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -53,7 +53,6 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
 # Distributions
 ydist = get_ydist(config['data']['n_labels'], device=device)
 zdist = get_zdist(config['z_dist']['type'], z_dim, device=device)
-
 
 # Networks
 networks_dict = {
