@@ -271,33 +271,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
-                        images_dec, out_embs, _ = decoder(lat_enc)
+                        images_dec, _, _ = decoder(lat_enc)
 
-                        loss_dec = (1 / batch_mult) * np.sqrt(reg_dis_enc_sum) * F.mse_loss(images_dec, images)
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
-                        loss_dec_sum += loss_dec.item() / np.sqrt(reg_dis_enc_sum)
+                        loss_dec_sum += loss_dec.item()
 
                         lat_top_enc, _, _ = dis_encoder(aug_pipe(images), lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
-                        model_manager.loss_backward(loss_gen_enc, nets_to_train, retain_graph=True)
+                        model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
-
-                        if one_dec_pass:
-                            images_redec = images_dec
-                        else:
-                            if config['training']['through_grads']:
-                                images_redec, _, _ = decoder(lat_enc, out_embs[-1])
-                            else:
-                                images_redec, _, _ = decoder(lat_enc.clone().detach(), out_embs[-1].clone().detach())
-
-                        lat_top_dec, _, _ = dis_encoder(aug_pipe(images_redec + (images - images_redec).detach()), lat_enc.detach())
-                        labs_dec = discriminator(lat_top_dec, labels)
-
-                        loss_gen_dec = (1 / batch_mult) * 0.5 * compute_gan_loss(labs_dec, 1)
-                        model_manager.loss_backward(loss_gen_dec, nets_to_train)
-                        loss_gen_dec_sum += loss_gen_dec.item()
 
                         lat_gen = generator(z_gen, labels)
                         images_dec, out_embs, _ = decoder(lat_gen)
@@ -313,7 +298,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(aug_pipe(images_redec), lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        loss_gen_dec = (1 / batch_mult) * 0.5 * compute_gan_loss(labs_dec, 1)
+                        loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
