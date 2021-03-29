@@ -22,7 +22,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, gauss_grads=True, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, gauss_grads=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -121,7 +121,7 @@ class InjectedEncoder(nn.Module):
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
                 with torch.no_grad():
-                    auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
+                    auto_reg_grad = (2e-3 / out.numel()) * out
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             if c < (self.n_layers * self.n_calls) - 1 and c % self.n_calls == self.n_calls - 1:
@@ -160,7 +160,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, gauss_grads=True, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -292,7 +292,7 @@ class Decoder(nn.Module):
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
                 with torch.no_grad():
-                    auto_reg_grad = (2 / out.numel()) * out.sign() * F.relu(out.abs() - 0.99)
+                    auto_reg_grad = (2e-3 / out.numel()) * out
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             if c < (self.n_layers * self.n_calls) - 1 and c % self.n_calls == self.n_calls - 1:
