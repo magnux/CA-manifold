@@ -57,15 +57,15 @@ class ModelManager(object):
         if len(self.to_avg) > 0:
             self.checkpoint_manager.register_modules(**{'%s_avg' % net_name: self.networks_dict[net_name]['avg']
                                                         for net_name in self.to_avg})
-        if 'optimizer' in self.networks_dict[net_name]:
-            self.checkpoint_manager.register_modules(**{'%s_optimizer' % net_name: self.networks_dict[net_name]['optimizer']
-                                                        for net_name in self.networks_dict.keys()})
+        self.checkpoint_manager.register_modules(**{'%s_optimizer' % net_name: self.networks_dict[net_name]['optimizer']
+                                                    for net_name in self.networks_dict.keys() if 'optimizer' in self.networks_dict[net_name]})
         self.start_epoch = self.checkpoint_manager.load_last(self.model_name)
 
         if self.config['training']['lr_anneal_every'] > 0:
             for net_name in self.networks_dict.keys():
-                self.networks_dict[net_name]['lr_scheduler'] = build_lr_scheduler(self.networks_dict[net_name]['optimizer'],
-                                                                                  self.config, self.start_epoch)
+                if 'optimizer' in self.networks_dict[net_name]:
+                    self.networks_dict[net_name]['lr_scheduler'] = build_lr_scheduler(self.networks_dict[net_name]['optimizer'],
+                                                                                      self.config, self.start_epoch)
 
         if self.logging:
             self.log_manager = LogManager(log_dir=path.join(self.config['training']['out_dir'], '%s_logs' % self.model_name),
@@ -110,9 +110,11 @@ class ModelManager(object):
     def on_epoch_start(self, epoch):
         self.epoch = epoch
 
-        if self.config['training']['lr_anneal_every'] > 0:
+        if self.config['training']['lr_anneal_every'] > 0 and not (
+                self.config['training']['lr_anneal_every'] == 1 and self.config['training']['lr_anneal'] == 1.0):
             for net_name in self.networks_dict.keys():
-                self.lr = self.networks_dict[net_name]['lr_scheduler'].get_lr()[0]
+                if 'optimizer' in self.networks_dict[net_name]:
+                    self.lr = self.networks_dict[net_name]['lr_scheduler'].get_last_lr()[0]
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -133,9 +135,11 @@ class ModelManager(object):
                     else:
                         update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.999)
 
-        if self.config['training']['lr_anneal_every'] > 0:
+        if self.config['training']['lr_anneal_every'] > 0 and not (
+                self.config['training']['lr_anneal_every'] == 1 and self.config['training']['lr_anneal'] == 1.0):
             for net_name in self.networks_dict.keys():
-                self.networks_dict[net_name]['lr_scheduler'].step(self.epoch)
+                if 'optimizer' in self.networks_dict[net_name]:
+                    self.networks_dict[net_name]['lr_scheduler'].step()
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -147,7 +151,10 @@ class ModelManager(object):
         self.on_epoch_end()
 
     def on_batch_start(self):
-        pass
+        if self.config['training']['lr_anneal_every'] == 1 and self.config['training']['lr_anneal'] == 1.0:
+            for net_name in self.networks_dict.keys():
+                if 'optimizer' in self.networks_dict[net_name]:
+                    self.lr = self.networks_dict[net_name]['lr_scheduler'].get_last_lr()[0]
 
     def on_batch_end(self):
         #TODO: Check all networks_dict are trained
@@ -156,6 +163,10 @@ class ModelManager(object):
                 for net_name in self.to_avg:
                     update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.999)
         self.it += 1
+        if self.config['training']['lr_anneal_every'] == 1 and self.config['training']['lr_anneal'] == 1.0:
+            for net_name in self.networks_dict.keys():
+                if 'optimizer' in self.networks_dict[net_name]:
+                    self.networks_dict[net_name]['lr_scheduler'].step()
 
     @contextmanager
     def on_batch(self):

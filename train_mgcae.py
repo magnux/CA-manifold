@@ -46,6 +46,8 @@ trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
                                           shuffle=True, num_workers=n_workers, drop_last=True)
 
+config['training']['steps_per_epoch'] = len(trainloader) // batch_split
+
 # Networks
 networks_dict = {
     'encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
