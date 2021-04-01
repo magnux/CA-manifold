@@ -85,7 +85,7 @@ def get_inputs(trainiter, batch_size, device):
 goals_test = []
 trainiter = iter(trainloader)
 for g in range(n_goals):
-    images_test, labels_test, trainiter = get_inputs(trainiter, batch_size, device)
+    images_test, labels_test, trainiter = get_inputs(trainiter, batch_size // 8, device)
     goals_test.append(images_test)
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
@@ -158,7 +158,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec, out_embs, _ = decoder(lat_enc, init_samples)
                         init_samples = out_embs[-1]
                         images_dec_l.append(images_dec)
-                    images_dec = torch.cat(images_dec_l, dim=3)
+                    images_dec = torch.cat(images_dec_l, dim=4)
 
                 stream_images(images_dec, config_name, config['training']['out_dir'])
 
@@ -181,7 +181,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             goals = []
             for g in range(n_goals):
-                images, _, trainiter = get_inputs(trainiter, batch_size, device)
+                images, _, trainiter = get_inputs(trainiter, batch_size // 8, device)
                 goals.append(images)
 
             lats = []
@@ -199,7 +199,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 images_dec_l.append(images_dec)
 
             images = torch.cat(goals, dim=3)
-            images_dec = torch.cat(images_dec_l, dim=3)
+            images_dec = torch.cat(images_dec_l, dim=4)
 
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
