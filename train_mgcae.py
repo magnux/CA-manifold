@@ -158,7 +158,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec, out_embs, _ = decoder(lat_enc, init_samples)
                         init_samples = out_embs[-1]
                         images_dec_l.append(images_dec)
-                    images_dec = torch.cat(images_dec_l, dim=2)
+                    images_dec = torch.cat(images_dec_l, dim=3)
 
                 stream_images(images_dec, config_name, config['training']['out_dir'])
 
@@ -199,7 +199,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 images_dec_l.append(images_dec)
 
             images = torch.cat(goals, dim=3)
-            images_dec = torch.cat(images_dec_l, dim=2)
+            images_dec = torch.cat(images_dec_l, dim=3)
 
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
