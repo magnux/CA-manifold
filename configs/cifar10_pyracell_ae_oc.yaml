@@ -30,7 +30,7 @@ training:
   batch_mult_steps: 1
   n_workers: 2
   optimizer: adamp
-  lr: 0.0001
+  lr: 0.00001
   equalize_lr: false
   n_epochs: 32
   save_every: 1
