@@ -61,7 +61,7 @@ def build_optimizer(network, config):
 
 def build_lr_scheduler(optimizer, config, last_epoch=0):
     if config['training']['lr_anneal_every'] == 1 and config['training']['lr_anneal'] == 1.0:
-        lr_scheduler = optim.lr_scheduler.OneCycleLR(optimizer, config['training']['lr'] * 100,
+        lr_scheduler = optim.lr_scheduler.OneCycleLR(optimizer, config['training']['lr'],
                                                      epochs=config['training']['n_epochs'],
                                                      steps_per_epoch=config['training']['steps_per_epoch'],
                                                      last_epoch=last_epoch-1)

@@ -27,12 +27,12 @@ training:
   out_dir: save/emoji_s_ca_manifold_oc
   persistence: False
   regeneration: False
-  batch_size: 64
-  batch_split: 4
+  batch_size: 256
+  batch_split: 16
   batch_mult_steps: 1
   n_workers: 2
   optimizer: adamp
-  lr: 0.00001
+  lr: 0.01
   equalize_lr: false
   n_epochs: 256
   save_every: 1
