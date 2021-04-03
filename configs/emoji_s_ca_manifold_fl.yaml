@@ -36,8 +36,8 @@ training:
   equalize_lr: false
   n_epochs: 2048
   save_every: 1
-  lr_anneal: 1.0
-  lr_anneal_every: 0
+  lr_anneal: 0.75
+  lr_anneal_every: 128
   monitoring: tensorboard
   sample_every: 16
   sample_labels: 9
