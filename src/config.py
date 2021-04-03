@@ -66,8 +66,8 @@ def build_lr_scheduler(optimizer, config, last_epoch=0):
                                                      steps_per_epoch=config['training']['steps_per_epoch'],
                                                      last_epoch=last_epoch-1)
     else:
-        lr_scheduler = optim.lr_scheduler.OneCycle(
-            optimizer, 1e-2,
+        lr_scheduler = optim.lr_scheduler.StepLR(
+            optimizer,
             step_size=config['training']['lr_anneal_every'],
             gamma=config['training']['lr_anneal'],
             last_epoch=last_epoch-1
