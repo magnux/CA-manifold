@@ -25,12 +25,12 @@ z_dist:
   z_dim: 256
 training:
   out_dir: save/cifar10_pyracell_ae_fl
-  batch_size: 32
-  batch_split: 1
+  batch_size: 64
+  batch_split: 2
   batch_mult_steps: 1
   n_workers: 2
   optimizer: adamp
-  lr: 0.0001
+  lr: 0.0002
   equalize_lr: false
   n_epochs: 256
   save_every: 1
