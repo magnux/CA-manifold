@@ -29,6 +29,8 @@ config_name = splitext(basename(args.config))[0]
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
+config['training']['n_epochs'] //= 4
+
 image_size = config['data']['image_size']
 channels = config['data']['channels']
 n_labels = config['data']['n_labels']
@@ -172,15 +174,17 @@ d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean'
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
 
+torch.autograd.set_detect_anomaly(True)
+
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
         running_loss_dec = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
         # Dynamic reg target for grad annealing
-        reg_dis_target = 10 * (1. - 0.9999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        # reg_dis_target = 10 * (1. - 0.9999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
         # Fixed reg target
-        # reg_dis_target = 0.1
+        reg_dis_target = 1e-3
 
         it = epoch * (len(trainloader) // batch_split)
 
@@ -275,9 +279,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc = generator(z_enc, labels)
                         images_dec, _, _ = decoder(lat_enc)
 
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
+                        loss_dec = (1 / batch_mult) * np.sqrt(d_reg_every_mean) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
-                        loss_dec_sum += loss_dec.item()
+                        loss_dec_sum += loss_dec.item() / np.sqrt(d_reg_every_mean)
 
                         lat_top_enc, _, _ = dis_encoder(aug_pipe(images), lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
