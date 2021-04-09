@@ -134,9 +134,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
         # Dynamic reg target for grad annealing
-        reg_dis_target = 10 * (1. - 0.9999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        # reg_dis_target = 10 * (1. - 0.9999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
         # Fixed reg target
-        # reg_dis_target = 0.1
+        reg_dis_target = 1e-3
 
         it = epoch * (len(trainloader) // batch_split)
 
@@ -270,10 +270,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
-            rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
+            images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen, ca_noise=rand_inits)
+            images_gen, _, _ = decoder(lat_gen)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             for lab in range(config['training']['sample_labels']):
@@ -283,7 +282,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
                 lat_gen = generator(z_test, fixed_lab)
-                images_gen, _, _ = decoder(lat_gen, ca_noise=rand_inits)
+                images_gen, _, _ = decoder(lat_gen)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception
