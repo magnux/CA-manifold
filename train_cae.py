@@ -134,21 +134,19 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec_sum += loss_dec.item()
 
                         if persistence:
-                            n_calls_save = decoder.n_calls
-                            decoder.n_calls = 4
+                            with torch.no_grad():
+                                pers_out_embs = out_embs
+                                pers_steps = np.random.randint(1, 8)
+                                for _ in range(pers_steps):
+                                    init_samples = (pers_out_embs[-1] * (1 + 5e-2 * torch.randn_like(pers_out_embs[-1]))
+                                                                      + 1e-2 * torch.randn_like(pers_out_embs[-1]))
+                                    _, pers_out_embs, _ = decoder(lat_dec, init_samples)
 
-                            pers_out_embs = out_embs
-                            pers_steps = 4
-                            for _ in range(pers_steps):
-                                init_samples = (pers_out_embs[-1] * (1 + 5e-2 * torch.randn_like(pers_out_embs[-1]))
-                                                                  + 1e-2 * torch.randn_like(pers_out_embs[-1]))
-                                _, pers_out_embs, _ = decoder(lat_dec, init_samples)
+                            _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach()._requires_grad(True))
 
-                                loss_pers = (1 / batch_mult) * F.mse_loss(pers_out_embs[-1], out_embs[-1])
-                                model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
-                                loss_pers_sum += loss_pers.item()
-
-                            decoder.n_calls = n_calls_save
+                            loss_pers = (1 / batch_mult) * F.mse_loss(pers_out_embs[-1], out_embs[-1])
+                            model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
+                            loss_pers_sum += loss_pers.item()
 
                         if regeneration:
                             n_calls_save = decoder.n_calls
