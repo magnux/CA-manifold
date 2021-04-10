@@ -49,12 +49,15 @@ class StepLRm(_LRScheduler):
             else:
                 lrs.append(group['lr'] * self.gamma for group in self.optimizer.param_groups)
 
+                if self.use_beta1:
+                    beta1, beta2 = group['betas']
+                    group['betas'] = (1 - ((1 - beta1) * self.gamma), beta2)
+                else:
+                    group['momentum'] = 1 - ((1 - beta1) * self.gamma)
+
             if self.use_beta1:
-                beta1, beta2 = group['betas']
-                group['betas'] = (beta1 / self.gamma, beta2)
                 self._last_momentums.append(group['betas'])
             else:
-                group['momentum'] = group['momentum'] / self.gamma
                 self._last_momentums.append((group['momentum'],))
 
         return lrs
