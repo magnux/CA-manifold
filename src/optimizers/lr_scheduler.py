@@ -33,7 +33,6 @@ class StepLRm(_LRScheduler):
     def __init__(self, optimizer, step_size, gamma=0.1, last_epoch=-1, verbose=False):
         self.step_size = step_size
         self.gamma = gamma
-        self.use_beta1 = 'betas' in self.optimizer.defaults
         self._last_momentums = None
         super(StepLRm, self).__init__(optimizer, last_epoch, verbose)
 
@@ -49,13 +48,13 @@ class StepLRm(_LRScheduler):
             else:
                 lrs.append(group['lr'] * self.gamma for group in self.optimizer.param_groups)
 
-                if self.use_beta1:
+                if 'betas' in self.optimizer.defaults:
                     beta1, beta2 = group['betas']
                     group['betas'] = (1 - ((1 - beta1) * self.gamma), beta2)
                 else:
                     group['momentum'] = 1 - ((1 - beta1) * self.gamma)
 
-            if self.use_beta1:
+            if 'betas' in self.optimizer.defaults:
                 self._last_momentums.append(group['betas'])
             else:
                 self._last_momentums.append((group['momentum'],))
