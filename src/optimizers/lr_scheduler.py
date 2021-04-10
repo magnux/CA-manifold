@@ -33,7 +33,7 @@ class StepLRm(_LRScheduler):
     def __init__(self, optimizer, step_size, gamma=0.1, last_epoch=-1, verbose=False):
         self.step_size = step_size
         self.gamma = gamma
-        self._last_momentums = None
+        self._last_momentum = None
         super(StepLRm, self).__init__(optimizer, last_epoch, verbose)
 
     def get_lr(self):
@@ -41,7 +41,7 @@ class StepLRm(_LRScheduler):
             warnings.warn("To get the last learning rate computed by the scheduler, "
                           "please use `get_last_lr()`.", UserWarning)
         lrs = []
-        self._last_momentums = []
+        self._last_momentum = []
         for group in self.optimizer.param_groups:
             if (self.last_epoch == 0) or (self.last_epoch % self.step_size != 0):
                 lrs.append(group['lr'] for group in self.optimizer.param_groups)
@@ -55,13 +55,13 @@ class StepLRm(_LRScheduler):
                     group['momentum'] = 1 - ((1 - beta1) * self.gamma)
 
             if 'betas' in self.optimizer.defaults:
-                self._last_momentums.append(group['betas'])
+                self._last_momentum.append(group['betas'])
             else:
-                self._last_momentums.append((group['momentum'],))
+                self._last_momentum.append((group['momentum'],))
 
         return lrs
 
-    def get_last_momentums(self):
-        """ Return last computed momentums by current scheduler.
+    def get_last_momentum(self):
+        """ Return last computed momentum by current scheduler.
         """
-        return self._last_momentums
+        return self._last_momentum
