@@ -304,8 +304,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Log progress
                 model_manager.log_manager.add_scalar('learning_rates', 'all', model_manager.lr, it=it)
-                if model_manager.momentums is not None:
-                    model_manager.log_manager.add_scalar('learning_rates', 'all_mom', model_manager.momentums, it=it)
+                if model_manager.momentum is not None:
+                    model_manager.log_manager.add_scalar('learning_rates', 'all_mom', model_manager.momentum, it=it)
 
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)

@@ -80,7 +80,7 @@ class ModelManager(object):
 
         self.epoch = self.start_epoch
         self.lr = self.config['training']['lr']
-        self.momentums = None
+        self.momentum = None
         self.it = 0
 
         if torch.cuda.is_available():
@@ -118,7 +118,7 @@ class ModelManager(object):
                 if 'optimizer' in self.networks_dict[net_name]:
                     self.lr = self.networks_dict[net_name]['lr_scheduler'].get_last_lr()[0]
                     if isinstance(self.networks_dict[net_name]['lr_scheduler'], StepLRm):
-                        self.momentums = self.networks_dict[net_name]['lr_scheduler'].get_last_momentum()[0][0]
+                        self.momentum = self.networks_dict[net_name]['lr_scheduler'].get_last_momentum()[0][0]
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
