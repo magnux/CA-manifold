@@ -104,9 +104,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             with model_manager.on_batch():
 
-                loss_dec_sum = 0
+                loss_dec_sum, loss_pers_sum, loss_regen_sum = 0, 0, 0
 
-                with model_manager.on_step(['encoder', 'decoder'] + (['letter_encoder', 'letter_decoder'] if letter_encoding else [])):
+                with model_manager.on_step(['encoder', 'decoder'] + (['letter_encoder', 'letter_decoder'] if letter_encoding else [])) as nets_to_train:
 
                     for _ in range(batch_mult):
 
@@ -127,20 +127,41 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_dec = lat_enc + (1e-3 * torch.randn_like(lat_enc))
 
                         # Decoding
-                        n_rounds_dec = 4 if persistence else 1
-                        for n in range(n_rounds_dec):
-                            if n > 0:
-                                lat_dec = lat_dec.detach().requires_grad_()
-                                init_samples = out_embs[-1].detach().requires_grad_()
+                        _, out_embs, images_redec_raw = decoder(lat_dec)
 
-                                if regeneration:
-                                    init_samples = rand_circle_masks(init_samples, batch_size // 8)
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_redec_raw, images)
+                        model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True if (persistence or regeneration) else False)
+                        loss_dec_sum += loss_dec.item()
 
-                            _, out_embs, images_redec_raw = decoder(lat_dec, init_samples)
+                        if persistence:
+                            n_calls_save = decoder.n_calls
+                            decoder.n_calls = 1
 
-                            loss_dec = (1 / batch_mult) * (1 / n_rounds_dec) * F.mse_loss(images_redec_raw, images)
-                            loss_dec.backward(retain_graph=True if persistence else False)
-                            loss_dec_sum += loss_dec.item()
+                            pers_out_embs = out_embs
+                            pers_steps = 4
+                            for _ in range(pers_steps):
+                                _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
+
+                                loss_pers = (1 / batch_mult) * (1 / pers_steps) * F.mse_loss(pers_out_embs[-1], out_embs[-1])
+                                model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
+                                loss_pers_sum += loss_pers.item()
+
+                            decoder.n_calls = n_calls_save
+
+                        if regeneration:
+                            n_calls_save = decoder.n_calls
+                            decoder.n_calls = 4
+
+                            init_samples = out_embs[np.random.randint(0, n_calls_save)]
+                            corrupt_init_samples = rand_circle_masks(init_samples, batch_split_size)
+
+                            _, regen_out_embs, _ = decoder(lat_dec, corrupt_init_samples)
+
+                            loss_regen = (1 / batch_mult) * F.mse_loss(regen_out_embs[-1], init_samples)
+                            model_manager.loss_backward(loss_regen, nets_to_train)
+                            loss_regen_sum += loss_regen.item()
+
+                            decoder.n_calls = n_calls_save
 
                 # Streaming Images
                 with torch.no_grad():
@@ -155,7 +176,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 stream_images(images_dec, config_name, config['training']['out_dir'])
 
                 # Print progress
-                running_loss[batch % window_size] = loss_dec_sum
+                running_loss[batch % window_size] = loss_dec_sum + loss_pers_sum + loss_regen_sum
                 running_factor = window_size if batch > window_size else batch + 1
                 t.set_postfix(loss='%.2e' % (np.sum(running_loss) / running_factor))
 
@@ -163,6 +184,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('learning_rates', 'all', model_manager.lr, it=it)
 
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
+                if persistence:
+                    model_manager.log_manager.add_scalar('losses', 'loss_pers', loss_pers_sum, it=it)
+                if regeneration:
+                    model_manager.log_manager.add_scalar('losses', 'loss_regen', loss_regen_sum, it=it)
 
                 it += 1
 
