@@ -138,9 +138,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 pers_out_embs = out_embs
                                 pers_steps = np.random.randint(1, 8)
                                 for _ in range(pers_steps):
-                                    init_samples = (pers_out_embs[-1] * (1 + 5e-2 * torch.randn_like(pers_out_embs[-1]))
-                                                                      + 1e-2 * torch.randn_like(pers_out_embs[-1]))
-                                    _, pers_out_embs, _ = decoder(lat_dec, init_samples)
+                                    _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
                             _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach().requires_grad_(True))
 
