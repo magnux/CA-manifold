@@ -3,6 +3,7 @@ from os import path
 from torch import optim
 from torch.nn import init
 from src.optimizers.adamp import AdamP, SGDP
+from src.optimizers.lr_scheduler import StepLRm
 
 
 # DEFAULT_CONFIG = path.join(path.dirname(__file__), 'configs/default.yaml')
@@ -66,7 +67,7 @@ def build_lr_scheduler(optimizer, config, last_epoch=0):
                                                      steps_per_epoch=config['training']['steps_per_epoch'],
                                                      last_epoch=last_epoch-1)
     else:
-        lr_scheduler = optim.lr_scheduler.StepLR(
+        lr_scheduler = StepLRm(
             optimizer,
             step_size=config['training']['lr_anneal_every'],
             gamma=config['training']['lr_anneal'],

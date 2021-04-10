@@ -4,6 +4,7 @@ from src.log_manager import LogManager
 from src.checkpoint_manager import CheckpointManager
 from src.config import build_network, build_optimizer, build_lr_scheduler
 from src.utils.model_utils import toggle_grad, count_parameters, make_grad_safe, update_network_average
+from src.optimizers.lr_scheduler import StepLRm
 from os import path
 from contextlib import contextmanager
 
@@ -79,6 +80,7 @@ class ModelManager(object):
 
         self.epoch = self.start_epoch
         self.lr = self.config['training']['lr']
+        self.momentums = None
         self.it = 0
 
         if torch.cuda.is_available():
@@ -115,6 +117,8 @@ class ModelManager(object):
             for net_name in self.networks_dict.keys():
                 if 'optimizer' in self.networks_dict[net_name]:
                     self.lr = self.networks_dict[net_name]['lr_scheduler'].get_last_lr()[0]
+                    if isinstance(self.networks_dict[net_name]['lr_scheduler'], StepLRm):
+                        self.momentums = self.networks_dict[net_name]['lr_scheduler'].get_last_momentum()[0][0]
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
