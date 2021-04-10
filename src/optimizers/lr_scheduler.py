@@ -44,9 +44,9 @@ class StepLRm(_LRScheduler):
         self._last_momentum = []
         for group in self.optimizer.param_groups:
             if (self.last_epoch == 0) or (self.last_epoch % self.step_size != 0):
-                lrs.append(group['lr'] for group in self.optimizer.param_groups)
+                lrs.append(group['lr'])
             else:
-                lrs.append(group['lr'] * self.gamma for group in self.optimizer.param_groups)
+                lrs.append(group['lr'] * self.gamma)
 
                 if 'betas' in self.optimizer.defaults:
                     beta1, beta2 = group['betas']
