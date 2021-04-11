@@ -134,28 +134,30 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec_sum += loss_dec.item()
 
                         if persistence:
-                            with torch.no_grad():
-                                pers_out_embs = out_embs
-                                pers_steps = np.random.randint(1, 8)
-                                for _ in range(pers_steps):
-                                    _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
+                            n_calls_save = decoder.n_calls
+                            decoder.n_calls = 4
 
-                            _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach().requires_grad_(True))
+                            pers_out_embs = out_embs
+                            pers_steps = 4
+                            for _ in range(pers_steps):
+                                _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
-                            loss_pers = (1 / batch_mult) * 0.1 * F.mse_loss(pers_out_embs[-1], out_embs[-1])
-                            model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
-                            loss_pers_sum += loss_pers.item()
+                                loss_pers = (1 / batch_mult) * (out_embs[-1] - pers_out_embs[-1]).abs().mean()
+                                model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
+                                loss_pers_sum += loss_pers.item()
+
+                            decoder.n_calls = n_calls_save
 
                         if regeneration:
                             n_calls_save = decoder.n_calls
                             decoder.n_calls = 4
 
+                            init_samples = out_embs[np.random.randint(0, n_calls_save)]
+                            regen_out_embs = [rand_circle_masks(init_samples, batch_split_size)]
+
                             regen_steps = 4
                             for _ in range(regen_steps):
-                                init_samples = out_embs[np.random.randint(0, n_calls_save)]
-                                corrupt_init_samples = rand_circle_masks(init_samples, batch_split_size)
-
-                                _, regen_out_embs, _ = decoder(lat_dec, corrupt_init_samples)
+                                _, regen_out_embs, _ = decoder(lat_dec, regen_out_embs[-1])
 
                                 loss_regen = (1 / batch_mult) * F.mse_loss(regen_out_embs[-1], init_samples)
                                 model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
