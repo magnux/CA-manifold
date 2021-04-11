@@ -149,21 +149,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             decoder.n_calls = n_calls_save
 
                         if regeneration:
-                            n_calls_save = decoder.n_calls
-                            decoder.n_calls = 4
+                            _, regen_out_embs, _ = decoder(lat_dec, rand_circle_masks(out_embs[-1], batch_split_size))
 
-                            init_samples = out_embs[np.random.randint(0, n_calls_save)]
-                            regen_out_embs = [rand_circle_masks(init_samples, batch_split_size)]
-
-                            regen_steps = 4
-                            for _ in range(regen_steps):
-                                _, regen_out_embs, _ = decoder(lat_dec, regen_out_embs[-1])
-
-                                loss_regen = (1 / batch_mult) * F.mse_loss(regen_out_embs[-1], init_samples)
-                                model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
-                                loss_regen_sum += loss_regen.item()
-
-                            decoder.n_calls = n_calls_save
+                            loss_regen = (1 / batch_mult) * F.mse_loss(regen_out_embs[-1], out_embs[-1])
+                            model_manager.loss_backward(loss_regen, nets_to_train)
+                            loss_regen_sum += loss_regen.item()
 
                 # Streaming Images
                 with torch.no_grad():
