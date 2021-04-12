@@ -126,7 +126,7 @@ pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
 
 torch.autograd.set_detect_anomaly(True)
 
-aug_pipe.p.copy_(torch.ones([]) * 0.5)
+# aug_pipe.p.copy_(torch.ones([]) * 0.5)
 
 for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
     with model_manager.on_epoch(epoch):
