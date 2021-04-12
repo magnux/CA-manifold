@@ -25,8 +25,8 @@ z_dist:
   z_dim: 256
 training:
   out_dir: save/emoji_s_ca_manifold
-  persistence: True
-  regeneration: True
+  persistence: False
+  regeneration: False
   batch_size: 64
   batch_split: 8
   batch_mult_steps: 1
