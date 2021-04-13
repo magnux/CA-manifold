@@ -7,6 +7,7 @@ from src.utils.model_utils import toggle_grad, count_parameters, make_grad_safe,
 from src.optimizers.lr_scheduler import StepLRm
 from os import path
 from contextlib import contextmanager
+import numpy as np
 
 try:
     from apex import amp
@@ -51,6 +52,8 @@ class ModelManager(object):
             if self.fp16:
                 self.networks_dict[net_name]['net'], self.networks_dict[net_name]['optimizer'] = amp.initialize(
                     self.networks_dict[net_name]['net'], self.networks_dict[net_name]['optimizer'], opt_level='O2', loss_scale=1., verbosity=0)
+
+            self.networks_dict[net_name]['max_grad_norm'] = 1.
 
         self.checkpoint_manager = CheckpointManager(self.config['training']['out_dir'])
         self.checkpoint_manager.register_modules(**{net_name: self.networks_dict[net_name]['net']
@@ -193,14 +196,22 @@ class ModelManager(object):
                 try:
                     if self.fp16:
                         make_grad_safe(amp.master_params(self.networks_dict[net_name]['optimizer']), -(2 ** 15), 2 ** 15)
-                        clip_grad_norm_(amp.master_params(self.networks_dict[net_name]['optimizer']), 1., torch._six.inf)
+                        clip_grad_norm_(amp.master_params(self.networks_dict[net_name]['optimizer']), self.networks_dict[net_name]['max_grad_norm'], torch._six.inf)
                     else:
                         # make_grad_safe(self.networks_dict[net_name]['net'].parameters(), -(2 ** 31), 2 ** 31)
-                        clip_grad_norm_(self.networks_dict[net_name]['net'].parameters(), 1., torch._six.inf)
+                        clip_grad_norm_(self.networks_dict[net_name]['net'].parameters(), self.networks_dict[net_name]['max_grad_norm'], torch._six.inf)
                 except ValueError:
                     print('ValueError. Skipping grad clipping.')
                 self.networks_dict[net_name]['optimizer'].step()
                 toggle_grad(self.networks_dict[net_name]['net'], False)
+
+    def update_max_grad_norm(self, nets_to_train, logits_sign_mean, batch_size, logits_sign_mean_target=0.2, kimgs=5e5):
+        for net_name in self.networks_dict.keys():
+            if net_name in nets_to_train:
+                adjust = np.sign(logits_sign_mean - logits_sign_mean_target) * batch_size / kimgs
+                current_norm = self.networks_dict[net_name]['max_grad_norm']
+                self.networks_dict[net_name]['max_grad_norm'] = np.clip(current_norm + adjust, 0.1, 10)
+        return self.networks_dict[nets_to_train[-1]]['max_grad_norm']
 
     @contextmanager
     def on_step(self, nets_to_train):
