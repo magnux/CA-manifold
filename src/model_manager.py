@@ -205,10 +205,10 @@ class ModelManager(object):
                 self.networks_dict[net_name]['optimizer'].step()
                 toggle_grad(self.networks_dict[net_name]['net'], False)
 
-    def update_max_grad_norm(self, nets_to_train, logits_sign_mean, batch_size, logits_sign_mean_target=0.2, kimgs=5e5):
+    def update_max_grad_norm(self, nets_to_train, logits_sign_mean, logits_sign_mean_target=0.2, lr=1e-3):
         for net_name in self.networks_dict.keys():
             if net_name in nets_to_train:
-                adjust = np.sign(logits_sign_mean - logits_sign_mean_target) * batch_size / kimgs
+                adjust = np.sign(logits_sign_mean - logits_sign_mean_target) * lr
                 current_norm = self.networks_dict[net_name]['max_grad_norm']
                 self.networks_dict[net_name]['max_grad_norm'] = np.clip(current_norm + adjust, 0.1, 10)
         return self.networks_dict[nets_to_train[-1]]['max_grad_norm']
