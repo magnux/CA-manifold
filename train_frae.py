@@ -266,7 +266,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
-                    max_grad_norm_gen = model_manager.update_max_grad_norm(nets_to_train, labs_dis_enc_sign, batch_size * batch_mult // batch_split)
+                    max_grad_norm_gen = model_manager.update_max_grad_norm(nets_to_train, labs_dis_enc_sign)
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
