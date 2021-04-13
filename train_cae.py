@@ -159,7 +159,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             for _ in range(regen_steps):
                                 _, regen_out_embs, _ = decoder(lat_dec, regen_out_embs[-1])
 
-                                loss_regen = (1 / batch_mult) * (init_samples.clone().detach() - regen_out_embs[-1]).abs().mean()
+                                loss_regen = (1 / batch_mult) * (init_samples - regen_out_embs[-1]).abs().mean()
                                 model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                                 loss_regen_sum += loss_regen.item()
 
