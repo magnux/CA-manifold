@@ -140,7 +140,7 @@ class AugmentPipe(torch.nn.Module):
         noise=0, cutout=0, noise_std=0.1, cutout_size=0.5,
     ):
         super().__init__()
-        self.register_buffer('p', torch.ones([]) * 0.5) # Overall multiplier for augmentation probability.
+        self.register_buffer('p', torch.zeros([])) # Overall multiplier for augmentation probability.
 
         # Pixel blitting.
         self.xflip            = float(xflip)            # Probability multiplier for x-flip.
