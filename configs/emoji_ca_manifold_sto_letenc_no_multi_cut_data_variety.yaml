@@ -26,7 +26,7 @@ training:
   batch_split: 4
   batch_mult_steps: 4
   n_workers: 2
-  optimizer: adam
+  optimizer: adamp
   lr: 0.0001
   equalize_lr: false
   n_epochs: 2600
