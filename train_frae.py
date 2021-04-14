@@ -213,8 +213,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         with torch.no_grad():
                             z_enc, _, _ = encoder(images, labels)
                             lat_enc = generator(z_enc, labels)
+
                             im_noise = noise_f * torch.randn_like(images)
-                            lat_noise = noise_f * torch.randn_like(images)
+                            lat_noise = noise_f * torch.randn_like(lat_enc)
 
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images + im_noise, lat_enc + lat_noise)
