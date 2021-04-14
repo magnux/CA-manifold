@@ -152,14 +152,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             n_calls_save = decoder.n_calls
                             decoder.n_calls = 4
 
-                            init_samples = out_embs[np.random.randint(1, n_calls_save)]
-                            regen_out_embs = [rand_circle_masks(init_samples, batch_split_size)]
-
                             regen_steps = 4
                             for _ in range(regen_steps):
-                                _, regen_out_embs, _ = decoder(lat_dec, regen_out_embs[-1])
+                                init_samples = out_embs[np.random.randint(1, n_calls_save)]
+                                corrupt_init_samples, masks = rand_circle_masks(init_samples, batch_split_size)
 
-                                loss_regen = (1 / batch_mult) * (init_samples - regen_out_embs[-1]).abs().mean()
+                                _, regen_out_embs, _ = decoder(lat_dec, corrupt_init_samples)
+
+                                loss_regen = (1 / batch_mult) * ((init_samples * masks) - (regen_out_embs[-1] * masks)).abs().mean()
                                 model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                                 loss_regen_sum += loss_regen.item()
 

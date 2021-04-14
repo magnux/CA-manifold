@@ -55,7 +55,7 @@ def rand_circle_masks(images, n_mask):
     mask = (x*x+y*y < 1.0).to(dtype=torch.float32).to(device=images.device)
     damage = torch.ones_like(images)
     damage[-n_mask:, ...] = damage[-n_mask:, ...] - mask.unsqueeze(1)
-    return images * damage
+    return images * damage, mask
 
 
 EMB_MATRIX = torch.eye(256, device='cpu')
