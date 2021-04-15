@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from src.layers.posencoding import cos_pos_encoding_nd
 
 
-def compute_gan_loss(d_out, target, gan_type='softplus'):
+def compute_gan_loss(d_out, target, gan_type='standard'):
 
     if gan_type == 'standard':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
@@ -134,7 +134,7 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, reg_factor=1., 
     return pl_reg, new_pl_mean
 
 
-def update_ada_augment_p(current_p, logits_sign_mean, batch_size, ada_target=0.6, kimgs=5e5):
+def update_ada_augment_p(current_p, logits_sign_mean, batch_size, ada_target=0.2, kimgs=5e5):
     adjust = np.sign(logits_sign_mean - ada_target) * batch_size / kimgs
     return F.relu(current_p + adjust)
 
