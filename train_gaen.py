@@ -206,7 +206,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
 
-                if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                if d_reg_every_mean > 0 and it % d_reg_every_mean == 0 and noise_f < 0.1:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
                 else:
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
@@ -226,7 +226,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_enc = discriminator(lat_top_enc, labels)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
-                        if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                        if d_reg_every_mean > 0 and it % d_reg_every_mean == 0 and noise_f < 0.1:
                             reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
@@ -250,7 +250,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                        if d_reg_every_mean > 0 and it % d_reg_every_mean == 0 and noise_f < 0.1:
                             reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
@@ -264,7 +264,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    # if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                    # if d_reg_every_mean > 0 and it % d_reg_every_mean == 0 and noise_f < 0.1:
                     #     reg_dis_mean = 0.5 * (reg_dis_enc_sum + reg_dis_dec_sum)
                     #     loss_dis_mean = 0.5 * (loss_dis_enc_sum + loss_dis_dec_sum)
                     #     d_reg_every_mean = d_reg_every_mean_next
