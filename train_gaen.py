@@ -236,7 +236,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
                         loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
-                        loss_dis_enc.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (torch.randn_like(grad) - (0.5 * grad))))
+                        loss_dis_enc.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (torch.randn_like(grad) - grad)))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
@@ -260,7 +260,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
-                        loss_dis_dec.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (torch.randn_like(grad) - (0.5 * grad))))
+                        loss_dis_dec.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (torch.randn_like(grad) - grad)))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
@@ -293,7 +293,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         #     reg_gen_enc_sum += reg_gen_enc.item() / g_reg_every
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
-                        loss_gen_enc.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (torch.randn_like(grad) - (0.5 * grad))))
+                        loss_gen_enc.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (torch.randn_like(grad) - grad)))
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)  # , retain_graph=config['training']['through_grads']
                         loss_gen_enc_sum += loss_gen_enc.item()
 
@@ -324,7 +324,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         #     reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
-                        loss_gen_dec.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (torch.randn_like(grad) - (0.5 * grad))))
+                        loss_gen_dec.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (torch.randn_like(grad) - grad)))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
