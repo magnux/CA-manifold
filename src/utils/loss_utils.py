@@ -74,7 +74,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss
         if loss_dis < 0.1:
             if update_every:
                 reg_every = 1
-        return reg_every, reg_param
+            return reg_every, reg_param
 
     # reg_param update
     delta_reg = reg_loss_target - reg_loss
