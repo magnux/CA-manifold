@@ -267,7 +267,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                     #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    noise_f = np.clip(noise_f + (np.clip(np.sign(labs_dis_enc_sign - 0.2) * 10, -1, 10) * 1e-4), 0., 1.)
+                    noise_f = np.clip(noise_f + (np.clip(np.sign(labs_dis_enc_sign - 0.2) * 10, -10, 1) * 1e-4), 0., 1.)
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
