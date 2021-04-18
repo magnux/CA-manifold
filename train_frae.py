@@ -43,7 +43,7 @@ n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
 one_dec_pass = config['training']['one_dec_pass'] if 'one_dec_pass' in config['training'] else False
 z_dim = config['z_dist']['z_dim']
-lat_size = config['network']['lat_Size']
+lat_size = config['network']['kwargs']['lat_Size']
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
