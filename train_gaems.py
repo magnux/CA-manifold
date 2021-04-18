@@ -201,7 +201,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
                 loss_dec_sum = 0
 
-                rand_grads = torch.randn([batch_split_size, lat_size], device=device)
+                rand_grads = 1e-3 * torch.randn([batch_split_size, lat_size], device=device)
 
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0 and noise_f < 0.1:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)

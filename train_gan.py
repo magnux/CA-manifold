@@ -150,7 +150,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 labs_dis_enc_sign = 0
                 loss_gen_dec_sum = 0
 
-                rand_grads = torch.randn([batch_split_size, lat_size], device=device)
+                rand_grads = 1e-3 * torch.randn([batch_split_size, lat_size], device=device)
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 if g_reg_every > 0:
