@@ -200,8 +200,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
                 loss_dec_sum = 0
 
-                rand_grads = 1e-3 * torch.randn([batch_split_size, lat_size], device=device)
-
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0 and noise_f < 0.1:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
                 else:
@@ -232,7 +230,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
                         loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
-                        lat_top_enc.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (rand_grads - (10. * grad))))
+                        lat_top_enc.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * ((torch.randn_like(grad) * grad) - grad)))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
@@ -259,7 +257,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
-                        lat_top_dec.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (rand_grads - (10. * grad))))
+                        lat_top_dec.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * ((torch.randn_like(grad) * grad) - grad)))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
@@ -270,7 +268,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                     #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    noise_f = np.clip(noise_f + (np.clip(np.sign(labs_dis_enc_sign - 0.2) * 10, -1, 10) * 1e-5), 0., 1.)
+                    noise_f = np.clip(noise_f + (np.clip(np.sign(labs_dis_enc_sign - 0.2) * 2, -2, 1) * 1e-3), 0., 1.)
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
@@ -289,7 +287,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_enc = discriminator(lat_top_enc, labels)
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
-                        lat_top_enc.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (rand_grads - (10. * grad))))
+                        lat_top_enc.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * ((torch.randn_like(grad) * grad) - grad)))
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
@@ -308,7 +306,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
-                        lat_top_dec.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * (rand_grads - (10. * grad))))
+                        lat_top_dec.register_hook(lambda grad: ((1. - noise_f) * grad) + (noise_f * ((torch.randn_like(grad) * grad) - grad)))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
