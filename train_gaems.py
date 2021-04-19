@@ -259,12 +259,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    # if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                    #     reg_dis_mean = 0.5 * (reg_dis_enc_sum + reg_dis_dec_sum)
-                    #     loss_dis_mean = 0.5 * (loss_dis_enc_sum + loss_dis_dec_sum)
-                    #     d_reg_every_mean = d_reg_every_mean_next
-                    #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
-                    #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
+                    if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                        reg_dis_mean = 0.5 * (reg_dis_enc_sum + reg_dis_dec_sum)
+                        loss_dis_mean = 0.5 * (loss_dis_enc_sum + loss_dis_dec_sum)
+                        d_reg_every_mean = d_reg_every_mean_next
+                        d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
+                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
 
                     noise_f = np.clip(noise_f + (np.clip(np.sign(labs_dis_enc_sign - 0.2) * 2, -2, 1) * 1e-4), 0., 1.)
 
