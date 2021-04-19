@@ -52,9 +52,9 @@ def rand_circle_masks(images, n_mask):
     center = torch.rand([2, n_mask, 1, 1]) - 0.5
     r = (torch.rand([n_mask, 1, 1]) * 0.3) + 0.1
     x, y = (x-center[0, ...])/r, (y-center[1, ...])/r
-    mask = (x*x+y*y < 1.0).to(dtype=torch.float32).to(device=images.device)
+    mask = (x*x+y*y < 1.0).to(dtype=torch.float32).to(device=images.device).unsqueeze(1)
     damage = torch.ones_like(images)
-    damage[-n_mask:, ...] = damage[-n_mask:, ...] - mask.unsqueeze(1)
+    damage[-n_mask:, ...] = damage[-n_mask:, ...] - mask
     return images * damage, mask
 
 
