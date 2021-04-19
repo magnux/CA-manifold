@@ -71,8 +71,7 @@ class Generator(nn.Module):
             yembed = y
 
         if self.norm_z:
-            # z = F.normalize(z, dim=1)
-            z = z / (0.1 * z.std() + 1e-8)
+            z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
 
@@ -125,8 +124,7 @@ class UnconditionalGenerator(nn.Module):
 
     def forward(self, z):
         if self.norm_z:
-            # z = F.normalize(z, dim=1)
-            z = z / (0.1 * z.std() + 1e-8)
+            z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
 
@@ -287,8 +285,7 @@ class IRMGenerator(nn.Module):
             yembed = y
 
         if self.norm_z:
-            # z = F.normalize(z, dim=1)
-            z = z / (0.1 * z.std() + 1e-8)
+            z = F.normalize(z, dim=1)
         else:
             z = z.clamp(-3, 3)
 
