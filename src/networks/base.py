@@ -20,7 +20,7 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, embed_size, norm_lat=False, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, norm_lat=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
