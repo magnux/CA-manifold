@@ -210,8 +210,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                     #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    g_factor_enc = np.clip(g_factor_enc + (np.clip(np.sign(labs_dis_enc_sign - 0.2) * 2, -2, 1) * 1e-4), 0., 1.)
-                    g_factor_dec = np.clip(g_factor_dec + (np.clip(np.sign(labs_dis_dec_sign - 0.2) * 2, -2, 1) * 1e-4), 0., 1.)
+                    g_factor_enc = np.clip(g_factor_enc + 1e-3 * (labs_dis_enc_sign - 0.2), 0., 1.)
+                    g_factor_dec = np.clip(g_factor_dec + 1e-3 * (labs_dis_dec_sign - 0.2), 0., 1.)
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
