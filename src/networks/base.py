@@ -40,7 +40,8 @@ class Discriminator(nn.Module):
             yembed = y
 
         if self.norm_lat:
-            lat = F.normalize(lat, dim=1)
+            # lat = F.normalize(lat, dim=1)
+            lat = lat / (0.1 * lat.std() + 1e-8)
 
         score = self.lat_to_score(lat, yembed)
 
@@ -70,7 +71,8 @@ class Generator(nn.Module):
             yembed = y
 
         if self.norm_z:
-            z = F.normalize(z, dim=1)
+            # z = F.normalize(z, dim=1)
+            z = z / (0.1 * z.std() + 1e-8)
         else:
             z = z.clamp(-3, 3)
 
@@ -123,7 +125,8 @@ class UnconditionalGenerator(nn.Module):
 
     def forward(self, z):
         if self.norm_z:
-            z = F.normalize(z, dim=1)
+            # z = F.normalize(z, dim=1)
+            z = z / (0.1 * z.std() + 1e-8)
         else:
             z = z.clamp(-3, 3)
 
@@ -284,7 +287,8 @@ class IRMGenerator(nn.Module):
             yembed = y
 
         if self.norm_z:
-            z = F.normalize(z, dim=1)
+            # z = F.normalize(z, dim=1)
+            z = z / (0.1 * z.std() + 1e-8)
         else:
             z = z.clamp(-3, 3)
 
