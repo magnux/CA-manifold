@@ -99,8 +99,7 @@ def get_inputs(trainiter, batch_size, device):
         else:
             labels = labels.to(torch.float32)
     images = images.detach().requires_grad_()
-    z_gen = zdist.sample((images.size(0) // 2,))
-    z_gen = torch.cat([z_gen, -z_gen], dim=0)
+    z_gen = zdist.sample((images.size(0),))
     z_gen.detach_().requires_grad_()
     return images, labels, z_gen, trainiter
 
@@ -210,8 +209,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                                                                                     reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    g_factor_enc = np.clip(g_factor_enc + 1e-4 * (labs_dis_enc_sign - 0.2), 0., 1.)
-                    g_factor_dec = np.clip(g_factor_dec + 1e-4 * (labs_dis_dec_sign - 0.2), 0., 1.)
+                    g_factor_enc = np.clip(g_factor_enc + 1e-2 * (labs_dis_enc_sign - 0.2), 0., 1.)
+                    g_factor_dec = np.clip(g_factor_dec + 1e-2 * (labs_dis_dec_sign - 0.2), 0., 1.)
                     grad_noise(dis_encoder, max(g_factor_enc, g_factor_dec))
                     grad_noise(discriminator, max(g_factor_enc, g_factor_dec))
 
@@ -235,7 +234,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
-                        lat_top_dec.register_hook(lambda grad: grad + max(g_factor_enc, g_factor_dec) * torch.randn_like(grad))
+                        lat_top_dec.register_hook(lambda grad: grad + max(g_factor_enc, g_factor_dec) * grad.mean(dim=0, keepdims=True) * torch.rand([grad.shape[0], 1], device=grad.device))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 

@@ -83,8 +83,7 @@ def get_inputs(trainiter, batch_size, device):
         images, labels = images[:batch_size, ...], labels[:batch_size, ...]
     images, labels = images.to(device), labels.to(device)
     images = images.detach().requires_grad_()
-    z_gen = zdist.sample((images.size(0) // 2,))
-    z_gen = torch.cat([z_gen, -z_gen], dim=0)
+    z_gen = zdist.sample((images.size(0),))
     z_gen.detach_().requires_grad_()
     return images, labels, z_gen, trainiter
 
