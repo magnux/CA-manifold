@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params
-from src.utils.model_utils import compute_inception_score
+from src.utils.model_utils import compute_inception_score, grad_noise
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -163,23 +163,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
-                with torch.no_grad():
-                    for _ in range(batch_mult):
-                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-
-                        lat_top_enc, _, _ = dis_encoder(images, labels)
-                        labs_enc = discriminator(lat_top_enc, labels)
-                        labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
-
-                        lat_gen = generator(z_gen, labels)
-                        images_dec, _, _ = decoder(lat_gen)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                        labs_dec = discriminator(lat_top_dec, labels)
-                        labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
-
-                g_factor_enc = np.clip(g_factor_enc + 1e-4 * (labs_dis_enc_sign - 0.2), 0., 1.)
-                g_factor_dec = np.clip(g_factor_dec + 1e-4 * (labs_dis_dec_sign - 0.0), 0., 1.)
-
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
@@ -188,7 +171,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_top_enc, _, _ = dis_encoder(images, labels)
                         labs_enc = discriminator(lat_top_enc, labels)
-                        # labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
+                        labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                             reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images)
@@ -208,7 +191,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec, labels)
-                        # labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
+                        labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                             reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
@@ -226,6 +209,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                                                                                     reg_dis_mean, reg_dis_target, loss_dis_mean)
+
+                    g_factor_enc = np.clip(g_factor_enc + 1e-4 * (labs_dis_enc_sign - 0.2), 0., 1.)
+                    g_factor_dec = np.clip(g_factor_dec + 1e-4 * (labs_dis_dec_sign - 0.0), 0., 1.)
+                    grad_noise(dis_encoder, (g_factor_enc + g_factor_dec) / 2)
+                    grad_noise(discriminator, (g_factor_enc + g_factor_dec) / 2)
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:

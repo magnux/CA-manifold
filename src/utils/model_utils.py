@@ -25,7 +25,7 @@ def get_grad_norm(network):
     grad_norm = 0.
     for p in network.parameters():
         if p.grad is not None:
-            grad_norm += p.grad.pow(2).mean()
+            grad_norm += p.grad.norm(2)
     return grad_norm
 
 
@@ -40,10 +40,10 @@ def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
             p.grad.data.copy_(p.grad.data.max(norm))
 
 
-def grad_noise(network, scale):
+def grad_noise(network, g_factor):
     for p in network.parameters():
         if p.grad is not None:
-            p.grad.data.copy_(p.grad + torch.randn_like(p.grad) * scale)
+            p.grad.data.copy_((1. - g_factor) * p.grad + g_factor * (torch.randn_like(p.grad) * p.grad.norm(2) - p.grad))
 
 
 def bkp_grad(network, bkp_name):
