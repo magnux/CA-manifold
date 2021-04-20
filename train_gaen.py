@@ -335,9 +335,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                    grad_noise(encoder, max(g_factor_enc, g_factor_dec))
-                    grad_noise(decoder, max(g_factor_enc, g_factor_dec))
-                    grad_noise(generator, max(g_factor_enc, g_factor_dec))
+                    # grad_noise(encoder, max(g_factor_enc, g_factor_dec))
+                    # grad_noise(decoder, max(g_factor_enc, g_factor_dec))
+                    # grad_noise(generator, max(g_factor_enc, g_factor_dec))
                     # enc_grad_norm = get_grad_norm(encoder).item()
                     # dec_grad_norm = get_grad_norm(decoder).item()
                     # gen_grad_norm = get_grad_norm(generator).item()
