@@ -110,7 +110,7 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, reg_factor=1., 
         dc_enc = torch.cat([dc_enc] * g_out.size(0), dim=0).to(g_out.device)
         pl_noise = torch.randn([dc_enc.size(0), dc_enc.size(1)] + [1 for _ in range(2, g_out.dim())], device=g_out.device)
         pl_noise = (pl_noise * dc_enc).mean(dim=1, keepdim=True)
-    space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]) + 1e-8)
+    space_sqrt = np.sqrt(np.prod([g_out.size(i) for i in range(2, g_out.dim())]))
     if out_mode == 'mul':
         pl_noise = pl_noise / space_sqrt
         outputs = (g_out * pl_noise).sum()
@@ -122,7 +122,7 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, reg_factor=1., 
     pl_grads = torch.autograd.grad(outputs=outputs, inputs=g_in,
                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
 
-    pl_lengths = (pl_grads ** 2).mean(dim=1).sqrt()
+    pl_lengths = ((pl_grads ** 2).mean(dim=1) + 1e-8).sqrt()
     if alt_pl is None:
         pl_reg = ((pl_lengths - pl_mean) ** 2).mean()
     else:
