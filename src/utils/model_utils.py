@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import numpy as np
 from src.metrics.inception_score import inception_score
 from src.metrics.fid_score import calculate_fid_given_images
@@ -44,9 +45,9 @@ def grad_noise(network, g_factor, momentum=0.9):
     for p in network.parameters():
         if p.grad is not None:
             if not hasattr(p, 'rand_grad'):
-                p.rand_grad = torch.rand_like(p.grad) - 0.5
+                p.rand_grad = F.normalize(torch.randn_like(p.grad), dim=1)
             else:
-                p.rand_grad = momentum * p.rand_grad + (1. - momentum) * (torch.rand_like(p.grad) - 0.5)
+                p.rand_grad = F.normalize(momentum * p.rand_grad + (1. - momentum) * torch.randn_like(p.grad), dim=1)
             p.grad.data.copy_((1. - g_factor) * p.grad + g_factor * (p.rand_grad * p.grad.norm(2) - p.grad))
 
 
