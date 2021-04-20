@@ -275,8 +275,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                                                                                     reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    g_factor_enc = np.clip(g_factor_enc + 1e-4 * (labs_dis_enc_sign - 0.2), 0., 1.)
-                    g_factor_dec = np.clip(g_factor_dec + 1e-4 * (labs_dis_dec_sign - 0.0), 0., 1.)
+                    g_factor_enc = np.clip(g_factor_enc + 1e-2 * (labs_dis_enc_sign - 0.2), 0., 1.)
+                    g_factor_dec = np.clip(g_factor_dec + 1e-2 * (labs_dis_dec_sign - 0.0), 0., 1.)
                     grad_noise(dis_encoder, (g_factor_enc + g_factor_dec) / 2)
                     grad_noise(discriminator, (g_factor_enc + g_factor_dec) / 2)
                     # dis_grad_norm = get_grad_norm(discriminator).item()
