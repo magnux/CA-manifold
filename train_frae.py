@@ -316,6 +316,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
+                    grad_noise(encoder, g_factor_enc)
+                    grad_noise(decoder, g_factor_dec)
+                    grad_noise(generator, (g_factor_enc + g_factor_dec) / 2)
+
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
