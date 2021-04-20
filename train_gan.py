@@ -211,9 +211,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                                                                     reg_dis_mean, reg_dis_target, loss_dis_mean)
 
                     g_factor_enc = np.clip(g_factor_enc + 1e-2 * (labs_dis_enc_sign - 0.2), 0., 1.)
-                    g_factor_dec = np.clip(g_factor_dec + 1e-2 * (labs_dis_dec_sign - 0.0), 0., 1.)
-                    grad_noise(dis_encoder, (g_factor_enc + g_factor_dec) / 2)
-                    grad_noise(discriminator, (g_factor_enc + g_factor_dec) / 2)
+                    g_factor_dec = np.clip(g_factor_dec + 1e-2 * (labs_dis_dec_sign - 0.2), 0., 1.)
+                    grad_noise(dis_encoder, max(g_factor_enc, g_factor_dec))
+                    grad_noise(discriminator, max(g_factor_enc, g_factor_dec))
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
@@ -239,8 +239,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                    grad_noise(decoder, g_factor_dec)
-                    grad_noise(generator, g_factor_dec)
+                    grad_noise(decoder, max(g_factor_enc, g_factor_dec))
+                    grad_noise(generator, max(g_factor_enc, g_factor_dec))
 
                 # Streaming Images
                 with torch.no_grad():
