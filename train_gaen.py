@@ -174,8 +174,8 @@ d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean'
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
 
-# pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
-# pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
+pl_mean_enc = model_manager.log_manager.get_last('regs', 'pl_mean_enc', 0.)
+pl_mean_dec = model_manager.log_manager.get_last('regs', 'pl_mean_dec', 0.)
 
 torch.autograd.set_detect_anomaly(True)
 g_factor_enc = model_manager.log_manager.get_last('regs', 'g_factor_enc', 0.)
