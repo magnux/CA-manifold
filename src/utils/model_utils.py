@@ -58,7 +58,7 @@ def grad_noise_hook(g_factor):
             ridx = np.random.randint(0, grad.shape[1])
             sel_idxs = [i for i in range(ridx)] + [i for i in range(ridx + 1, grad.shape[1])]
             noisy_grad = grad.clone()
-            noisy_grad[:, ridx] = -torch.bmm(grad[:, sel_idxs],  noisy_grad[:, sel_idxs]) / grad[:, ridx]
+            noisy_grad[:, ridx] = -(grad[:, sel_idxs] * noisy_grad[:, sel_idxs]).sum(1) / grad[:, ridx]
             noisy_grad *= torch.rand_like(grad)
             noisy_grad *= torch.rand([grad.shape[0], 1], device=grad.device)
             return (1 - g_factor) * grad + g_factor * noisy_grad
