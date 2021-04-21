@@ -52,17 +52,17 @@ def grad_noise(network, g_factor, momentum=0.9):
             p.grad.data.copy_((1. - g_factor) * p.grad + g_factor * (p.rand_grad * p.grad.norm(2) - p.grad))
 
 
-def grad_noise_hook(g_factor):
-    def _grad_noise_hook(grad, g_factor=0):
+def grad_noise_hook(g_factor, m_factor):
+    def _grad_noise_hook(grad, g_factor=0, m_factor=1):
         with torch.no_grad():
             noisy_grad = grad.clone()
             # ridx = np.random.randint(0, grad.shape[1])
             # sel_idxs = [i for i in range(ridx)] + [i for i in range(ridx + 1, grad.shape[1])]
             # noisy_grad[:, ridx] = -(grad[:, sel_idxs] * noisy_grad[:, sel_idxs]).sum(1) / (grad[:, ridx] + 1e-4)
             noisy_grad *= torch.rand_like(grad)
-            noisy_grad *= 2 * torch.rand([grad.shape[0], 1], device=grad.device)
+            noisy_grad *= m_factor * torch.rand([grad.shape[0], 1], device=grad.device)
             return (1 - g_factor) * grad + g_factor * noisy_grad
-    return partial(_grad_noise_hook, g_factor=g_factor)
+    return partial(_grad_noise_hook, g_factor=g_factor, m_factor=m_factor)
 
 
 def bkp_grad(network, bkp_name):
