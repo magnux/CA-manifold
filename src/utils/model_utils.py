@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 from src.metrics.inception_score import inception_score
 from src.metrics.fid_score import calculate_fid_given_images
+from functools import partial
 
 
 def count_parameters(network):
@@ -49,6 +50,19 @@ def grad_noise(network, g_factor, momentum=0.9):
             else:
                 p.rand_grad = F.normalize(momentum * p.rand_grad + (1. - momentum) * torch.randn_like(p.grad), dim=-1)
             p.grad.data.copy_((1. - g_factor) * p.grad + g_factor * (p.rand_grad * p.grad.norm(2) - p.grad))
+
+
+def grad_noise_hook(g_factor):
+    def _grad_noise_hook(grad, g_factor=0):
+        with torch.no_grad():
+            ridx = np.random.randint(0, grad.shape[1])
+            sel_idxs = [i for i in range(ridx)] + [i for i in range(ridx + 1, grad.shape[1])]
+            noisy_grad = grad.clone()
+            noisy_grad[:, ridx] = -torch.bmm(grad[:, sel_idxs],  noisy_grad[:, sel_idxs]) / grad[:, ridx]
+            noisy_grad *= torch.rand_like(grad)
+            noisy_grad *= torch.rand([grad.shape[0], 1], device=grad.device)
+            return (1 - g_factor) * grad + g_factor * noisy_grad
+    return partial(_grad_noise_hook, g_factor=g_factor)
 
 
 def bkp_grad(network, bkp_name):
