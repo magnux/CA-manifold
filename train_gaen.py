@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, compute_pl_reg
-from src.utils.model_utils import compute_inception_score, grad_noise_hook
+from src.utils.model_utils import compute_inception_score, grad_mult_hook
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -238,7 +238,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
                         loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
-                        lat_top_enc.register_hook(grad_noise_hook(1, 1 / g_factor_enc))
+                        lat_top_enc.register_hook(grad_mult_hook(1 / g_factor_enc))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
@@ -263,7 +263,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
-                        lat_top_dec.register_hook(grad_noise_hook(1, 1 / g_factor_dec))
+                        lat_top_dec.register_hook(grad_mult_hook(1 / g_factor_dec))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
@@ -274,8 +274,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                     #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    g_factor_enc = np.clip(g_factor_enc + 1e-2 * (labs_dis_enc_sign - 0.1), 1., 1e3)
-                    g_factor_dec = np.clip(g_factor_dec + 1e-2 * (labs_dis_dec_sign - 0.1), 1., 1e3)
+                    g_factor_enc = np.clip(g_factor_enc + 1e-2 * (labs_dis_enc_sign - 0.2), 1., 1e3)
+                    g_factor_dec = np.clip(g_factor_dec + 1e-2 * (labs_dis_dec_sign - 0.2), 1., 1e3)
                     # dis_grad_norm = get_grad_norm(discriminator).item()
                     # dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
 
@@ -297,7 +297,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_enc_sum += reg_gen_enc.item() / g_reg_every
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
-                        lat_top_enc.register_hook(grad_noise_hook(1, 2))
+                        # lat_top_enc.register_hook(grad_noise_hook(1, 2))
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)  # , retain_graph=config['training']['through_grads']
                         loss_gen_enc_sum += loss_gen_enc.item()
 
@@ -328,7 +328,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
-                        lat_top_dec.register_hook(grad_noise_hook(1, 2))
+                        # lat_top_dec.register_hook(grad_noise_hook(1, 2))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
