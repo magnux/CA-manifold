@@ -60,7 +60,7 @@ zdist = get_zdist(config['z_dist']['type'], z_dim, device=device)
 networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
-    'dis_encoder': {'class': 'conv_ae', 'sub_class': 'Encoder'},
+    'dis_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
     'discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
 }
 # to_avg = ['decoder', 'generator']
@@ -168,7 +168,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        lat_top_enc, _, _ = dis_encoder(images)
+                        lat_top_enc, _, _ = dis_encoder(images, labels)
                         labs_enc = discriminator(lat_top_enc, labels)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
@@ -188,7 +188,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_gen, ca_noise=rand_inits)
 
                         images_dec.requires_grad_()
-                        lat_top_dec, _, _ = dis_encoder(images_dec)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec, labels)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
@@ -222,7 +222,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                         images_dec, _, _ = decoder(lat_gen, ca_noise=rand_inits)
 
-                        lat_top_dec, _, _ = dis_encoder(images_dec)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec, labels)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
