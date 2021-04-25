@@ -244,8 +244,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
-                            rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-                            images_dec, _, _ = decoder(lat_gen, ca_noise=rand_inits)
+                            # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
+                            images_dec, _, _ = decoder(lat_gen)
 
                         lat_gen.requires_grad_()
                         images_dec.requires_grad_()
@@ -315,8 +315,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         # loss_dec_sum += loss_dec.item()
 
                         lat_gen = generator(z_gen, labels)
-                        rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-                        images_dec, _, _ = decoder(lat_gen, ca_noise=rand_inits)
+                        # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
+                        images_dec, _, _ = decoder(lat_gen)
 
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
@@ -339,8 +339,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
-                    rand_inits = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-                    images_gen, out_embs, _ = decoder(lat_gen, ca_noise=rand_inits)
+                    # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
+                    images_gen, out_embs, _ = decoder(lat_gen)
                     # images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                     # images_gen = torch.cat([images_gen, images_regen], dim=3)
 
