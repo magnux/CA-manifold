@@ -190,7 +190,7 @@ class Decoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        self.seed = nn.Parameter(ca_seed(n_seed, self.n_filter, 16, 'cpu'))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
 
@@ -246,7 +246,6 @@ class Decoder(nn.Module):
                 else:
                     seed = self.seed[seed_n:seed_n + 1, ...]
                 out = torch.cat([seed.to(float_type)] * batch_size, 0)
-                out = F.instance_norm(out)
                 if ca_noise is not None:
                     out = out + self.in_ds(ca_noise)
         else:
@@ -261,7 +260,6 @@ class Decoder(nn.Module):
             # out = torch.bmm(out, proj).reshape(batch_size, self.image_size, self.image_size, self.n_filter).permute(0, 3, 1, 2).contiguous()
             # out = self.in_conv(out)
             out = self.in_ds(ca_init) + proj
-            out = F.instance_norm(out)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
