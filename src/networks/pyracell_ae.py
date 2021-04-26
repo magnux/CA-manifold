@@ -68,7 +68,7 @@ class InjectedEncoder(nn.Module):
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_cent = nn.ModuleList([Centroids(self.n_filter, self.n_filter ** 2, centroids_scale=1e-2)
+        self.frac_cent = nn.ModuleList([Centroids(self.n_filter * self.frac_sobel.c_factor, self.n_filter ** 2, centroids_scale=1e-2)
                                         for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_ds = nn.Sequential(
@@ -106,7 +106,7 @@ class InjectedEncoder(nn.Module):
         for c in range(self.n_layers * self.n_calls):
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
-            out_new = self.frac_cent[0 if self.shared_params else c // self.n_calls](out)
+            out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             if self.conv_irm:
@@ -114,6 +114,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
+            out_new = self.frac_cent[0 if self.shared_params else c // self.n_calls](out_new)
             out_new = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -211,7 +212,7 @@ class Decoder(nn.Module):
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_cent = nn.ModuleList([Centroids(self.n_filter, self.n_filter ** 2, centroids_scale=1e-2)
+        self.frac_cent = nn.ModuleList([Centroids(self.n_filter * self.frac_sobel.c_factor, self.n_filter ** 2, centroids_scale=1e-2)
                                         for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_us = nn.Sequential(
@@ -278,7 +279,7 @@ class Decoder(nn.Module):
         for c in range(self.n_layers * self.n_calls):
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
-            out_new = self.frac_cent[0 if self.shared_params else c // self.n_calls](out)
+            out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
             if self.conv_irm:
@@ -286,6 +287,7 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
+            out_new = self.frac_cent[0 if self.shared_params else c // self.n_calls](out_new)
             out_new = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
