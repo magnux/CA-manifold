@@ -16,13 +16,14 @@ from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
+from src.layers.centroids import Centroids
 import numpy as np
 from itertools import chain
 
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, gauss_grads=False, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, conv_irm=False, ce_in=False, gauss_grads=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -66,6 +67,9 @@ class InjectedEncoder(nn.Module):
             DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
+
+        self.frac_cent = nn.ModuleList([Centroids(self.n_filter, self.n_filter ** 2, centroids_scale=1e-2)
+                                        for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
@@ -117,6 +121,7 @@ class InjectedEncoder(nn.Module):
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=x.device) <= self.fire_rate).to(float_type)
             out = out + (leak_factor * out_new)
+            out = self.frac_cent[0 if self.shared_params else c // self.n_calls](out)
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
@@ -160,7 +165,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -206,6 +211,9 @@ class Decoder(nn.Module):
             DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
+
+        self.frac_cent = nn.ModuleList([Centroids(self.n_filter, self.n_filter ** 2, centroids_scale=1e-2)
+                                        for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
@@ -286,6 +294,7 @@ class Decoder(nn.Module):
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(float_type)
             out = out + (leak_factor * out_new)
+            out = self.frac_cent[0 if self.shared_params else c // self.n_calls](out)
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
