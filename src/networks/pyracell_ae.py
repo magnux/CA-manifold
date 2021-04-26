@@ -22,7 +22,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, gauss_grads=False, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, conv_irm=False, ce_in=False, gauss_grads=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -160,7 +160,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
