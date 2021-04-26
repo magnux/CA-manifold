@@ -69,8 +69,7 @@ class InjectedEncoder(nn.Module):
 
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
-            LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False, recompute_scale_factor=True)),
-            NoiseInjection(self.n_filter)
+            LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False, recompute_scale_factor=True))
         )
 
         self.out_conv = nn.Sequential(

@@ -16,7 +16,7 @@ class NoiseInjection(nn.Module):
         in_size = x.size(2)
 
         if noise is None:
-            noise = torch.Tensor(*([batch_size] + [in_size for _ in range(self.dim)] + [1])).uniform_(0., 1.).to(x.device)
+            noise = torch.randn([batch_size] + [in_size for _ in range(self.dim)] + [1], device=x.device)
         noise = self.lat_to_fin(noise).permute(*[0, self.dim+1] + [i for i in range(2, self.dim+1)] + [1])
 
         x_new = x + noise
