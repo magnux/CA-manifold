@@ -68,7 +68,7 @@ class InjectedEncoder(nn.Module):
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_cent = nn.ModuleList([Centroids(self.n_filter, self.n_filter ** 2, centroids_scale=1e-2)
+        self.frac_cent = nn.ModuleList([Centroids(self.n_filter, self.n_filter ** 2, centroids_scale=1e-3)
                                         for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_ds = nn.Sequential(
@@ -212,7 +212,7 @@ class Decoder(nn.Module):
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_cent = nn.ModuleList([Centroids(self.n_filter, self.n_filter ** 2, centroids_scale=1e-2)
+        self.frac_cent = nn.ModuleList([Centroids(self.n_filter, self.n_filter ** 2, centroids_scale=1e-3)
                                         for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_us = nn.Sequential(
