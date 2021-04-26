@@ -16,7 +16,6 @@ from src.layers.irm import IRMConv
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
-from src.layers.centroids import Centroids
 import numpy as np
 from itertools import chain
 
@@ -68,9 +67,6 @@ class InjectedEncoder(nn.Module):
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_cent = nn.ModuleList([Centroids(self.n_filter * self.frac_sobel.c_factor, self.n_filter ** 2, centroids_scale=1.)
-                                        for _ in range(1 if self.shared_params else self.n_layers)])
-
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False, recompute_scale_factor=True)),
@@ -114,7 +110,6 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
-            out_new = self.frac_cent[0 if self.shared_params else c // self.n_calls](out_new)
             out_new = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -212,12 +207,10 @@ class Decoder(nn.Module):
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_cent = nn.ModuleList([Centroids(self.n_filter * self.frac_sobel.c_factor, self.n_filter ** 2, centroids_scale=1.)
-                                        for _ in range(1 if self.shared_params else self.n_layers)])
-
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-            GaussianSmoothing(self.n_filter, 3, 1, 1)
+            GaussianSmoothing(self.n_filter, 3, 1, 1),
+            NoiseInjection(self.n_filter)
         )
 
         if self.log_mix_out:
@@ -287,7 +280,6 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
-            out_new = self.frac_cent[0 if self.shared_params else c // self.n_calls](out_new)
             out_new = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
