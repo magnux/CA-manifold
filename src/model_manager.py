@@ -36,7 +36,7 @@ class ModelManager(object):
 
             if net_name in self.to_avg:
                 self.networks_dict[net_name]['avg'] = build_network(self.config, self.networks_dict[net_name]['class'],
-                                                                    self.networks_dict[net_name]['sub_class'])
+                                                                    self.networks_dict[net_name]['sub_class'], 0.1)
                 if torch.cuda.is_available():
                     self.networks_dict[net_name]['avg'].to("cuda:0")
                     if torch.cuda.device_count() > 1:

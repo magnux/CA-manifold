@@ -26,7 +26,6 @@ class Discriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.register_buffer('lat_weights', torch.diag(torch.arange(self.lat_size) / self.lat_size))
         self.lat_to_score = DynaLinear(n_labels, self.lat_size, 1)
         self.norm_lat = norm_lat
 
@@ -42,8 +41,6 @@ class Discriminator(nn.Module):
 
         if self.norm_lat:
             lat = F.normalize(lat, dim=1)
-
-        lat = lat @ self.lat_weights
 
         score = self.lat_to_score(lat, yembed)
 

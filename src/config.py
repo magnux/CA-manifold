@@ -95,8 +95,8 @@ def init_all(model, init_funcs):
 
 def init_funcs(scale):
     funcs = {
-        1: lambda x: init.normal_(x, mean=0., std=scale), # can be bias
-        2: lambda x: init.xavier_normal_(x, gain=scale), # can be weight
+        1: lambda x: init.xavier_uniform_(x, gain=scale), # can be bias
+        2: lambda x: init.xavier_uniform_(x, gain=scale), # can be weight
         3: lambda x: init.xavier_uniform_(x, gain=scale), # can be conv1D filter
         4: lambda x: init.xavier_uniform_(x, gain=scale), # can be conv2D filter
         "default": lambda x: init.constant_(x, scale), # everything else
