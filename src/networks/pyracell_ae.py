@@ -57,7 +57,7 @@ class InjectedEncoder(nn.Module):
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
         else:
-            self.frac_sobel = SinSobel(self.n_filter, [3, 7], [1, 3], left_sided=self.causal)
+            self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
 
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
@@ -197,7 +197,7 @@ class Decoder(nn.Module):
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
         else:
-            self.frac_sobel = SinSobel(self.n_filter, [3, 7], [1, 3], left_sided=self.causal)
+            self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
 
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
