@@ -209,8 +209,7 @@ class Decoder(nn.Module):
 
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-            GaussianSmoothing(self.n_filter, 3, 1, 1),
-            NoiseInjection(self.n_filter)
+            GaussianSmoothing(self.n_filter, 3, 1, 1)
         )
 
         if self.log_mix_out:

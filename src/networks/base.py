@@ -76,6 +76,7 @@ class Generator(nn.Module):
 
         qz = self.z_to_qz(z)
         lat = self.qz_to_lat(qz, yembed)
+        lat = F.normalize(lat, dim=1)
 
         return lat
 
