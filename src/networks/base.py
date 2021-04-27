@@ -73,7 +73,6 @@ class Generator(nn.Module):
             z = z.clamp(-3, 3)
 
         lat = self.z_to_lat(z, yembed)
-        lat = F.normalize(lat, dim=1)
 
         return lat
 
