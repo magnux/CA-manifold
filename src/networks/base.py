@@ -25,8 +25,8 @@ class Discriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
-        self.lat_to_score = DynaLinear(self.lat_size, self.lat_size, 1)
+        self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5), bias=False)
+        self.lat_to_score = DynaLinear(int(self.lat_size ** 0.5), self.lat_size, 1)
         self.norm_lat = norm_lat
 
     def forward(self, lat, y):
@@ -56,8 +56,8 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
-        self.z_to_lat = DynaLinear(self.lat_size, self.z_dim, self.lat_size)
+        self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5), bias=False)
+        self.z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size)
         self.norm_z = norm_z
 
     def forward(self, z, y):
@@ -266,8 +266,8 @@ class IRMGenerator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
-        self.z_to_lat = DynaLinear(self.lat_size, self.z_dim, self.lat_size)
+        self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5), bias=False)
+        self.z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.z_dim, self.fhidden),
             IRMLinear(self.fhidden, 4),
@@ -304,8 +304,8 @@ class IRMDiscriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
-        self.lat_to_score = DynaLinear(self.lat_size, self.lat_size, 1)
+        self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5), bias=False)
+        self.lat_to_score = DynaLinear(int(self.lat_size ** 0.5), self.lat_size, 1)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.lat_size, self.fhidden),
             IRMLinear(self.fhidden, 4),
