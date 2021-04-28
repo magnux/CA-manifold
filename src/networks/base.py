@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
-from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
+import numpy as np
 
 
 class Classifier(nn.Module):
@@ -25,8 +25,7 @@ class Discriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5), bias=False)
-        self.lat_to_score = DynaLinear(int(self.lat_size ** 0.5), self.lat_size, 1)
+        self.lat_to_score = nn.Linear(self.lat_size, n_labels)
         self.norm_lat = norm_lat
 
     def forward(self, lat, y):
@@ -42,8 +41,7 @@ class Discriminator(nn.Module):
         if self.norm_lat:
             lat = F.normalize(lat, dim=1)
 
-        yembed = self.exp_yembed(yembed)
-        score = self.lat_to_score(lat, yembed)
+        score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / np.sqrt(yembed.shape[1]))
 
         return score
 
@@ -56,8 +54,7 @@ class Generator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5), bias=False)
-        self.z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size)
+        self.z_to_lat = nn.Linear(self.z_dim + n_labels, self.lat_size)
         self.norm_z = norm_z
 
     def forward(self, z, y):
@@ -75,8 +72,7 @@ class Generator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
-        yembed = self.exp_yembed(yembed)
-        lat = self.z_to_lat(z, yembed)
+        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
 
@@ -266,8 +262,7 @@ class IRMGenerator(nn.Module):
         self.z_dim = z_dim
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5), bias=False)
-        self.z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size)
+        self.z_to_lat = nn.Linear(self.z_dim + n_labels, self.lat_size)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.z_dim, self.fhidden),
             IRMLinear(self.fhidden, 4),
@@ -291,8 +286,7 @@ class IRMGenerator(nn.Module):
             z = z.clamp(-3, 3)
 
         z = self.irm_layer(z)
-        yembed = self.exp_yembed(yembed)
-        lat = self.z_to_lat(z, yembed)
+        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
 
@@ -304,8 +298,7 @@ class IRMDiscriminator(nn.Module):
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5), bias=False)
-        self.lat_to_score = DynaLinear(int(self.lat_size ** 0.5), self.lat_size, 1)
+        self.lat_to_score = nn.Linear(self.lat_size, n_labels)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.lat_size, self.fhidden),
             IRMLinear(self.fhidden, 4),
@@ -323,8 +316,7 @@ class IRMDiscriminator(nn.Module):
             yembed = y
 
         lat = self.irm_layer(lat)
-        yembed = self.exp_yembed(yembed)
-        score = self.lat_to_score(lat, yembed)
+        score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / np.sqrt(yembed.shape[1]))
 
         return score
 
