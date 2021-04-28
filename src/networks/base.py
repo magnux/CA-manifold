@@ -26,6 +26,7 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5))
+        nn.init.constant_(self.exp_yembed.bias, 1)
         self.lat_to_score = DynaLinear(int(self.lat_size ** 0.5), self.lat_size, 1)
         self.norm_lat = norm_lat
 
@@ -57,6 +58,7 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5))
+        nn.init.constant_(self.exp_yembed.bias, 1)
         self.z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size)
         self.norm_z = norm_z
 
@@ -267,6 +269,7 @@ class IRMGenerator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5))
+        nn.init.constant_(self.exp_yembed.bias, 1)
         self.z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.z_dim, self.fhidden),
@@ -305,6 +308,7 @@ class IRMDiscriminator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5))
+        nn.init.constant_(self.exp_yembed.bias, 1)
         self.lat_to_score = DynaLinear(int(self.lat_size ** 0.5), self.lat_size, 1)
         self.irm_layer = nn.Sequential(
             nn.Linear(self.lat_size, self.fhidden),
