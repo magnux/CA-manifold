@@ -274,8 +274,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                     #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    g_factor_enc = np.clip(g_factor_enc - 1e-2 * (labs_dis_enc_sign - 0.2), 0.1, 1.)
-                    g_factor_dec = np.clip(g_factor_dec - 1e-2 * (labs_dis_dec_sign - 0.2), 0.1, 1.)
+                    g_factor_enc = np.clip(g_factor_enc - 1e-2 * (labs_dis_enc_sign - 0.2), 1e-3, 1.)
+                    g_factor_dec = np.clip(g_factor_dec - 1e-2 * (labs_dis_dec_sign - 0.2), 1e-3, 1.)
                     # dis_grad_norm = get_grad_norm(discriminator).item()
                     # dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
 
@@ -297,7 +297,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_enc_sum += reg_gen_enc.item() / g_reg_every
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
-                        labs_enc.register_hook(grad_mult_hook(g_factor_dec ** 2))
+                        labs_enc.register_hook(grad_mult_hook(g_factor_dec ** 0.5))
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)  # , retain_graph=config['training']['through_grads']
                         loss_gen_enc_sum += loss_gen_enc.item()
 
@@ -328,7 +328,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
-                        labs_dec.register_hook(grad_mult_hook(g_factor_enc ** 2))
+                        labs_dec.register_hook(grad_mult_hook(g_factor_enc ** 0.5))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
