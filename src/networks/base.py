@@ -27,7 +27,7 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
-        self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size, 1)
+        self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size, 1, bias=False)
         self.lat_to_score = nn.Linear(self.lat_size, n_labels)
         self.norm_lat = norm_lat
 
@@ -59,7 +59,7 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, int(self.lat_size ** 0.5), bias=False)
-        self.dyna_z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size)
+        self.dyna_z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim + n_labels, self.lat_size)
         self.norm_z = norm_z
 

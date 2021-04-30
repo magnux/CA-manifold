@@ -152,6 +152,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 labs_dis_enc_sign, labs_dis_dec_sign = 0, 0
                 loss_gen_dec_sum = 0
+                labs_gen_dec_sign = 0
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 if g_reg_every > 0:
@@ -226,6 +227,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec, labels)
+                        labs_gen_dec_sign += ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
@@ -234,7 +236,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
-                        labs_dec.register_hook(grad_damp_hook(labs_dec.sign(), labs_dis_dec_sign, sign_mean_target, 0.1))
+                        labs_dec.register_hook(grad_damp_hook(labs_dec.sign(), labs_gen_dec_sign, sign_mean_target, 0.1))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
