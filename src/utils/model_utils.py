@@ -72,6 +72,25 @@ def grad_mult_hook(g_factor):
     return partial(_grad_mult_hook, g_factor=g_factor)
 
 
+def grad_damp_hook(sign, sign_mean, sign_mean_target, g_factor=1e-2, damp_neg=False):
+    def _grad_damp_hook(grad, sign, sign_mean, sign_mean_target, g_factor, damp_neg):
+        with torch.no_grad():
+
+            if sign_mean < sign_mean_target + g_factor:
+                if sign_mean > sign_mean_target - g_factor or not damp_neg:
+                    return grad
+
+            pos_grad = (sign >= 0).float() * grad
+            neg_grad = (sign < 0).float() * grad
+            if sign_mean > sign_mean_target:
+                pos_grad *= g_factor / (sign_mean - sign_mean_target)
+            else:
+                neg_grad *= g_factor / (sign_mean_target - sign_mean)
+            return pos_grad + neg_grad
+    return partial(_grad_damp_hook, sign=sign, sign_mean=sign_mean,
+                   sign_mean_target=sign_mean_target, g_factor=g_factor, damp_neg=damp_neg)
+
+
 def bkp_grad(network, bkp_name):
     for p in network.parameters():
         if p.grad is not None:
