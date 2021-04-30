@@ -192,7 +192,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Fixed reg target
         # reg_dis_target = 0.1
         # G Factor target
-        g_factor_target = 0.5 * (1. - 0.25 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        g_factor_target = 0.5 * (1. - 0.9 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
 
         it = epoch * (len(trainloader) // batch_split)
 
