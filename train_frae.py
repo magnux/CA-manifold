@@ -291,7 +291,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
 
-                        loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
+                        loss_gen_enc = (1 / batch_mult) * 1.1 * compute_gan_loss(labs_enc, 0)
                         loss_gen_enc -= (1 / batch_mult) * 0.1 * compute_gan_loss(labs_enc, 1)
                         labs_enc.register_hook(grad_mult_hook(g_factor_dec))
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
@@ -311,7 +311,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
+                        loss_gen_dec = (1 / batch_mult) * 1.1 * compute_gan_loss(labs_dec, 1)
                         loss_gen_dec -= (1 / batch_mult) * 0.1 * compute_gan_loss(labs_dec, 0)
                         labs_dec.register_hook(grad_mult_hook(g_factor_enc))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
