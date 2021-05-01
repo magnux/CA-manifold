@@ -234,7 +234,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
                         loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
-                        labs_enc.register_hook(grad_damp_hook(labs_enc.sign(), labs_dis_enc_sign, sign_mean_target))
+                        labs_enc.register_hook(grad_damp_hook(labs_enc.sign(), g_factor_enc))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
@@ -262,7 +262,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         #     reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
-                        labs_dec.register_hook(grad_damp_hook(labs_dec.sign(), labs_dis_dec_sign, sign_mean_target))
+                        labs_dec.register_hook(grad_damp_hook(labs_dec.sign(), g_factor_dec))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
@@ -273,8 +273,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
                     #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    # g_factor_enc = np.clip(g_factor_enc - 1e-2 * (labs_dis_enc_sign - sign_mean_target), 1e-3, 1.)
-                    # g_factor_dec = np.clip(g_factor_dec - 1e-2 * (labs_dis_dec_sign - sign_mean_target), 1e-3, 1.)
+                    g_factor_enc = np.clip(g_factor_enc - 1e-2 * (labs_dis_enc_sign - sign_mean_target), 1e-3, 1.)
+                    g_factor_dec = np.clip(g_factor_dec - 1e-2 * (labs_dis_dec_sign - sign_mean_target), 1e-3, 1.)
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
