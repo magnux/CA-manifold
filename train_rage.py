@@ -170,7 +170,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Fixed reg target
         # reg_dis_target = 0.1
         # Discriminator mean sign target
-        sign_mean_target = 0.5 * (1. - 0.9 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
 
         it = epoch * (len(trainloader) // batch_split)
 
