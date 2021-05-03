@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, norm_weights=False):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, norm_weights=False, weights_noise_scale=0.):
         super(DynaResidualBlock, self).__init__()
 
         self.lat_size = lat_size if lat_size > 3 else 512
@@ -49,12 +49,15 @@ class DynaResidualBlock(nn.Module):
         self.stride = stride
         self.padding = padding
         self.norm_weights = norm_weights
+        self.weights_noise_scale = weights_noise_scale
 
     def forward(self, x, lat):
         batch_size = x.size(0)
         
         if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
             ks = self.dyna_k(lat)
+            if self.weights_noise_scale > 0.:
+                ks = ks + self.weights_noise_scale * torch.randn_like(ks)
             k_in, k_mid, k_out, k_short, b_in, b_mid, b_out, b_short = torch.split(ks, [self.k_in_size, self.k_mid_size,
                                                                                         self.k_out_size, self.k_short_size,
                                                                                         self.b_in_size, self.b_mid_size,
