@@ -57,7 +57,7 @@ class DynaResidualBlock(nn.Module):
         if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
             ks = self.dyna_k(lat)
             if self.weights_noise_scale > 0.:
-                ks = (1. - self.weights_noise_scale) * ks + self.weights_noise_scale * (torch.randn_like(ks) - ks.clone().detach_())
+                ks = (1. - self.weights_noise_scale) ** 0.5 * ks + self.weights_noise_scale * torch.randn_like(ks)
             k_in, k_mid, k_out, k_short, b_in, b_mid, b_out, b_short = torch.split(ks, [self.k_in_size, self.k_mid_size,
                                                                                         self.k_out_size, self.k_short_size,
                                                                                         self.b_in_size, self.b_mid_size,
