@@ -64,7 +64,7 @@ class InjectedEncoder(nn.Module):
                                             for _ in range(1 if self.shared_params else self.n_layers)])
         self.frac_dyna_conv = nn.ModuleList([
             DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
-                              self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, weights_noise_scale=0.1)
+                              self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_ds = nn.Sequential(
