@@ -36,11 +36,9 @@ class DynaResidualBlock(nn.Module):
         k_total_size = (self.k_in_size + self.k_mid_size + self.k_out_size + self.k_short_size +
                         self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size)
 
-        self.linear_fa = LinearFA(self.lat_size, self.lat_size)
         self.dyna_k = nn.Sequential(
             nn.Linear(lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            self.linear_fa,
             LinearResidualBlock(self.lat_size, k_total_size, self.lat_size * 2),
         )
 
@@ -57,7 +55,6 @@ class DynaResidualBlock(nn.Module):
         batch_size = x.size(0)
         
         if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
-            self.linear_fa.weights_noise_scale = self.weights_noise_scale
             ks = self.dyna_k(lat)
             k_in, k_mid, k_out, k_short, b_in, b_mid, b_out, b_short = torch.split(ks, [self.k_in_size, self.k_mid_size,
                                                                                         self.k_out_size, self.k_short_size,
@@ -96,62 +93,8 @@ class DynaResidualBlock(nn.Module):
         x_new = self.f_conv(x_new, self.k_out, stride=self.stride, padding=self.padding, groups=batch_size) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.reshape([batch_size, self.fout] + [x.size(d + 2) for d in range(self.dim)])
+
+        if self.weights_noise_scale > 0.:
+            x_new.register_hook(lambda grad: grad + self.weights_noise_scale * (grad.pow(2).max() + 1e-3) * torch.randn_like(grad))
         
         return x_new
-
-
-def linear_fa_backward_hook(module, grad_input, grad_output):
-    if grad_input[1] is not None:
-        grad_input_fa = ((1. - module.weights_noise_scale) * grad_output[0].mm(module.weight) +
-                         module.weights_noise_scale * grad_output[0].mm(module.weight_fa))
-    else:
-        # No layer below, thus no gradient w.r.t. input
-        grad_input_fa = None
-
-    if len(grad_input) == 3:
-        return (grad_input[0], grad_input_fa) + grad_input[2:]
-    else:
-        # No gradient w.r.t. bias
-        return (grad_input_fa,) + grad_input[1:]
-
-
-class LinearFA(nn.Module):
-    """
-    Implementation of a linear module which uses random feedback weights
-    in its backward pass, as described in Lillicrap et al., 2016:
-    https://www.nature.com/articles/ncomms13276
-    """
-
-    __constants__ = ['bias', 'in_features', 'out_features']
-
-    def __init__(self, in_features, out_features, bias=True, weights_noise_scale=0.):
-        super(LinearFA, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.weight = nn.Parameter(torch.Tensor(out_features, in_features))
-        self.register_buffer('weight_fa', torch.Tensor(out_features, in_features))
-        if bias:
-            self.bias = nn.Parameter(torch.Tensor(out_features))
-        else:
-            self.register_parameter('bias', None)
-        self.reset_parameters()
-
-        self.weights_noise_scale = weights_noise_scale
-
-        self.register_backward_hook(linear_fa_backward_hook)
-
-    def reset_parameters(self):
-        nn.init.kaiming_uniform_(self.weight, a=5 ** 0.5)
-        nn.init.kaiming_uniform_(self.weight_fa, a=5 ** 0.5)
-        if self.bias is not None:
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
-            bound = 1 / fan_in ** 0.5
-            nn.init.uniform_(self.bias, -bound, bound)
-
-    def forward(self, input):
-        return F.linear(input, self.weight, self.bias)
-
-    def extra_repr(self):
-        return 'in_features={}, out_features={}, bias={}'.format(
-            self.in_features, self.out_features, self.bias is not None
-        )
