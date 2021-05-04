@@ -66,6 +66,9 @@ class InjectedEncoder(nn.Module):
             DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
+        self.frac_conv = nn.ModuleList([
+            ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
+            for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
@@ -81,6 +84,7 @@ class InjectedEncoder(nn.Module):
             LinearResidualBlock(self.lat_size, self.lat_size),
             nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
         )
+        # self.weights_noise_scale = 0.
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -110,7 +114,9 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
-            out_new = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
+            out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
+            out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
+            out_new = out_new_f + out_new_d
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -126,6 +132,8 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             if c < (self.n_layers * self.n_calls) - 1 and c % self.n_calls == self.n_calls - 1:
                 out = self.frac_ds(out)
+            # if self.weights_noise_scale > 0.:
+            #     out.register_hook(lambda grad: grad + self.weights_noise_scale * (grad.pow(2).max() + 1e-3) * torch.randn_like(grad))
             out_embs.append(out)
 
         out = self.out_conv(out)

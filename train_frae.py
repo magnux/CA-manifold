@@ -274,7 +274,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     g_factor_enc = np.clip(g_factor_enc - 1e-2 * (labs_dis_enc_sign - sign_mean_target + np.clip(reg_dis_enc_sum - 1., 0, 100)), 1e-3, 1.)
                     g_factor_dec = np.clip(g_factor_dec - 1e-2 * (labs_dis_dec_sign - sign_mean_target + np.clip(reg_dis_enc_sum - 1., 0, 100)), 1e-3, 1.)
-                    dis_encoder.frac_dyna_conv.weights_noise_scale = 1. - 0.5 * (g_factor_enc + g_factor_dec)
+                    # dis_encoder.weights_noise_scale = 1. - 0.5 * (g_factor_enc + g_factor_dec)
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
