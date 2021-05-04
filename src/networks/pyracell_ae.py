@@ -214,6 +214,9 @@ class Decoder(nn.Module):
             DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
+        self.frac_conv = nn.ModuleList([
+            ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
+            for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
@@ -287,7 +290,9 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
-            out_new = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
+            out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
+            out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
+            out_new = out_new_f + out_new_d
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
