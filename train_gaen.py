@@ -267,17 +267,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                    # if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                    #     reg_dis_mean = 0.5 * (reg_dis_enc_sum + reg_dis_dec_sum)
-                    #     loss_dis_mean = 0.5 * (loss_dis_enc_sum + loss_dis_dec_sum)
-                    #     d_reg_every_mean = d_reg_every_mean_next
-                    #     d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
-                    #                                                                 reg_dis_mean, reg_dis_target, loss_dis_mean)
+                    if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
+                        reg_dis_mean = 0.5 * (reg_dis_enc_sum + reg_dis_dec_sum)
+                        loss_dis_mean = 0.5 * (loss_dis_enc_sum + loss_dis_dec_sum)
+                        d_reg_every_mean = d_reg_every_mean_next
+                        d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every, d_reg_param_mean,
+                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
 
-                    g_factor_enc_delta = labs_dis_enc_sign - sign_mean_target
-                    g_factor_enc = np.clip(g_factor_enc - (0.1 if g_factor_enc_delta > 0 else 1e-2) * g_factor_enc_delta, 1e-3, 1.)
-                    g_factor_dec_delta = labs_dis_dec_sign - sign_mean_target
-                    g_factor_dec = np.clip(g_factor_dec - (0.1 if g_factor_dec_delta > 0 else 1e-2) * g_factor_dec_delta, 1e-3, 1.)
+                    g_factor_enc = np.clip(g_factor_enc - 1e-3 * (labs_dis_enc_sign - sign_mean_target), 1e-3, 1.)
+                    g_factor_dec = np.clip(g_factor_dec - 1e-3 * (labs_dis_dec_sign - sign_mean_target), 1e-3, 1.)
                     # dis_encoder.weights_noise_scale = 1. - 0.5 * (g_factor_enc + g_factor_dec)
                     # dis_grad_norm = get_grad_norm(discriminator).item()
                     # dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
