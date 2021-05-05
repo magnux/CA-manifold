@@ -51,7 +51,7 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=True, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=False, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
@@ -62,6 +62,7 @@ class Generator(nn.Module):
         self.dyna_z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size)
         self.z_to_lat = nn.Linear(self.z_dim + n_labels, self.lat_size)
         self.norm_z = norm_z
+        self.irm_layer = IRMLinear(self.lat_size, 4)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -78,9 +79,9 @@ class Generator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
+        z = self.irm_layer(z)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
         lat = lat + self.dyna_z_to_lat(z, self.exp_yembed(yembed))
-        lat = F.normalize(lat, dim=1)
 
         return lat
 
@@ -119,12 +120,13 @@ class UnconditionalDiscriminator(nn.Module):
 
 
 class UnconditionalGenerator(nn.Module):
-    def __init__(self, lat_size, z_dim, norm_z=True, **kwargs):
+    def __init__(self, lat_size, z_dim, norm_z=False, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
         self.norm_z = norm_z
+        self.irm_layer = IRMLinear(self.lat_size, 4)
 
     def forward(self, z):
         if self.norm_z:
@@ -132,6 +134,7 @@ class UnconditionalGenerator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
+        z = self.irm_layer(z)
         lat = self.z_to_lat(z)
         lat = F.normalize(lat, dim=1)
 
@@ -231,24 +234,6 @@ class LetterDecoder(nn.Module):
         letters = letters.view(letters.size(0), self.letter_channels * self.letter_bits, self.lat_size)
         lat = self.letters_to_lat(letters)
         lat = lat.squeeze(dim=1)
-
-        return lat
-
-
-class UnconditionalIRMTranslator(nn.Module):
-    def __init__(self, lat_size, **kwargs):
-        super().__init__()
-        self.lat_size = lat_size
-        self.fhidden = lat_size if lat_size > 3 else 512
-        self.irm_layer = nn.Sequential(
-            nn.Linear(self.lat_size, self.fhidden),
-            IRMLinear(self.fhidden, 4),
-        )
-        self.lat_out = nn.Linear(self.fhidden, self.lat_size)
-
-    def forward(self, lat):
-        lat = self.irm_layer(lat)
-        lat = self.lat_out(lat)
 
         return lat
 
