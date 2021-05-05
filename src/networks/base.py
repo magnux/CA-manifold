@@ -80,6 +80,7 @@ class Generator(nn.Module):
 
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
         lat = lat + self.dyna_z_to_lat(z, self.exp_yembed(yembed))
+        lat = F.normalize(lat, dim=1)
 
         return lat
 
@@ -132,6 +133,7 @@ class UnconditionalGenerator(nn.Module):
             z = z.clamp(-3, 3)
 
         lat = self.z_to_lat(z)
+        lat = F.normalize(lat, dim=1)
 
         return lat
 
