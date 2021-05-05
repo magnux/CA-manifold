@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, age_gaussian_kl_loss
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params
 from src.utils.model_utils import compute_inception_score, grad_mult_hook, grad_noise_hook
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -151,7 +151,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 labs_dis_enc_sign, labs_dis_dec_sign = 0, 0
-                loss_gen_dec_sum, kl_gen_dec_sum = 0, 0
+                loss_gen_dec_sum = 0
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 if g_reg_every > 0:
@@ -222,11 +222,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_gen = generator(z_gen, labels)
-
-                        kl_gen_dec = (1 / batch_mult) * 0.1 * age_gaussian_kl_loss(lat_gen)
-                        model_manager.loss_backward(kl_gen_dec, nets_to_train, retain_graph=True)
-                        kl_gen_dec_sum += kl_gen_dec.item()
-
+                        # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                         images_dec, _, _ = decoder(lat_gen)
 
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
@@ -268,7 +264,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'labs_dis_dec_sign', labs_dis_dec_sign, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
-                model_manager.log_manager.add_scalar('losses', 'kl_gen_dec', kl_gen_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'g_factor_enc', g_factor_enc, it=it)
                 model_manager.log_manager.add_scalar('regs', 'g_factor_dec', g_factor_dec, it=it)
