@@ -220,8 +220,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
-                        loss_labs_enc_norm = 1e-2 * labs_enc.norm().mean()
-                        model_manager.loss_backward(loss_labs_enc_norm, nets_to_train, retain_graph=True)
+                        # loss_labs_enc_norm = 1e-2 * labs_enc.norm().mean()
+                        # model_manager.loss_backward(loss_labs_enc_norm, nets_to_train, retain_graph=True)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -246,8 +246,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
-                        loss_labs_dec_norm = 1e-2 * labs_dec.norm().mean()
-                        model_manager.loss_backward(loss_labs_dec_norm, nets_to_train, retain_graph=True)
+                        # loss_labs_dec_norm = 1e-2 * labs_dec.norm().mean()
+                        # model_manager.loss_backward(loss_labs_dec_norm, nets_to_train, retain_graph=True)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         # if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
