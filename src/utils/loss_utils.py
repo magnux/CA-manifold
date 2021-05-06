@@ -33,7 +33,7 @@ def compute_gan_loss(d_out, target, gan_type='standard', reg_norm=0.25):
         raise NotImplementedError
 
     if reg_norm > 0.:
-        loss.register_hook(lambda grad: grad - F.relu(d_out.norm().mean() - reg_norm))
+        loss.register_hook(lambda grad: grad + d_out.sign() * (d_out.norm().mean() > reg_norm))
 
     return loss
 
