@@ -152,9 +152,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_gen_dec_sum = 0
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
-                if g_reg_every > 0:
-                    reg_gen_dec_sum = 0
-                    pl_mean_dec = 0
+                reg_gen_dec_sum = 0
 
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
