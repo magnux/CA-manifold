@@ -162,6 +162,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
+                if not (g_reg_every > 0 and it % g_reg_every == 1):
+                    reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
+
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
@@ -230,7 +233,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec, labels)
 
-                        if g_reg_every > 0 and it % g_reg_every == 0:
+                        if g_reg_every > 0 and it % g_reg_every == 1:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
