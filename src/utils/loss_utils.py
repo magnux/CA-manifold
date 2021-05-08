@@ -66,7 +66,7 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     return reg
 
 
-def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss_target,
+def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, reg_loss, reg_loss_target,
                       loss_dis=None, update_every=True, maximize=True, lr=0.1):
 
     if loss_dis is not None:
@@ -93,7 +93,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_loss, reg_loss
         elif reg_ratio > 2.:
             reg_every /= 2
 
-    reg_param = np.clip(reg_param, 1e-18, 1e18)
+    reg_param = np.clip(reg_param, 1e-18, reg_param_target)
     reg_every = np.clip(reg_every, 1, reg_every_target)
 
     return reg_every, reg_param
@@ -138,6 +138,12 @@ def compute_pl_reg(g_out, g_in, pl_mean, beta=0.99, alt_pl=None, reg_factor=1., 
 def update_ada_augment_p(current_p, logits_sign_mean, batch_size, ada_target=0.2, kimgs=5e5):
     adjust = np.sign(logits_sign_mean - ada_target) * batch_size / kimgs
     return F.relu(current_p + adjust)
+
+
+def update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target):
+    g_factor_enc = np.clip(g_factor_enc - 1e-2 * (labs_dis_enc_sign - sign_mean_target), 0.1, 1.)
+    g_factor_dec = np.clip(g_factor_dec - 1e-2 * (labs_dis_dec_sign - sign_mean_target), 0.1, 1.)
+    return g_factor_enc, g_factor_dec
 
 
 def gram_matrix_1d(x):
