@@ -138,11 +138,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             decoder.n_calls = 4
 
                             pers_out_embs = out_embs
+                            target_out_embs = out_embs[-1].clone().detach_()
                             pers_steps = 4
                             for _ in range(pers_steps):
                                 _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
-                                loss_pers = (1 / batch_mult) * (out_embs[-1].clone().detach_() - pers_out_embs[-1]).pow(2).mean()
+                                loss_pers = (1 / batch_mult) * (target_out_embs - pers_out_embs[-1]).pow(2).mean()
                                 model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                                 loss_pers_sum += loss_pers.item()
 
