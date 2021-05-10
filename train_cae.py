@@ -138,12 +138,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             decoder.n_calls = 4
 
                             pers_out_embs = out_embs
-                            target_out_embs = out_embs[-1].clone().detach_()
                             pers_steps = 4
                             for _ in range(pers_steps):
                                 _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
-                                loss_pers = (1 / batch_mult) * (target_out_embs - pers_out_embs[-1]).pow(2).mean()
+                                loss_pers = (1 / batch_mult) * F.mse_loss(pers_out_embs[-1], out_embs[-1])
+                                pers_out_embs[-1].register_hook(lambda grad: grad + (2 / grad.numel()) * grad)
                                 model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                                 loss_pers_sum += loss_pers.item()
 
@@ -160,7 +160,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                                 _, regen_out_embs, _ = decoder(lat_dec, corrupt_init_samples)
 
-                                loss_regen = (1 / batch_mult) * ((init_samples * masks).detach_() - (regen_out_embs[-1] * masks)).pow(2).mean()
+                                loss_regen = (1 / batch_mult) * F.mse_loss(regen_out_embs[-1] * masks, init_samples * masks)
+                                regen_out_embs[-1].register_hook(lambda grad: grad - (1e-4 / (grad.numel() * (grad.pow(2) + 1e-4))))
                                 model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                                 loss_regen_sum += loss_regen.item()
 
