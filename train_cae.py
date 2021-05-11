@@ -165,7 +165,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 _, regen_out_embs, _ = decoder(lat_dec, corrupt_init_samples)
 
                                 regen_masked = regen_out_embs[-1] * masks
-                                init_masked = init_samples * masks
+                                init_masked = out_embs[-1] * masks
                                 loss_regen = (1 / batch_mult) * F.mse_loss(regen_masked, init_masked)
                                 model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                                 loss_regen_sum += loss_regen.item()
