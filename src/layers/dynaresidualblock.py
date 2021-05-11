@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, norm_weights=True):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, norm_weights=False):
         super(DynaResidualBlock, self).__init__()
 
         self.lat_size = lat_size if lat_size > 3 else 512
@@ -33,13 +33,13 @@ class DynaResidualBlock(nn.Module):
         self.b_out_size = self.fout if not norm_weights else 0
         self.b_short_size = self.fout if not norm_weights else 0
 
-        k_total_size = (self.k_in_size + self.k_mid_size + self.k_out_size + self.k_short_size +
+        self.k_total_size = (self.k_in_size + self.k_mid_size + self.k_out_size + self.k_short_size +
                         self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size)
 
         self.dyna_k = nn.Sequential(
             nn.Linear(lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, k_total_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.k_total_size, self.lat_size * 2),
         )
 
         self.prev_lat = None
@@ -54,7 +54,7 @@ class DynaResidualBlock(nn.Module):
         batch_size = x.size(0)
         
         if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
-            ks = self.dyna_k(lat)
+            ks = self.dyna_k(lat) * self.k_total_size ** 0.5
             k_in, k_mid, k_out, k_short, b_in, b_mid, b_out, b_short = torch.split(ks, [self.k_in_size, self.k_mid_size,
                                                                                         self.k_out_size, self.k_short_size,
                                                                                         self.b_in_size, self.b_mid_size,
