@@ -170,7 +170,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                                 loss_regen_sum += loss_regen.item()
 
-                                regen_grad = torch.autograd.grad(outputs=regen_masked.sum(), inputs=init_masked,
+                                regen_grad = torch.autograd.grad(outputs=regen_masked.sum(), inputs=corrupt_init_samples,
                                                                  create_graph=True, retain_graph=True, only_inputs=True)[0]
                                 loss_regen_grad = (1 / batch_mult) * 1e-8 / ((regen_grad * masks).pow(2).mean() + 1e-4)
                                 model_manager.loss_backward(loss_regen_grad, nets_to_train, retain_graph=True)
