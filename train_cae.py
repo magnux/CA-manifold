@@ -133,7 +133,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True if (persistence or regeneration) else False)
                         loss_dec_sum += loss_dec.item()
 
-                        loss_final_state = (1 / batch_mult) * F.mse_loss(out_embs[-1][:, images.shape[1] + 1, ...], -out_embs[0][:, images.shape[1] + 1, ...])
+                        last_state = out_embs[-1][:, images.shape[1] + 1, ...]
+                        loss_final_state = (1 / batch_mult) * F.mse_loss(last_state, -torch.ones_like(last_state))
                         model_manager.loss_backward(loss_final_state, nets_to_train, retain_graph=True if (persistence or regeneration) else False)
                         loss_dec_sum += loss_final_state.item()
 
