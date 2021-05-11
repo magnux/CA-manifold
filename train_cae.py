@@ -148,7 +148,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                                 pers_grad = torch.autograd.grad(outputs=pers_out_embs[-1].sum(), inputs=out_embs[-1],
                                                                 create_graph=True, retain_graph=True, only_inputs=True)[0]
-                                loss_pers_grad = (1 / batch_mult) * pers_grad.pow(2).sum()
+                                loss_pers_grad = (1 / batch_mult) * 1e-4 * pers_grad.pow(2).mean()
                                 model_manager.loss_backward(loss_pers_grad, nets_to_train, retain_graph=True)
                                 loss_pers_sum += loss_pers_grad.item()
 
