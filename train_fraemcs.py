@@ -223,13 +223,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
-                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, lat_enc)
-                            model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
-
-                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * 1e-2 * compute_grad_reg(labs_enc, lat_top_enc)
-                            model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
+                            # reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, lat_enc)
+                            # model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
+                            # reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
                         loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
@@ -249,13 +245,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, lat_gen)
-                            model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
-
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * 1e-2 * compute_grad_reg(labs_dec, lat_top_dec)
-                            model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
+                            # reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, lat_gen)
+                            # model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
+                            # reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
