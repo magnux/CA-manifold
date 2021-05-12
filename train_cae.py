@@ -135,10 +135,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if persistence:
                             n_calls_save = decoder.n_calls
-                            decoder.n_calls = 4
+                            decoder.n_calls = 1
 
                             pers_out_embs = out_embs
-                            pers_steps = 4
+                            pers_steps = 16
                             for _ in range(pers_steps):
                                 _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
@@ -150,13 +150,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if regeneration:
                             n_calls_save = decoder.n_calls
-                            decoder.n_calls = 4
+                            decoder.n_calls = 1
 
-                            regen_steps = 4
+                            regen_out_embs = [rand_circle_masks(out_embs[-1], batch_split_size)]
+                            regen_steps = 16
                             for _ in range(regen_steps):
-                                corrupt_init_samples, masks = rand_circle_masks(out_embs[-1], batch_split_size)
-
-                                _, regen_out_embs, _ = decoder(lat_dec, corrupt_init_samples)
+                                _, regen_out_embs, _ = decoder(lat_dec, regen_out_embs[-1])
 
                                 loss_regen = (1 / batch_mult) * F.mse_loss(regen_out_embs[-1], out_embs[-1])
                                 model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
