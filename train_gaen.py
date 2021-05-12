@@ -230,8 +230,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc, labels)
-                        loss_labs_enc_norm = 1e-2 * labs_enc.norm().mean()
-                        model_manager.loss_backward(loss_labs_enc_norm, nets_to_train, retain_graph=True)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -240,6 +238,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
                             reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, lat_enc)
+                            model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
+                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
+
+                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, lat_top_enc)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
@@ -257,8 +259,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec, labels)
-                        loss_labs_dec_norm = 1e-2 * labs_dec.norm().mean()
-                        model_manager.loss_backward(loss_labs_dec_norm, nets_to_train, retain_graph=True)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -267,6 +267,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
                             reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, lat_gen)
+                            model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
+                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
+
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, lat_top_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
@@ -285,7 +289,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     g_factor_enc, g_factor_dec = update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target)
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
-                    # dis_encoder.weights_noise_scale = 1. - 0.5 * (g_factor_enc + g_factor_dec)
                     grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
                     # dis_grad_norm = get_grad_norm(discriminator).item()

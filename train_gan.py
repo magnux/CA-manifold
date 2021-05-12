@@ -171,8 +171,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_top_enc, _, _ = dis_encoder(images, labels)
                         labs_enc = discriminator(lat_top_enc, labels)
-                        loss_labs_enc_norm = 1e-2 * labs_enc.norm().mean()
-                        model_manager.loss_backward(loss_labs_enc_norm, nets_to_train, retain_graph=True)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -193,8 +191,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec, labels)
-                        loss_labs_dec_norm = 1e-2 * labs_dec.norm().mean()
-                        model_manager.loss_backward(loss_labs_dec_norm, nets_to_train, retain_graph=True)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -217,7 +213,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     g_factor_enc, g_factor_dec = update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target)
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
-                    # dis_encoder.weights_noise_scale = 1. - 0.5 * (g_factor_enc + g_factor_dec)
                     grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
 
