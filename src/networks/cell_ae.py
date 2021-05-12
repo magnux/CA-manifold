@@ -94,7 +94,7 @@ class InjectedEncoder(nn.Module):
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
             if self.perception_noise and self.training:
-                out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
+                out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             if self.conv_irm:
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
@@ -247,7 +247,7 @@ class Decoder(nn.Module):
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
             if self.perception_noise and self.training:
-                out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
+                out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             if self.conv_irm:
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)

@@ -18,15 +18,15 @@ network:
     adain: False
     dyncin: False
     letter_encoding: False
-    perception_noise: False
-    fire_rate: 1.0
+    perception_noise: True
+    fire_rate: 0.5
 z_dist:
   type: gauss
   z_dim: 256
 training:
-  out_dir: save/emoji_s_ca_manifold_fl
-  persistence: False
-  regeneration: False
+  out_dir: save/emoji_s_ca_manifold_fl_sto_pnoise_persist_regen
+  persistence: True
+  regeneration: True
   batch_size: 64
   batch_split: 4
   batch_mult_steps: 1

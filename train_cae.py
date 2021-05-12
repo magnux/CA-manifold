@@ -133,11 +133,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True if (persistence or regeneration) else False)
                         loss_dec_sum += loss_dec.item()
 
-                        last_state = out_embs[-1][:, images.shape[1] + 1, ...]
-                        loss_final_state = (1 / batch_mult) * F.mse_loss(last_state, -torch.ones_like(last_state))
-                        model_manager.loss_backward(loss_final_state, nets_to_train, retain_graph=True if (persistence or regeneration) else False)
-                        loss_dec_sum += loss_final_state.item()
-
                         if persistence:
                             n_calls_save = decoder.n_calls
                             decoder.n_calls = 4
@@ -150,12 +145,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 loss_pers = (1 / batch_mult) * F.mse_loss(pers_out_embs[-1], out_embs[-1])
                                 model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                                 loss_pers_sum += loss_pers.item()
-
-                                # pers_grad = torch.autograd.grad(outputs=loss_pers, inputs=out_embs[-1],
-                                #                                 create_graph=True, retain_graph=True, only_inputs=True)[0]
-                                # loss_pers_grad = (1 / batch_mult) * 1e-3 * pers_grad.pow(2).mean()
-                                # model_manager.loss_backward(loss_pers_grad, nets_to_train, retain_graph=True)
-                                # loss_pers_sum += loss_pers_grad.item()
 
                             decoder.n_calls = n_calls_save
 
@@ -174,12 +163,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 loss_regen = (1 / batch_mult) * F.mse_loss(regen_masked, init_masked)
                                 model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                                 loss_regen_sum += loss_regen.item()
-
-                                # regen_grad = torch.autograd.grad(outputs=loss_regen, inputs=corrupt_init_samples,
-                                #                                  create_graph=True, retain_graph=True, only_inputs=True)[0]
-                                # loss_regen_grad = (1 / batch_mult) * 1e-8 / ((regen_grad * masks).pow(2).mean() + 1e-4)
-                                # model_manager.loss_backward(loss_regen_grad, nets_to_train, retain_graph=True)
-                                # loss_regen_sum += loss_regen_grad.item()
 
                             decoder.n_calls = n_calls_save
 

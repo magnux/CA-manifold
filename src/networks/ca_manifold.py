@@ -75,7 +75,7 @@ class Decoder(nn.Module):
             if self.alive_masking:
                 pre_life_mask = F.max_pool2d(out[:, 3:4, :, :], 3, 1, 1) > 0.1
             if self.perception_noise and self.training:
-                out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * torch.randn_like(out_new))
+                out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
             if not self.deactivate_norm:
                 out_new = self.frac_norm(out_new)
