@@ -139,10 +139,16 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             pers_out_embs = out_embs
                             pers_steps = 4
-                            for _ in range(pers_steps):
+                            pers_filters = (n_filter - images.shape[1]) // (pers_steps - 1)
+                            for s in range(pers_steps):
                                 _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
+                                pers_target = out_embs[-1].clone()
+                                if s < pers_steps - 1:
+                                    pers_f_start = images.shape[1] + s * pers_filters
+                                    pers_f_end = images.shape[1] + (s + 1) * pers_filters
+                                    pers_target[:, pers_f_start:pers_f_end, ...] += 1e-2
 
-                                loss_pers = (1 / batch_mult) * 10 * F.mse_loss(pers_out_embs[-1], out_embs[-1])
+                                loss_pers = (1 / batch_mult) * 10 * F.mse_loss(pers_out_embs[-1], pers_target)
                                 model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                                 loss_pers_sum += loss_pers.item()
 
