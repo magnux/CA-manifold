@@ -3,8 +3,10 @@ import torch
 from torch.nn import functional as F
 from src.layers.posencoding import cos_pos_encoding_nd
 
+CE_ZERO = np.log(0.5)
 
-def compute_gan_loss(d_out, target, gan_type='relu_log'):
+
+def compute_gan_loss(d_out, target, gan_type='exp'):
 
     if gan_type == 'standard':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
@@ -29,8 +31,8 @@ def compute_gan_loss(d_out, target, gan_type='relu_log'):
         loss = F.relu((1 - 2*target) * d_out).mean()
     elif gan_type == 'softplus':
         loss = F.softplus((1 - 2*target) * d_out).mean()
-    elif gan_type == 'relu_log':
-        loss = (1 + F.relu(((1 - 2*target) * d_out) + 1)).log().mean()
+    elif gan_type == 'exp':
+        loss = (((1 - 2*target) * d_out).exp() - (1 + CE_ZERO)).mean()
     else:
         raise NotImplementedError
 
@@ -143,8 +145,8 @@ def update_ada_augment_p(current_p, logits_sign_mean, batch_size, ada_target=0.2
 
 
 def update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target):
-    g_factor_enc = np.clip(g_factor_enc - 1e-3 * (labs_dis_enc_sign - sign_mean_target), 0.1, 1.)
-    g_factor_dec = np.clip(g_factor_dec - 1e-3 * (labs_dis_dec_sign - sign_mean_target), 0.1, 1.)
+    g_factor_enc = np.clip(g_factor_enc - 1e-2 * (labs_dis_enc_sign - sign_mean_target), 0.1, 1.)
+    g_factor_dec = np.clip(g_factor_dec - 1e-2 * (labs_dis_dec_sign - sign_mean_target), 0.1, 1.)
     return g_factor_enc, g_factor_dec
 
 
@@ -159,9 +161,6 @@ def gram_matrix_2d(x):
     x = x.view(b, f, h * w)
     G = torch.bmm(x, x.permute(0, 2, 1))
     return G.div(f * h * w)
-
-
-CE_ZERO = np.log(0.5)
 
 
 def cross_entropy_distance(out, target, mode='L1'):
