@@ -146,7 +146,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 if s < pers_steps - 1:
                                     pers_f_start = images.shape[1] + s * pers_filters
                                     pers_f_end = images.shape[1] + (s + 1) * pers_filters
-                                    pers_target[:, pers_f_start:pers_f_end, ...] += 1e-2
+                                    pers_target[:, pers_f_start:pers_f_end, ...] += 0.1 * torch.rand_like(pers_target[:, pers_f_start:pers_f_end, ...])
 
                                 loss_pers = (1 / batch_mult) * 10 * F.mse_loss(pers_out_embs[-1], pers_target)
                                 model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
