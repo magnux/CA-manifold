@@ -32,7 +32,7 @@ def compute_gan_loss(d_out, target, gan_type='log_relu'):
     elif gan_type == 'softplus':
         loss = F.softplus((1 - 2*target) * d_out).mean()
     elif gan_type == 'log_relu':
-        loss = (F.relu((1 - 2*target) * 0.1 * (d_out + 10)) + 1).log().mean()
+        loss = (F.relu((1 - 2*target) * (d_out + 1)) + 1).log().mean()
     else:
         raise NotImplementedError
 
