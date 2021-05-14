@@ -74,7 +74,7 @@ def grad_mult(network, g_factor):
 def grad_mult_hook(g_factor):
     def _grad_mult_hook(grad, g_factor=1):
         with torch.no_grad():
-            return (g_factor * torch.randn_like(grad).abs().clamp_(0, 1) + g_factor ** 2).clamp_(0, 1) * grad
+            return g_factor * grad + (1 - g_factor) * torch.rand_like(grad) * grad
     return partial(_grad_mult_hook, g_factor=g_factor)
 
 
