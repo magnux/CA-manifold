@@ -28,7 +28,7 @@ training:
   persistence: True
   regeneration: True
   batch_size: 64
-  batch_split: 2
+  batch_split: 8
   batch_mult_steps: 1
   n_workers: 2
   optimizer: adamp
