@@ -281,8 +281,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     g_factor_enc, g_factor_dec = update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target)
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
-                    grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
-                    grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
+                    # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
+                    # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
                     # dis_grad_norm = get_grad_norm(discriminator).item()
                     # dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
 

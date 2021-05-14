@@ -216,16 +216,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_gen_enc_sum = model_manager.log_manager.get_last('regs', 'reg_gen_enc')
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
-                images_dis = []
-                labels_dis = []
-                z_gen_dis = []
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-                        images_dis.append(images)
-                        labels_dis.append(labels)
-                        z_gen_dis.append(z_gen)
 
                         with torch.no_grad():
                             z_enc, _, _ = encoder(images, labels)
@@ -288,13 +282,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     g_factor_enc, g_factor_dec = update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target)
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
-                    grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
-                    grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
+                    # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
+                    # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
-                        images, labels, z_gen = images_dis.pop(), labels_dis.pop(), z_gen_dis.pop()
+                        images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
