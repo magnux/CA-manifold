@@ -42,39 +42,38 @@ def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
             p.grad.data.copy_(p.grad.data.max(norm))
 
 
-def grad_noise(network, p_factor, momentum=0.9):
+def grad_noise(network, g_factor, momentum=0.9):
     for p in network.parameters():
         if p.grad is not None:
             if not hasattr(p, 'rand_grad'):
                 p.rand_grad = F.normalize(torch.randn_like(p.grad), dim=-1)
             else:
                 p.rand_grad = F.normalize(momentum * p.rand_grad + (1. - momentum) * torch.randn_like(p.grad), dim=-1)
-            p.grad.data.copy_((1. - p_factor) * p.grad + p_factor * (p.rand_grad * p.grad.norm(2) - p.grad))
+            p.grad.data.copy_((1. - g_factor) * p.grad + g_factor * (p.rand_grad * p.grad.norm(2) - p.grad))
 
 
-def grad_noise_hook(p_factor, g_factor):
-    def _grad_noise_hook(grad, p_factor=1, g_factor=1):
+def grad_noise_hook(g_factor):
+    def _grad_noise_hook(grad, g_factor=1):
         with torch.no_grad():
             noisy_grad = grad.clone()
             # ridx = np.random.randint(0, grad.shape[1])
             # sel_idxs = [i for i in range(ridx)] + [i for i in range(ridx + 1, grad.shape[1])]
             # noisy_grad[:, ridx] = -(grad[:, sel_idxs] * noisy_grad[:, sel_idxs]).sum(1) / (grad[:, ridx] + 1e-4)
             noisy_grad *= torch.rand_like(grad)
-            noisy_grad *= g_factor * torch.rand([grad.shape[0], 1], device=grad.device)
-            return (1 - p_factor) * grad + p_factor * noisy_grad
-    return partial(_grad_noise_hook, p_factor=p_factor, g_factor=g_factor)
+            return (1 - g_factor) * grad + g_factor * noisy_grad
+    return partial(_grad_noise_hook, g_factor=g_factor)
 
 
 def grad_mult(network, g_factor):
     for p in network.parameters():
         if p.grad is not None:
-            p.grad.data.copy_(g_factor * p.grad + (1 - g_factor) * torch.rand_like(p.grad) * p.grad)
+            p.grad.data.copy_(g_factor * p.grad)
 
 
 def grad_mult_hook(g_factor):
     def _grad_mult_hook(grad, g_factor=1):
         with torch.no_grad():
-            return g_factor * grad + (1 - g_factor) * torch.rand_like(grad) * grad
+            return g_factor * grad
     return partial(_grad_mult_hook, g_factor=g_factor)
 
 
