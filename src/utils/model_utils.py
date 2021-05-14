@@ -49,7 +49,7 @@ def grad_noise(network, g_factor, momentum=0.9):
                 p.rand_grad = F.normalize(torch.randn_like(p.grad), dim=-1)
             else:
                 p.rand_grad = F.normalize(momentum * p.rand_grad + (1. - momentum) * torch.randn_like(p.grad), dim=-1)
-            p.grad.data.copy_((1. - g_factor) * p.grad + g_factor * (p.rand_grad * p.grad.norm(2) - p.grad))
+            p.grad.data.copy_(g_factor * p.grad + (1. - g_factor) * (p.rand_grad * p.grad.norm(2) - p.grad))
 
 
 def grad_noise_hook(g_factor):
@@ -60,7 +60,7 @@ def grad_noise_hook(g_factor):
             # sel_idxs = [i for i in range(ridx)] + [i for i in range(ridx + 1, grad.shape[1])]
             # noisy_grad[:, ridx] = -(grad[:, sel_idxs] * noisy_grad[:, sel_idxs]).sum(1) / (grad[:, ridx] + 1e-4)
             noisy_grad *= torch.rand_like(grad)
-            return (1 - g_factor) * grad + g_factor * noisy_grad
+            return g_factor * grad + (1 - g_factor) * noisy_grad
     return partial(_grad_noise_hook, g_factor=g_factor)
 
 

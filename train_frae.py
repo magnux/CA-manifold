@@ -337,9 +337,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
 
-                    grad_mult(encoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
-                    grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
-                    grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
+                    # grad_mult(encoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
+                    # grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
+                    # grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
 
                 # Streaming Images
                 with torch.no_grad():

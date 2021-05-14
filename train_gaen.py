@@ -342,9 +342,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     # enc_grad_norm = get_grad_norm(encoder).item()
                     # dec_grad_norm = get_grad_norm(decoder).item()
                     # gen_grad_norm = get_grad_norm(generator).item()
-                    grad_mult(encoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
-                    grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
-                    grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
+                    # grad_mult(encoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
+                    # grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
+                    # grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
 
                 # Streaming Images
                 with torch.no_grad():
