@@ -68,7 +68,7 @@ def grad_noise_hook(p_factor, g_factor):
 def grad_mult(network, g_factor):
     for p in network.parameters():
         if p.grad is not None:
-            p.grad.data.copy_(g_factor * p.grad)
+            p.grad.data.copy_(g_factor * p.grad + (1 - g_factor) * torch.rand_like(p.grad) * p.grad)
 
 
 def grad_mult_hook(g_factor):
