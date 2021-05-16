@@ -60,7 +60,7 @@ def grad_noise_hook(g_factor):
             # sel_idxs = [i for i in range(ridx)] + [i for i in range(ridx + 1, grad.shape[1])]
             # noisy_grad[:, ridx] = -(grad[:, sel_idxs] * noisy_grad[:, sel_idxs]).sum(1) / (grad[:, ridx] + 1e-4)
             noisy_grad *= torch.rand_like(grad)
-            return g_factor * grad + (1 - g_factor) * noisy_grad
+            return g_factor * (g_factor * grad + (1 - g_factor) * noisy_grad)
     return partial(_grad_noise_hook, g_factor=g_factor)
 
 
