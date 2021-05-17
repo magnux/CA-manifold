@@ -111,10 +111,10 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.labs = nn.Linear(self.lat_size, 1, bias=False)
+        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
-        labs = self.labs(lat)
+        labs = self.lat_to_score(lat)
 
         return labs
 
