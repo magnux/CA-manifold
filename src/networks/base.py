@@ -62,7 +62,7 @@ class Generator(nn.Module):
         self.dyna_z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim + n_labels, self.lat_size, bias=False)
         self.norm_z = norm_z
-        self.irm_layer = IRMLinear(self.z_dim, 4)
+        self.irm_layer = IRMLinear(self.lat_size, 4)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -79,9 +79,9 @@ class Generator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
-        z = self.irm_layer(z)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
         lat = lat + self.dyna_z_to_lat(z, self.exp_yembed(yembed))
+        lat = self.irm_layer(lat)
 
         return lat
 
@@ -126,7 +126,7 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
         self.norm_z = norm_z
-        self.irm_layer = IRMLinear(self.z_dim, 4)
+        self.irm_layer = IRMLinear(self.lat_size, 4)
 
     def forward(self, z):
         if self.norm_z:
@@ -134,9 +134,8 @@ class UnconditionalGenerator(nn.Module):
         else:
             z = z.clamp(-3, 3)
 
-        z = self.irm_layer(z)
         lat = self.z_to_lat(z)
-        lat = F.normalize(lat, dim=1)
+        lat = self.irm_layer(lat)
 
         return lat
 
