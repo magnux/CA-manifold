@@ -142,7 +142,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             for _ in range(pers_steps):
                                 _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
-                                loss_pers = (1 / batch_mult) * 10 * F.mse_loss(pers_out_embs[-1], out_embs[-1])
+                                loss_pers = (1 / batch_mult) * F.mse_loss(pers_out_embs[-1], out_embs[-1])
                                 model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                                 loss_pers_sum += loss_pers.item()
 
@@ -157,7 +157,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             for _ in range(regen_steps):
                                 _, regen_out_embs, _ = decoder(lat_dec, regen_out_embs[-1])
 
-                                loss_regen = (1 / batch_mult) * 10 * F.mse_loss(regen_out_embs[-1], out_embs[-1])
+                                loss_regen = (1 / batch_mult) * F.mse_loss(regen_out_embs[-1], out_embs[-1])
                                 model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                                 loss_regen_sum += loss_regen.item()
 
