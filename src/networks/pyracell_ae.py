@@ -70,6 +70,8 @@ class InjectedEncoder(nn.Module):
             ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
+        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
+
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False, recompute_scale_factor=True))
@@ -115,7 +117,8 @@ class InjectedEncoder(nn.Module):
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
             out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
-            out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat)
+            lat_new = torch.cat([self.frac_lat_exp[c](inj_lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](inj_lat)
+            out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, lat_new)
             out_new = out_new_f + out_new_d
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -218,6 +221,7 @@ class Decoder(nn.Module):
             ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
+        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers * n_calls)])
 
         self.frac_us = nn.Sequential(
@@ -293,7 +297,8 @@ class Decoder(nn.Module):
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
             out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
-            out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat)
+            lat_new = torch.cat([self.frac_lat_exp[c](lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](lat)
+            out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, lat_new)
             out_new = out_new_f + out_new_d
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
