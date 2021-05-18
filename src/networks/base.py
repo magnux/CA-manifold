@@ -51,7 +51,7 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=True, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=True, norm_lat=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
@@ -62,6 +62,7 @@ class Generator(nn.Module):
         self.dyna_z_to_lat = DynaLinear(int(self.lat_size ** 0.5), self.z_dim, self.lat_size, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim + n_labels, self.lat_size, bias=False)
         self.norm_z = norm_z
+        self.norm_lat = norm_lat
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -75,11 +76,12 @@ class Generator(nn.Module):
 
         if self.norm_z:
             z = F.normalize(z, dim=1)
-        else:
-            z = z.clamp(-3, 3)
 
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
         lat = lat + self.dyna_z_to_lat(z, self.exp_yembed(yembed))
+
+        if self.norm_lat:
+            lat = F.normalize(lat, dim=1)
 
         return lat
 
@@ -119,20 +121,22 @@ class UnconditionalDiscriminator(nn.Module):
 
 
 class UnconditionalGenerator(nn.Module):
-    def __init__(self, lat_size, z_dim, norm_z=True, **kwargs):
+    def __init__(self, lat_size, z_dim, norm_z=True, norm_lat=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
         self.norm_z = norm_z
+        self.norm_lat = norm_lat
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
-        else:
-            z = z.clamp(-3, 3)
 
         lat = self.z_to_lat(z)
+
+        if self.norm_lat:
+            lat = F.normalize(lat, dim=1)
 
         return lat
 
