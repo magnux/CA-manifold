@@ -150,13 +150,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if regeneration:
                             n_calls_save = decoder.n_calls
 
-                            decoder.n_calls = np.random.randint(8, 16)
-                            _, out_embs, images_redec_raw = decoder(lat_dec)
+                            regen_init = np.random.randint(8, 16)
 
                             decoder.n_calls = 4
-                            _, regen_out_embs, _ = decoder(lat_dec, rand_circle_masks(out_embs[-1], batch_split_size))
-                            with torch.no_grad():
-                                _, regen_target_out_embs, _ = decoder(lat_dec, out_embs[-1])
+                            _, regen_out_embs, _ = decoder(lat_dec, rand_circle_masks(out_embs[regen_init - 1], batch_split_size))
+
+                            regen_target_out_embs = out_embs[regen_init:regen_init + 4]
 
                             loss_regen = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(regen_out_embs), torch.stack(regen_target_out_embs))
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
