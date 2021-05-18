@@ -100,9 +100,10 @@ class LabsEncoder(nn.Module):
         else:
             yembed = y
 
-        yembed = self.embedding_fc(yembed)
+        lat = self.embedding_fc(yembed)
+        lat = F.normalize(lat, dim=1)
 
-        return yembed
+        return lat
 
 
 class UnconditionalDiscriminator(nn.Module):
