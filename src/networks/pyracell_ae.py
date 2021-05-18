@@ -119,7 +119,7 @@ class InjectedEncoder(nn.Module):
             out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
             lat_new = torch.cat([self.frac_lat_exp[c](inj_lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](inj_lat)
             if self.lat_noise > 0.:
-                lat_new = (1. - self.lat_noise) * lat_new + self.lat_noise * lat_new.norm(dim=1).mean() * torch.randn_like(lat_new)
+                lat_new = (1. - self.lat_noise) * lat_new + self.lat_noise * torch.rand_like(lat_new) * lat_new
             out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, lat_new)
             out_new = out_new_f + out_new_d
             if self.gated:
