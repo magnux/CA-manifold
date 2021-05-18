@@ -142,7 +142,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             pers_target_out_embs = [(out_embs[-1] if o % 2 == 0 else pers_out_embs[0]) for o in range(pers_steps)]
 
-                            loss_pers = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(pers_out_embs), torch.stack(pers_target_out_embs))
+                            loss_pers = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                             loss_pers_sum += loss_pers.item()
 
