@@ -158,7 +158,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             regen_target_out_embs = out_embs[regen_init:regen_init + regen_steps]
 
-                            loss_regen = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(regen_out_embs), torch.stack(regen_target_out_embs))
+                            loss_regen = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(regen_out_embs[1:]), torch.stack(regen_target_out_embs))
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                             loss_regen_sum += loss_regen.item()
 
