@@ -136,10 +136,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if persistence:
                             n_calls_save = decoder.n_calls
 
-                            decoder.n_calls = 4
+                            pers_steps = 4
+                            decoder.n_calls = pers_steps
                             _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
 
-                            pers_target_out_embs = [(out_embs[-1] if o % 2 == 0 else pers_out_embs[0]) for o in range(len(pers_out_embs))]
+                            pers_target_out_embs = [(out_embs[-1] if o % 2 == 0 else pers_out_embs[0]) for o in range(pers_steps)]
 
                             loss_pers = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(pers_out_embs), torch.stack(pers_target_out_embs))
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
@@ -151,11 +152,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             n_calls_save = decoder.n_calls
 
                             regen_init = np.random.randint(8, 16)
-
-                            decoder.n_calls = 4
+                            regen_steps = 4
+                            decoder.n_calls = regen_steps
                             _, regen_out_embs, _ = decoder(lat_dec, rand_circle_masks(out_embs[regen_init - 1], batch_split_size))
 
-                            regen_target_out_embs = out_embs[regen_init:regen_init + 4]
+                            regen_target_out_embs = out_embs[regen_init:regen_init + regen_steps]
 
                             loss_regen = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(regen_out_embs), torch.stack(regen_target_out_embs))
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
