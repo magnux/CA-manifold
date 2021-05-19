@@ -22,7 +22,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, conv_irm=False, ce_in=False, gauss_grads=False, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, gauss_grads=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -40,19 +40,13 @@ class InjectedEncoder(nn.Module):
         self.env_feedback = env_feedback
         self.multi_cut = multi_cut
         self.auto_reg = auto_reg
-        self.conv_irm = conv_irm
         self.ce_in = ce_in
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * 16, self.n_filter * 16, 16 ** 2] if self.multi_cut else [self.n_filter]
 
-        self.in_conv = nn.Sequential(
-            nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0),
-            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
-        )
-        if self.conv_irm:
-            self.frac_irm = IRMConv(self.n_filter)
+        self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
@@ -78,7 +72,7 @@ class InjectedEncoder(nn.Module):
         )
 
         self.out_conv = nn.Sequential(
-            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
+            IRMConv(self.n_filter),
             nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0),
         )
         self.out_to_lat = nn.Sequential(
@@ -110,8 +104,6 @@ class InjectedEncoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            if self.conv_irm:
-                out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
@@ -168,7 +160,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, conv_irm=False, ce_in=False, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, ce_in=False, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -185,7 +177,6 @@ class Decoder(nn.Module):
         self.gated = gated
         self.env_feedback = env_feedback
         self.auto_reg = auto_reg
-        self.conv_irm = conv_irm
         self.ce_in = ce_in
         self.ce_out = ce_out
         self.n_seed = n_seed
@@ -200,8 +191,6 @@ class Decoder(nn.Module):
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         self.seed_irm = IRMConv(self.n_filter)
-        if self.conv_irm:
-            self.frac_irm = IRMConv(self.n_filter)
 
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
@@ -238,7 +227,6 @@ class Decoder(nn.Module):
             out_f = self.out_chan
         self.out_conv = nn.Sequential(
             *([LambdaLayer(lambda x: F.interpolate(x, size=image_size, mode='bilinear', align_corners=False))] if np.mod(np.log2(image_size), 1) == 0 else []),
-            ResidualBlock(self.n_filter, self.n_filter, None, 1, 1, 0),
             nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         )
 
@@ -290,8 +278,6 @@ class Decoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            if self.conv_irm:
-                out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
