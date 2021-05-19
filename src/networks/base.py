@@ -67,7 +67,7 @@ class Generator(nn.Module):
         )
         self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
         self.z_irm = IRMLinear(self.z_dim, 3)
-        self.z_to_lat = nn.Linear(self.z_dim + n_labels, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
