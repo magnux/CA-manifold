@@ -59,9 +59,9 @@ class InjectedEncoder(nn.Module):
         else:
             self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
 
-        if not self.auto_reg:
-            self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-                                            for _ in range(1 if self.shared_params else self.n_layers)])
+        # if not self.auto_reg:
+        #     self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+        #                                     for _ in range(1 if self.shared_params else self.n_layers)])
         self.frac_dyna_conv = nn.ModuleList([
             DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
@@ -113,8 +113,8 @@ class InjectedEncoder(nn.Module):
             if self.conv_irm:
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
-            if not self.auto_reg:
-                out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
+            # if not self.auto_reg:
+            #     out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
             out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
             lat_new = torch.cat([self.frac_lat_exp[c](inj_lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](inj_lat)
             out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, lat_new)
@@ -199,6 +199,7 @@ class Decoder(nn.Module):
         )
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
+        self.seed_irm = IRMConv(self.n_filter)
         if self.conv_irm:
             self.frac_irm = IRMConv(self.n_filter)
 
@@ -207,9 +208,9 @@ class Decoder(nn.Module):
         else:
             self.frac_sobel = SinSobel(self.n_filter, 3, 1, left_sided=self.causal)
 
-        if not self.auto_reg:
-            self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-                                            for _ in range(1 if self.shared_params else self.n_layers)])
+        # if not self.auto_reg:
+        #     self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+        #                                     for _ in range(1 if self.shared_params else self.n_layers)])
         self.frac_dyna_conv = nn.ModuleList([
             DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
@@ -275,6 +276,8 @@ class Decoder(nn.Module):
             # out = self.in_conv(out)
             out = self.in_ds(ca_init) + proj
 
+        out = self.seed_irm(out)
+
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_layers * self.n_calls], device=lat.device))
@@ -291,8 +294,8 @@ class Decoder(nn.Module):
             if self.conv_irm:
                 out_new = self.frac_irm(out_new)
             out_new = self.frac_sobel(out_new)
-            if not self.auto_reg:
-                out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
+            # if not self.auto_reg:
+            #     out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
             out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
             lat_new = torch.cat([self.frac_lat_exp[c](lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](lat)
             out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, lat_new)
