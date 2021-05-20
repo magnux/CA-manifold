@@ -140,9 +140,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             decoder.n_calls = pers_steps
                             _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
 
-                            pers_target_out_embs = [(out_embs[-1] if o % 2 == 0 else pers_out_embs[1]) for o in range(pers_steps)]
+                            pers_target_out_embs = [out_embs[-1] for _ in range(pers_steps)]
 
-                            loss_pers = (1 / batch_mult) * 100 * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
+                            loss_pers = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                             loss_pers_sum += loss_pers.item()
 
@@ -151,14 +151,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if regeneration:
                             n_calls_save = decoder.n_calls
 
-                            regen_init = np.random.randint(8, 16)
                             regen_steps = 4
                             decoder.n_calls = regen_steps
-                            _, regen_out_embs, _ = decoder(lat_dec, rand_circle_masks(out_embs[regen_init - 1], batch_split_size))
+                            _, regen_out_embs, _ = decoder(lat_dec, rand_circle_masks(out_embs[-1], batch_split_size))
 
-                            regen_target_out_embs = out_embs[regen_init:regen_init + regen_steps]
+                            regen_target_out_embs = [out_embs[-1] for _ in range(regen_steps)]
 
-                            loss_regen = (1 / batch_mult) * 100 * F.mse_loss(torch.stack(regen_out_embs[1:]), torch.stack(regen_target_out_embs))
+                            loss_regen = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(regen_out_embs[1:]), torch.stack(regen_target_out_embs))
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                             loss_regen_sum += loss_regen.item()
 
