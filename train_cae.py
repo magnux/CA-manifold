@@ -136,9 +136,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if persistence:
                             n_calls_save = decoder.n_calls
 
-                            pers_steps = 64
+                            pers_steps = 8
                             decoder.n_calls = pers_steps
-                            _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
+                            _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1] + 0.1 * torch.rand_like(out_embs[-1]) * out_embs[-1])
 
                             pers_target_out_embs = [out_embs[-1] for _ in range(pers_steps)]
 
@@ -151,7 +151,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if regeneration:
                             n_calls_save = decoder.n_calls
 
-                            regen_steps = 64
+                            regen_steps = 8
                             decoder.n_calls = regen_steps
                             _, regen_out_embs, _ = decoder(lat_dec, rand_circle_masks(out_embs[-1], batch_split_size))
 
