@@ -217,7 +217,7 @@ class Decoder(nn.Module):
             else:
                 proj = self.in_proj[seed_n:seed_n + 1, ...]
             proj = torch.cat([proj.to(float_type)] * batch_size, 0)
-            out = self.in_ds(ca_init) + proj
+            out = ca_init + proj
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
