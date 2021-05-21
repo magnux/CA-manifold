@@ -156,7 +156,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, ce_in=False, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
+                 log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -173,7 +173,6 @@ class Decoder(nn.Module):
         self.gated = gated
         self.env_feedback = env_feedback
         self.auto_reg = auto_reg
-        self.ce_in = ce_in
         self.ce_out = ce_out
         self.n_seed = n_seed
 
@@ -225,27 +224,19 @@ class Decoder(nn.Module):
             nn.Conv2d(self.n_filter, out_f, 1, 1, 0),
         )
 
-    def forward(self, lat, ca_init=None, ca_noise=None, seed_n=0):
+    def forward(self, lat, ca_init=None, seed_n=0):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, 16, lat.device).to(float_type)
-            if isinstance(seed_n, torch.Tensor):
-                if seed_n.dim() == 2:
-                    out = self.seed[seed_n.flatten(), ...].reshape(batch_size, self.n_seed // (self.n_labels + 1), self.n_filter, 16, 16).mean(1)
-                elif seed_n.dim() == 1:
-                    out = self.seed[seed_n, ...]
+            if isinstance(seed_n, tuple):
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            elif isinstance(seed_n, list):
+                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             else:
-                if isinstance(seed_n, tuple):
-                    seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-                elif isinstance(seed_n, list):
-                    seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-                else:
-                    seed = self.seed[seed_n:seed_n + 1, ...]
-                out = torch.cat([seed.to(float_type)] * batch_size, 0)
-                if ca_noise is not None:
-                    out = out + self.in_ds(ca_noise)
+                seed = self.seed[seed_n:seed_n + 1, ...]
+            out = torch.cat([seed.to(float_type)] * batch_size, 0)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
@@ -254,9 +245,6 @@ class Decoder(nn.Module):
             else:
                 proj = self.in_proj[seed_n:seed_n + 1, ...]
             proj = torch.cat([proj.to(float_type)] * batch_size, 0)
-            # out = ca_init.permute(0, 2, 3, 1).reshape(batch_size, self.image_size * self.image_size, self.n_filter)
-            # out = torch.bmm(out, proj).reshape(batch_size, self.image_size, self.image_size, self.n_filter).permute(0, 3, 1, 2).contiguous()
-            # out = self.in_conv(out)
             out = self.in_ds(ca_init) + proj
 
         if self.perception_noise and self.training:
