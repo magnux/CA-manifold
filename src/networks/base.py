@@ -127,7 +127,7 @@ class UnconditionalDiscriminator(nn.Module):
     def forward(self, lat):
         if self.auto_reg and lat.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2e-3 / lat.numel()) * lat
+                auto_reg_grad = (2 / lat.numel()) * lat
             lat.register_hook(lambda grad: grad + auto_reg_grad)
         labs = self.lat_to_score(lat)
 
