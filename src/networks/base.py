@@ -118,15 +118,20 @@ class LabsEncoder(nn.Module):
 
 
 class UnconditionalDiscriminator(nn.Module):
-    def __init__(self, lat_size, **kwargs):
+    def __init__(self, lat_size, auto_reg=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_score = IRMLinear(self.lat_size, 4)
+        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
+        self.auto_reg = auto_reg
 
     def forward(self, lat):
-        score = self.lat_to_score(lat).mean(dim=1, keepdim=True)
+        if self.auto_reg and lat.requires_grad:
+            with torch.no_grad():
+                auto_reg_grad = (2e-3 / lat.numel()) * lat
+            lat.register_hook(lambda grad: grad + auto_reg_grad)
+        labs = self.lat_to_score(lat)
 
-        return score
+        return labs
 
 
 class UnconditionalGenerator(nn.Module):
