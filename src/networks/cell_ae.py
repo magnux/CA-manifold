@@ -8,6 +8,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.gaussiansmoothing import GaussianSmoothing
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -54,6 +55,8 @@ class InjectedEncoder(nn.Module):
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
+
+        self.frac_smooth = GaussianSmoothing(self.n_filter, 3, 1, 1)
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
         self.out_to_lat = nn.Sequential(
@@ -110,6 +113,8 @@ class InjectedEncoder(nn.Module):
                     auto_reg_grad = (2e-3 / out.numel()) * out
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
+            if c < self.n_calls - 1:
+                out = self.frac_smooth(out)
             out_embs.append(out)
 
         out = self.out_conv(out)
@@ -182,6 +187,8 @@ class Decoder(nn.Module):
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
+
+        self.frac_smooth = GaussianSmoothing(self.n_filter, 3, 1, 1)
 
         if self.log_mix_out:
             out_f = 10 * ((self.out_chan * 3) + 1)
@@ -256,6 +263,8 @@ class Decoder(nn.Module):
                     auto_reg_grad = (2e-3 / out.numel()) * out
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
+            if c < self.n_calls - 1:
+                out = self.frac_smooth(out)
             out_embs.append(out)
 
         out = self.out_conv(out)
