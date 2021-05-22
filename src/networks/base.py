@@ -121,7 +121,7 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_score = nn.Linear(self.lat_size, self.lat_size * 8, bias=False)
+        self.lat_to_score = IRMLinear(self.lat_size, 4)
 
     def forward(self, lat):
         score = self.lat_to_score(lat).mean(dim=1, keepdim=True)
