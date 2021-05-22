@@ -36,4 +36,4 @@ class LinearResidualMemory(nn.Module):
         mem_x = F.normalize(mem_x)
         mem_x = self.l_out(mem_x)
 
-        return mem_x
+        return x + mem_x
