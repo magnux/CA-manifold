@@ -144,7 +144,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             perturbed_init = out_embs[-1] + 0.1 * torch.rand_like(out_embs[-1]) * out_embs[-1]
                             _, pers_out_embs, _ = decoder(lat_dec, perturbed_init)
 
-                            pers_target_out_embs = [out_embs[-1] for _ in range(pers_steps)]
+                            pers_target_out_embs = [target_out_embs for _ in range(pers_steps)]
 
                             loss_pers = (1 / batch_mult) * 100 * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
@@ -160,7 +160,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             corrupt_init, _ = rand_circle_masks(out_embs[-1], batch_split_size)
                             _, regen_out_embs, _ = decoder(lat_dec, corrupt_init)
 
-                            regen_target_out_embs = [out_embs[-1] for _ in range(regen_steps)]
+                            regen_target_out_embs = [target_out_embs for _ in range(regen_steps)]
 
                             loss_regen = (1 / batch_mult) * 100 * F.mse_loss(torch.stack(regen_out_embs[1:]), torch.stack(regen_target_out_embs))
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
