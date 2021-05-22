@@ -33,7 +33,7 @@ class LinearResidualMemory(nn.Module):
             mem_x = self.dropout(mem_x)
         mem_x = torch.bmm(mem_x, x_v)
         mem_x = mem_x.sum(1)
-        mem_x = x + (x.norm(dim=1, keepdims=True) / (mem_x.norm(dim=1, keepdims=True) + 1e-4)) * mem_x
+        mem_x = x + (x.norm(dim=1, keepdim=True) / (mem_x.norm(dim=1, keepdim=True) + 1e-4)) * mem_x
         mem_x = self.l_out(mem_x)
 
         return mem_x
