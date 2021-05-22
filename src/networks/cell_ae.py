@@ -39,7 +39,7 @@ class InjectedEncoder(nn.Module):
         self.auto_reg = auto_reg
         self.ce_in = ce_in
 
-        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
+        self.leak_factor = nn.Parameter(torch.ones([]) * 1e-3)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2] if self.multi_cut else [self.n_filter]
 
