@@ -129,7 +129,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         # Decoding
                         _, out_embs, images_redec_raw = decoder(lat_dec)
 
-                        target_out_embs = -torch.ones_like(out_embs[-1])
+                        target_out_embs = torch.zeros_like(out_embs[-1])
                         target_out_embs[:, :images.shape[1], ...] = images
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(out_embs[-1], target_out_embs)
