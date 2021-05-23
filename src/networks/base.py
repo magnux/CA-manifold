@@ -122,16 +122,11 @@ class UnconditionalDiscriminator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
-        self.auto_reg = auto_reg
 
     def forward(self, lat):
-        if self.auto_reg and lat.requires_grad:
-            with torch.no_grad():
-                auto_reg_grad = (2 / lat.numel()) * lat
-            lat.register_hook(lambda grad: grad + auto_reg_grad)
-        labs = self.lat_to_score(lat)
+        score = self.lat_to_score(lat)
 
-        return labs
+        return score
 
 
 class UnconditionalGenerator(nn.Module):
