@@ -304,7 +304,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec_sum += loss_dec.item() / np.sqrt(d_reg_every_mean)
 
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc)
+                        labs_enc, _ = discriminator(lat_top_enc)
 
                         if g_reg_every > 0 and it % g_reg_every == 1:
                             reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
@@ -329,7 +329,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
 
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
-                        labs_dec = discriminator(lat_top_dec)
+                        labs_dec, _ = discriminator(lat_top_dec)
 
                         if g_reg_every > 0 and it % g_reg_every == 1:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_redec, lat_gen, pl_mean_dec)
