@@ -6,6 +6,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
+from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 import numpy as np
 
 
@@ -118,12 +119,16 @@ class LabsEncoder(nn.Module):
 
 
 class UnconditionalDiscriminator(nn.Module):
-    def __init__(self, lat_size, auto_reg=True, **kwargs):
+    def __init__(self, lat_size, norm_lat=False, **kwargs):
         super().__init__()
         self.lat_size = lat_size
+        self.norm_lat = norm_lat
         self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
+        if self.norm_lat:
+            lat = F.normalize(lat, dim=1)
+
         score = self.lat_to_score(lat)
 
         return score
@@ -147,6 +152,25 @@ class UnconditionalGenerator(nn.Module):
         lat = self.z_to_lat(z)
 
         return lat
+
+
+class VarDiscriminator(nn.Module):
+    def __init__(self, lat_size, z_dim, norm_lat=True, **kwargs):
+        super().__init__()
+        self.lat_size = lat_size
+        self.z_dim = z_dim
+        self.norm_lat = norm_lat
+        self.lat_to_z = nn.Linear(self.lat_size, z_dim * 2, bias=False)
+        self.z_to_score = nn.Linear(z_dim, 1, bias=False)
+
+    def forward(self, lat):
+        z = self.lat_to_z(lat)
+        z_mu, z_log_var = torch.split(z, self.z_dim, 1)
+        z = vae_sample_gaussian(z_mu, z_log_var)
+        score = self.z_to_score(z)
+        kl_loss = vae_gaussian_kl_loss(z_mu, z_log_var)
+
+        return score, kl_loss
 
 
 class VarEncoder(nn.Module):

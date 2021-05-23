@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, update_g_factors, age_gaussian_kl_loss
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, update_g_factors
 from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_noise_hook
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -61,7 +61,7 @@ networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
-    'discriminator': {'class': 'base', 'sub_class': 'UnconditionalDiscriminator'},
+    'discriminator': {'class': 'base', 'sub_class': 'VarDiscriminator'},
 }
 # to_avg = ['decoder', 'generator']
 
@@ -171,11 +171,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_top_enc, _, _ = dis_encoder(images, labels)
-                        kl_dis_enc = (1 / batch_mult) * age_gaussian_kl_loss(lat_top_enc)
+                        labs_enc, kl_dis_enc = discriminator(lat_top_enc)
                         model_manager.loss_backward(kl_dis_enc, nets_to_train, retain_graph=True)
                         kl_dis_enc_sum += kl_dis_enc.item()
-
-                        labs_enc = discriminator(lat_top_enc)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -195,11 +193,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                        kl_dis_dec = (1 / batch_mult) * age_gaussian_kl_loss(lat_top_dec)
+                        labs_dec, kl_dis_dec = discriminator(lat_top_dec)
                         model_manager.loss_backward(kl_dis_dec, nets_to_train, retain_graph=True)
                         kl_dis_dec_sum += kl_dis_dec.item()
-
-                        labs_dec = discriminator(lat_top_dec)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -236,7 +232,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec, _, _ = decoder(lat_gen)
 
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                        labs_dec = discriminator(lat_top_dec)
+                        labs_dec, _ = discriminator(lat_top_dec)
 
                         if g_reg_every > 0 and it % g_reg_every == 1:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
