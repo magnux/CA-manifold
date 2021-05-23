@@ -64,7 +64,7 @@ networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
-    'discriminator': {'class': 'base', 'sub_class': 'UnconditionalDiscriminator'},
+    'discriminator': {'class': 'base', 'sub_class': 'VarDiscriminator'},
 }
 # to_avg = ['encoder', 'decoder', 'generator']
 
@@ -198,6 +198,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
             with model_manager.on_batch():
 
+                kl_dis_enc_sum, kl_dis_dec_sum = 0, 0
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 labs_dis_enc_sign, labs_dis_dec_sign = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
@@ -227,7 +228,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc)
+                        labs_enc, kl_dis_enc = discriminator(lat_top_enc)
+                        model_manager.loss_backward(kl_dis_enc, nets_to_train, retain_graph=True)
+                        kl_dis_enc_sum += kl_dis_enc.item()
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -255,7 +258,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_gen.requires_grad_()
                         images_redec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
-                        labs_dec = discriminator(lat_top_dec)
+                        labs_dec, kl_dis_dec = discriminator(lat_top_dec)
+                        model_manager.loss_backward(kl_dis_dec, nets_to_train, retain_graph=True)
+                        kl_dis_dec_sum += kl_dis_dec.item()
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -361,9 +366,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 if model_manager.momentum is not None:
                     model_manager.log_manager.add_scalar('learning_rates', 'all_mom', model_manager.momentum, it=it)
 
+                model_manager.log_manager.add_scalar('losses', 'kl_dis_enc', kl_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_enc', loss_dis_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'labs_dis_enc_sign', labs_dis_enc_sign, it=it)
                 model_manager.log_manager.add_scalar('losses', 'labs_dis_dec_sign', labs_dis_dec_sign, it=it)
+                model_manager.log_manager.add_scalar('losses', 'kl_dis_dec', kl_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
