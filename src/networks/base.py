@@ -28,7 +28,7 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
         self.auto_reg = auto_reg
 
-        self.register_buffer('lat_bias', torch.randn(16, self.lat_size))
+        self.register_buffer('lat_bias', torch.rand(16, self.lat_size))
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
         self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size, 1, bias=False)
@@ -128,7 +128,7 @@ class UnconditionalDiscriminator(nn.Module):
         self.lat_size = lat_size
         self.auto_reg = auto_reg
 
-        self.register_buffer('lat_bias', torch.randn(16, self.lat_size))
+        self.register_buffer('lat_bias', torch.rand(16, self.lat_size))
         self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
