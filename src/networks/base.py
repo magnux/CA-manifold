@@ -6,6 +6,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
+from src.layers.linearfa import LinearFAModule
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 import numpy as np
 
@@ -28,6 +29,7 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
         self.auto_reg = auto_reg
 
+        self.lat_fa = LinearFAModule(self.lat_size, self.lat_size, bias=False)
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
         self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size * 2, 1, bias=False)
@@ -48,7 +50,7 @@ class Discriminator(nn.Module):
                 auto_reg_grad = (2e-3 / lat.numel()) * lat
             lat.register_hook(lambda grad: grad + auto_reg_grad)
 
-        lat = torch.cat([lat, lat.mean(dim=1, keepdim=True).expand_as(lat)], 1)
+        lat = self.lat_fa(lat)
         score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / np.sqrt(yembed.shape[1]))
         score = score + self.dyna_lat_to_score(lat, self.exp_yembed(yembed))
 
@@ -127,7 +129,8 @@ class UnconditionalDiscriminator(nn.Module):
         self.lat_size = lat_size
         self.auto_reg = auto_reg
 
-        self.lat_to_score = nn.Linear(self.lat_size * 2, 1, bias=False)
+        self.lat_fa = LinearFAModule(self.lat_size, self.lat_size, bias=False)
+        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
         if self.auto_reg and lat.requires_grad:
@@ -135,7 +138,7 @@ class UnconditionalDiscriminator(nn.Module):
                 auto_reg_grad = (2e-3 / lat.numel()) * lat
             lat.register_hook(lambda grad: grad + auto_reg_grad)
 
-        lat = torch.cat([lat, lat.mean(dim=1, keepdim=True).expand_as(lat)], 1)
+        lat = self.lat_fa(lat)
         score = self.lat_to_score(lat)
 
         return score
