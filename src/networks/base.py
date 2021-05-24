@@ -49,7 +49,7 @@ class Discriminator(nn.Module):
                 auto_reg_grad = (2e-3 / lat.numel()) * lat
             lat.register_hook(lambda grad: grad + auto_reg_grad)
 
-        if lat.requires_grad:
+        if self.training:
             self.lat_center.data.copy_(0.9 * self.lat_center + 0.1 * lat.mean(dim=0, keepdim=True))
 
         lat = lat - self.lat_center
@@ -140,7 +140,7 @@ class UnconditionalDiscriminator(nn.Module):
                 auto_reg_grad = (2e-3 / lat.numel()) * lat
             lat.register_hook(lambda grad: grad + auto_reg_grad)
 
-        if lat.requires_grad:
+        if self.training:
             self.lat_center.data.copy_(0.9 * self.lat_center + 0.1 * lat.mean(dim=0, keepdim=True))
 
         lat = lat - self.lat_center
