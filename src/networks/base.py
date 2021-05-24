@@ -49,7 +49,7 @@ class Discriminator(nn.Module):
                 auto_reg_grad = (2e-3 / lat.numel()) * lat
             lat.register_hook(lambda grad: grad + auto_reg_grad)
 
-        lat = lat + torch.cat([self.lat_bias] * (lat.size(0) // 16), 0)
+        lat = lat * torch.cat([self.lat_bias] * (lat.size(0) // 16), 0)
         score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / np.sqrt(yembed.shape[1]))
         score = score + self.dyna_lat_to_score(lat, self.exp_yembed(yembed))
 
@@ -137,7 +137,7 @@ class UnconditionalDiscriminator(nn.Module):
                 auto_reg_grad = (2e-3 / lat.numel()) * lat
             lat.register_hook(lambda grad: grad + auto_reg_grad)
 
-        lat = lat + torch.cat([self.lat_bias] * (lat.size(0) // 16), 0)
+        lat = lat * torch.cat([self.lat_bias] * (lat.size(0) // 16), 0)
         score = self.lat_to_score(lat)
 
         return score
