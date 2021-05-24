@@ -25,7 +25,7 @@ class LinearFANetwork(nn.Module):
         # first hidden layer
         self.linear = [LinearFAModule(self.in_features, self.num_hidden_list[0])]
         # append additional hidden layers to list
-        for idx in xrange(self.num_layers - 1):
+        for idx in range(self.num_layers - 1):
             self.linear.append(LinearFAModule(self.num_hidden_list[idx], self.num_hidden_list[idx+1]))
 
         # create ModuleList to make list of layers work
