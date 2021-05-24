@@ -99,7 +99,8 @@ class LinearFAModule(nn.Module):
         # weight initialization
         torch.nn.init.kaiming_uniform(self.weight)
         torch.nn.init.kaiming_uniform(self.weight_fa)
-        torch.nn.init.constant(self.bias, 1)
+        if bias:
+            torch.nn.init.constant(self.bias, 1)
 
     def forward(self, input):
         return LinearFAFunction.apply(input, self.weight, self.weight_fa, self.bias)
