@@ -90,11 +90,11 @@ class LinearFAModule(nn.Module):
         if bias:
             self.bias = nn.Parameter(torch.Tensor(output_features))
         else:
-            self.register_parameter('bias', None)
+            self.bias = None
 
         # fixed random weight and bias for FA backward pass
         # does not need gradient
-        self.weight_fa = Variable(torch.FloatTensor(output_features, input_features), requires_grad=False)
+        self.register_buffer('weight_fa', torch.FloatTensor(output_features, input_features))
 
         # weight initialization
         torch.nn.init.kaiming_uniform(self.weight)
