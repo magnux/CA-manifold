@@ -21,7 +21,7 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, embed_size, auto_reg=True, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, auto_reg=False, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
@@ -124,7 +124,7 @@ class LabsEncoder(nn.Module):
 
 
 class UnconditionalDiscriminator(nn.Module):
-    def __init__(self, lat_size, auto_reg=True, **kwargs):
+    def __init__(self, lat_size, auto_reg=False, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.auto_reg = auto_reg
