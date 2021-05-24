@@ -6,7 +6,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
-from src.layers.linearfa import LinearFAModule
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 import numpy as np
 
