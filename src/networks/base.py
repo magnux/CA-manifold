@@ -26,11 +26,16 @@ class Discriminator(nn.Module):
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
-
+        self.lat_bn = nn.BatchNorm1d(self.lat_size)
+        self.register_buffer('lat_proj', torch.randn(16, self.lat_size, self.lat_size))
+        self.register_buffer('lat_bias', torch.randn(16, self.lat_size))
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
         self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size * 2, 1, bias=False)
-        self.lat_to_score = nn.Linear(self.lat_size * 2, n_labels, bias=False)
+        self.lat_to_score = nn.Sequential(
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            nn.Linear(self.lat_size, 1, bias=False)
+        )
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -42,6 +47,8 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
+        lat = self.lat_bn(lat)
+        lat = torch.bmm(lat.unsqueeze(1), torch.cat([self.lat_proj] * (lat.size(0) // 16))).squeeze(1) + torch.cat([self.lat_bias] * (lat.size(0) // 16), 0)
         score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / np.sqrt(yembed.shape[1]))
         score = score + self.dyna_lat_to_score(lat, self.exp_yembed(yembed))
 
@@ -118,10 +125,18 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_score = nn.Linear(self.lat_size * 2, 1, bias=False)
+        self.lat_bn = nn.BatchNorm1d(self.lat_size)
+        self.register_buffer('lat_proj', torch.randn(16, self.lat_size, self.lat_size))
+        self.register_buffer('lat_bias', torch.randn(16, self.lat_size))
+        self.lat_to_score = nn.Sequential(
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            nn.Linear(self.lat_size, 1, bias=False)
+        )
 
     def forward(self, lat):
-        score = self.lat_to_score(torch.cat([lat, torch.flip(lat, [0])], dim=0))
+        lat = self.lat_bn(lat)
+        lat = torch.bmm(lat.unsqueeze(1), torch.cat([self.lat_proj] * (lat.size(0) // 16))).squeeze(1) + torch.cat([self.lat_bias] * (lat.size(0) // 16), 0)
+        score = self.lat_to_score(lat)
 
         return score
 
