@@ -31,10 +31,8 @@ class Discriminator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
         self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size * 2, 1, bias=False)
-        self.lat_to_score = nn.Sequential(
-            LinearResidualMemory(self.lat_size),
-            nn.Linear(self.lat_size, n_labels, bias=False)
-        )
+        self.lat_mem = LinearResidualMemory(self.lat_size)
+        self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -46,6 +44,7 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
+        lat = self.lat_mem(lat)
         score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / np.sqrt(yembed.shape[1]))
         score = score + self.dyna_lat_to_score(lat, self.exp_yembed(yembed))
 
@@ -124,12 +123,11 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_score = nn.Sequential(
-            LinearResidualMemory(self.lat_size),
-            nn.Linear(self.lat_size, 1, bias=False)
-        )
+        self.lat_mem = LinearResidualMemory(self.lat_size)
+        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
+        lat = self.lat_mem(lat)
         score = self.lat_to_score(lat)
 
         return score
