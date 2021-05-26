@@ -10,7 +10,6 @@ from src.layers.noiseinjection import NoiseInjection
 from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.gaussgrads import GaussGrads
-from src.layers.dynaconv import DynaConv
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed

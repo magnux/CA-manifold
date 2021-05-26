@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.irm import IRMLinear
 from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
@@ -31,10 +30,7 @@ class Discriminator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
         self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size * 2, 1, bias=False)
-        self.lat_to_score = nn.Sequential(
-            LinearResidualMemory(self.lat_size),
-            nn.Linear(self.lat_size, n_labels, bias=False)
-        )
+        self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -122,10 +118,7 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_score = nn.Sequential(
-            LinearResidualMemory(self.lat_size),
-            nn.Linear(self.lat_size, 1, bias=False)
-        )
+        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
         score = self.lat_to_score(lat)
