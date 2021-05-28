@@ -162,7 +162,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
         super().__init__(**kwargs)
 
 
-class ZInjectedEncoder(Encoder):
+class ZEncoder(Encoder):
     def __init__(self, **kwargs):
         kwargs['z_out'] = True
         super().__init__(**kwargs)
