@@ -28,7 +28,8 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
+        self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
+        self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size, 1, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -40,7 +41,7 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / np.sqrt(yembed.shape[1]))
+        score = self.dyna_lat_to_score(lat, self.exp_yembed(yembed))
 
         return score
 
