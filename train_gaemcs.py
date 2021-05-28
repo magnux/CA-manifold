@@ -60,11 +60,11 @@ zdist = get_zdist(config['z_dist']['type'], z_dim, device=device)
 
 # Networks
 networks_dict = {
-    'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
+    'encoder': {'class': config['network']['class'], 'sub_class': 'ZEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'UnconditionalGenerator'},
-    'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
-    'discriminator': {'class': 'base', 'sub_class': 'UnconditionalDiscriminator'},
+    'dis_encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
+    'discriminator': {'class': 'base', 'sub_class': 'LatDiscriminator'},
 }
 # to_avg = ['encoder', 'decoder', 'generator']
 
@@ -213,8 +213,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_enc = generator(z_enc)
 
                         lat_enc.requires_grad_()
-                        lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc)
+                        lat_top_enc, _, _ = dis_encoder(images)
+                        labs_enc = discriminator(lat_top_enc, lat_enc)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                             reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images)
@@ -235,8 +235,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_gen.requires_grad_()
                         images_dec.requires_grad_()
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
-                        labs_dec = discriminator(lat_top_dec)
+                        lat_top_dec, _, _ = dis_encoder(images_dec)
+                        labs_dec = discriminator(lat_top_dec, lat_gen)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                             reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
@@ -267,8 +267,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc)
 
-                        lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc)
+                        lat_top_enc, _, _ = dis_encoder(images)
+                        labs_enc = discriminator(lat_top_enc, lat_enc)
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
@@ -277,8 +277,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_gen = generator(z_gen)
                         images_dec, _, _ = decoder(lat_gen, seed_n=labels)
 
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
-                        labs_dec = discriminator(lat_top_dec)
+                        lat_top_dec, _, _ = dis_encoder(images_dec)
+                        labs_dec = discriminator(lat_top_dec, lat_gen)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)

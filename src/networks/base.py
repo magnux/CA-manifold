@@ -28,7 +28,6 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
         self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
 
     def forward(self, lat, y):
@@ -297,6 +296,19 @@ class LatCompressor(nn.Module):
         lat = self.lat_to_lat(torch.cat(lats, dim=1))
 
         return lat
+
+
+class LatDiscriminator(nn.Module):
+    def __init__(self, lat_size, **kwargs):
+        super().__init__()
+        self.lat_size = lat_size
+
+        self.lat_to_score = nn.Linear(self.lat_size * 2, 1, bias=False)
+
+    def forward(self, lat, inj_lat):
+        score = self.lat_to_score(torch.cat([lat, inj_lat], 1))
+
+        return score
 
 
 class EasyAugmentPipe(AugmentPipe):

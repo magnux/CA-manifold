@@ -59,11 +59,11 @@ zdist = get_zdist(config['z_dist']['type'], z_dim, device=device)
 
 # Networks
 networks_dict = {
-    'encoder': {'class': config['network']['class'], 'sub_class': 'ZInjectedEncoder'},
+    'encoder': {'class': config['network']['class'], 'sub_class': 'ZEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
-    'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
-    'discriminator': {'class': 'base', 'sub_class': 'UnconditionalDiscriminator'},
+    'dis_encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
+    'discriminator': {'class': 'base', 'sub_class': 'LatDiscriminator'},
 }
 # to_avg = ['encoder', 'decoder', 'generator']
 
@@ -228,8 +228,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             lat_enc = generator(z_enc, labels)
 
                         lat_enc.requires_grad_()
-                        lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc)
+                        lat_top_enc, _, _ = dis_encoder(images)
+                        labs_enc = discriminator(lat_top_enc, lat_enc)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -253,8 +253,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         lat_gen.requires_grad_()
                         images_dec.requires_grad_()
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
-                        labs_dec = discriminator(lat_top_dec)
+                        lat_top_dec, _, _ = dis_encoder(images_dec)
+                        labs_dec = discriminator(lat_top_dec, lat_gen)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -294,8 +294,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc, labels)
 
-                        lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc)
+                        lat_top_enc, _, _ = dis_encoder(images)
+                        labs_enc = discriminator(lat_top_enc, lat_enc)
 
                         if g_reg_every > 0 and it % g_reg_every == 1:
                             reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
@@ -325,8 +325,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                         images_dec, _, _ = decoder(lat_gen)
 
-                        lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
-                        labs_dec = discriminator(lat_top_dec)
+                        lat_top_dec, _, _ = dis_encoder(images_dec)
+                        labs_dec = discriminator(lat_top_dec, lat_gen)
 
                         if g_reg_every > 0 and it % g_reg_every == 1:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
