@@ -188,7 +188,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
         # Discriminator reg target
-        reg_dis_target = 1e-4 * 0.5 * (g_factor_enc + g_factor_dec)  # 1. * (1. - 0.999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        reg_dis_target = 1e-4 * ((0.5 * (g_factor_enc + g_factor_dec)) ** 2)  # 1. * (1. - 0.999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
         # Discriminator mean sign target
         sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
 
