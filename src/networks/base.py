@@ -303,7 +303,11 @@ class LatDiscriminator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
 
-        self.lat_to_score = nn.Linear(self.lat_size * 2, 1, bias=False)
+        self.lat_to_score = nn.Sequential(
+            LinearResidualBlock(self.lat_size * 2, self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            nn.Linear(self.lat_size, 1, bias=False)
+        )
 
     def forward(self, lat, inj_lat):
         score = self.lat_to_score(torch.cat([lat, inj_lat], 1))
