@@ -28,7 +28,11 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.lat_size, bias=False)
+        self.exp_yembed = nn.Sequential(
+            nn.Linear(n_labels, self.embed_size, bias=False),
+            IRMLinear(self.embed_size, 2),
+            nn.Linear(self.embed_size, lat_size, bias=False)
+        )
         self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size, 1, bias=False)
 
     def forward(self, lat, y):
