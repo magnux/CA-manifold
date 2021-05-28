@@ -18,15 +18,15 @@ import numpy as np
 from itertools import chain
 
 
-class Encoder(nn.Module):
+class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 injected=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, ce_in=False, gauss_grads=False, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, ce_in=False, gauss_grads=False, **kwargs):
         super().__init__()
-        self.injected = injected
+        self.injected = True
         self.n_labels = n_labels
         self.image_size = image_size
         self.in_chan = channels
-        self.n_filter = n_filter * (1 if self.injected else 2)
+        self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
         self.n_layers = (int(np.ceil(np.log2(image_size) - np.log2(16))) + 1)
         self.n_calls = n_calls
@@ -54,18 +54,18 @@ class Encoder(nn.Module):
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
                                             for _ in range(1 if self.shared_params else self.n_layers)])
-        if self.injected:
-            self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
-            self.frac_dyna_conv = nn.ModuleList([
-                DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
-                                  self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
-                for _ in range(1 if self.shared_params else self.n_layers)])
+        self.frac_dyna_conv = nn.ModuleList([
+            DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
+                              self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
+            for _ in range(1 if self.shared_params else self.n_layers)])
         self.frac_conv = nn.ModuleList([
             ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
+        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
+
         self.frac_ds = nn.Sequential(
-            GaussianSmoothing(self.n_filter, 3, 1, 1),
+            GaussianSmoothing(n_filter, 3, 1, 1),
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False, recompute_scale_factor=True))
         )
 
@@ -103,12 +103,9 @@ class Encoder(nn.Module):
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
             out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
-            if self.injected:
-                lat_new = torch.cat([self.frac_lat_exp[c](inj_lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](inj_lat)
-                out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, lat_new)
-                out_new = out_new_f + out_new_d
-            else:
-                out_new = out_new_f
+            lat_new = torch.cat([self.frac_lat_exp[c](inj_lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](inj_lat)
+            out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, lat_new)
+            out_new = out_new_f + out_new_d
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -140,12 +137,6 @@ class Encoder(nn.Module):
         return lat, out_embs, None
 
 
-class InjectedEncoder(Encoder):
-    def __init__(self, **kwargs):
-        kwargs['injected'] = True
-        super().__init__(**kwargs)
-
-
 class LabsInjectedEncoder(InjectedEncoder):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -157,12 +148,6 @@ class LabsInjectedEncoder(InjectedEncoder):
 
 
 class ZInjectedEncoder(LabsInjectedEncoder):
-    def __init__(self, **kwargs):
-        kwargs['z_out'] = True
-        super().__init__(**kwargs)
-
-
-class ZEncoder(Encoder):
     def __init__(self, **kwargs):
         kwargs['z_out'] = True
         super().__init__(**kwargs)
@@ -208,16 +193,16 @@ class Decoder(nn.Module):
         if not self.auto_reg:
             self.frac_norm = nn.ModuleList([nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
                                             for _ in range(1 if self.shared_params else self.n_layers)])
-        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
         self.frac_dyna_conv = nn.ModuleList([
             DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0),
                               self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
             for _ in range(1 if self.shared_params else self.n_layers)])
-        # self.frac_conv = nn.ModuleList([
-        #     ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
-        #     for _ in range(1 if self.shared_params else self.n_layers)])
+        self.frac_conv = nn.ModuleList([
+            ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
+            for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_noise = nn.ModuleList([NoiseInjection(self.n_filter) for _ in range(self.n_layers * n_calls)])
+        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
+        self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers * n_calls)])
 
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
@@ -277,10 +262,10 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm[0 if self.shared_params else c // self.n_calls](out_new)
-            # out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
+            out_new_f = self.frac_conv[0 if self.shared_params else c // self.n_calls](out_new)
             lat_new = torch.cat([self.frac_lat_exp[c](lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](lat)
-            out_new = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, lat_new)
-            # out_new = out_new_f + out_new_d
+            out_new_d = self.frac_dyna_conv[0 if self.shared_params else c // self.n_calls](out_new, lat_new)
+            out_new = out_new_f + out_new_d
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
