@@ -60,7 +60,7 @@ class Generator(nn.Module):
             IRMLinear(self.embed_size, 2)
         )
         self.z_irm = IRMLinear(self.z_dim, 3)
-        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size)
+        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -303,14 +303,10 @@ class LatDiscriminator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
 
-        self.lat_to_score = nn.Sequential(
-            LinearResidualBlock(self.lat_size * 2, self.lat_size, self.lat_size * 2),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, 1, bias=False)
-        )
+        self.dyna_lat_to_score = DynaLinear(self.lat_size, self.lat_size, 1, bias=False)
 
-    def forward(self, lat, inj_lat):
-        score = self.lat_to_score(torch.cat([lat, inj_lat], 1))
+    def forward(self, lat, gen_lat):
+        score = self.dyna_lat_to_score(gen_lat, lat)
 
         return score
 
