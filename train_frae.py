@@ -139,7 +139,7 @@ if pre_train:
                         for _ in range(batch_split):
                             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                            z_enc, _, _ = encoder(images, labels)
+                            z_enc, _, _ = encoder(images)
                             lat_enc = generator(z_enc, labels)
                             images_dec, _, _ = decoder(lat_enc)
 
@@ -222,7 +222,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
-                            z_enc, _, _ = encoder(images, labels)
+                            z_enc, _, _ = encoder(images)
                             lat_enc = generator(z_enc, labels)
 
                         lat_enc.requires_grad_()
@@ -290,7 +290,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        z_enc, _, _ = encoder(images, labels)
+                        z_enc, _, _ = encoder(images)
                         lat_enc = generator(z_enc, labels)
                         images_dec, _, _ = decoder(lat_enc)
 
@@ -395,7 +395,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             if not one_dec_pass:
                 images_regen, _, _ = decoder(lat_gen, out_embs[-1])
                 images_gen = torch.cat([images_gen, images_regen], dim=3)
-            z_enc, _, _ = encoder(images, labels)
+            z_enc, _, _ = encoder(images)
             lat_enc = generator(z_enc, labels)
             images_dec, out_embs, _ = decoder(lat_enc)
             if not one_dec_pass:

@@ -141,7 +141,7 @@ window_size = math.ceil((len(trainloader) // batch_split) / 10)
 #                         for _ in range(batch_split):
 #                             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 #
-#                             z_enc, _, _ = encoder(images, labels)
+#                             z_enc, _, _ = encoder(images)
 #                             lat_enc = generator(z_enc, labels)
 #                             images_dec, _, _ = decoder(lat_enc, seed=0)
 #
@@ -225,7 +225,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
-                            z_enc, _, _ = encoder(images, labels)
+                            z_enc, _, _ = encoder(images)
                             lat_enc = generator(z_enc, labels)
 
                         lat_enc.requires_grad_()
@@ -289,7 +289,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        z_enc, _, _ = encoder(images, labels)
+                        z_enc, _, _ = encoder(images)
                         lat_enc = generator(z_enc, labels)
 
                         lat_top_enc, _, _ = dis_encoder(images)
@@ -381,7 +381,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             images_gen, _, _ = decoder(lat_gen, seed_n=0)
             images_regen, _, _ = decoder(lat_gen, seed_n=(0, n_seed))
             images_gen = torch.cat([images_gen, images_regen], dim=3)
-            z_enc, _, _ = encoder(images, labels)
+            z_enc, _, _ = encoder(images)
             lat_enc = generator(z_enc, labels)
             images_dec, _, _ = decoder(lat_enc, seed_n=0)
             images_redec, _, _ = decoder(lat_enc, seed_n=(0, n_seed))

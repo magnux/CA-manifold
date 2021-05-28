@@ -162,6 +162,12 @@ class ZInjectedEncoder(LabsInjectedEncoder):
         super().__init__(**kwargs)
 
 
+class ZInjectedEncoder(Encoder):
+    def __init__(self, **kwargs):
+        kwargs['z_out'] = True
+        super().__init__(**kwargs)
+
+
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
                  log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, ce_out=False, n_seed=1, gauss_grads=False, **kwargs):
