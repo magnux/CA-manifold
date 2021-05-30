@@ -30,8 +30,8 @@ class Discriminator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size, bias=False),
-            LetterEncoder(self.embed_size),
-            LetterDecoder(self.embed_size)
+            LetterEncoder(self.embed_size, n_layers=2),
+            LetterDecoder(self.embed_size, n_layers=2)
         )
         self.lat_to_score = DynaLinear(self.embed_size, self.lat_size, 1, bias=False)
 
@@ -63,12 +63,12 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size, bias=False),
-            LetterEncoder(self.embed_size),
-            LetterDecoder(self.embed_size)
+            LetterEncoder(self.embed_size, n_layers=2),
+            LetterDecoder(self.embed_size, n_layers=2)
         )
         self.z_irm = nn.Sequential(
-            LetterEncoder(self.z_dim),
-            LetterDecoder(self.z_dim)
+            LetterEncoder(self.z_dim, n_layers=2),
+            LetterDecoder(self.z_dim, n_layers=2)
         )
         self.z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
 
@@ -101,8 +101,8 @@ class LabsEncoder(nn.Module):
 
         self.yembed_to_lat = nn.Sequential(
             nn.Linear(n_labels, self.embed_size, bias=False),
-            LetterEncoder(self.embed_size),
-            LetterDecoder(self.embed_size),
+            LetterEncoder(self.embed_size, n_layers=2),
+            LetterDecoder(self.embed_size, n_layers=2),
             nn.Linear(self.embed_size, lat_size, bias=False)
         )
 
