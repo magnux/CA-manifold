@@ -98,7 +98,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
         elif reg_ratio > 2.:
             reg_every /= 2
 
-    reg_param = np.clip(reg_param, 1e-18, reg_param_target)
+    reg_param = np.clip(reg_param, 1e-17 * reg_param_target, 1e3 * reg_param_target)
     reg_every = np.clip(reg_every, 1, reg_every_target)
 
     return reg_every, reg_param
