@@ -134,10 +134,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dec_sum += loss_dec.item()
 
                         if persistence:
-                            n_calls_save = model_manager.get_n_calls(decoder)
+                            n_calls_save = model_manager.get_n_calls('decoder')
 
                             pers_steps = 8
-                            model_manager.set_n_calls(decoder, pers_steps)
+                            model_manager.set_n_calls('decoder', pers_steps)
 
                             _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
                             pers_out_embs = torch.stack(pers_out_embs, dim=-1)
@@ -147,13 +147,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                             loss_pers_sum += loss_pers.item()
 
-                            model_manager.set_n_calls(decoder, n_calls_save)
+                            model_manager.set_n_calls('decoder', n_calls_save)
 
                         if regeneration:
-                            n_calls_save = model_manager.get_n_calls(decoder)
+                            n_calls_save = model_manager.get_n_calls('decoder')
 
                             regen_steps = 8
-                            model_manager.set_n_calls(decoder, regen_steps)
+                            model_manager.set_n_calls('decoder', regen_steps)
 
                             corrupt_init, _ = rand_circle_masks(out_embs[-1], batch_split_size)
                             _, regen_out_embs, _ = decoder(lat_dec, corrupt_init)
@@ -164,7 +164,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                             loss_regen_sum += loss_regen.item()
 
-                            model_manager.set_n_calls(decoder, n_calls_save)
+                            model_manager.set_n_calls('decoder', n_calls_save)
 
                 # Streaming Images
                 with torch.no_grad():
