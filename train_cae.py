@@ -139,17 +139,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             pers_steps = 8
                             decoder.n_calls = pers_steps
 
-                            mean_last_steps = torch.stack(out_embs[-pers_steps:], dim=-1).mean(dim=-1)
-                            pers_target_out_embs = [mean_last_steps for _ in range(pers_steps)]
+                            _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
+                            pers_out_embs = torch.stack(pers_out_embs, dim=-1)
+                            pers_out_diff = 10 * (pers_out_embs[..., 1:] - pers_out_embs[..., :-1])
 
-                            loss_pers = (1 / batch_mult) * F.mse_loss(torch.stack(out_embs[-pers_steps:]), torch.stack(pers_target_out_embs))
-                            model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
-                            loss_pers_sum += loss_pers.item()
-
-                            perturbed_init = out_embs[-1] + 1e-2 * torch.randn_like(out_embs[-1]) * out_embs[-1]
-                            _, pers_out_embs, _ = decoder(lat_dec, perturbed_init)
-
-                            loss_pers = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
+                            loss_pers = (1 / batch_mult) * F.mse_loss(pers_out_diff, torch.zeros_like(pers_out_diff))
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                             loss_pers_sum += loss_pers.item()
 
