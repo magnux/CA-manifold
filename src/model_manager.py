@@ -103,6 +103,12 @@ class ModelManager(object):
             for param_group in self.networks_dict[net_name]['optimizer'].param_groups:
                 param_group['lr'] = self.lr
 
+    def get_n_calls(self, net_name):
+        if isinstance(self.networks_dict[net_name]['net'], torch.nn.DataParallel):
+            return self.networks_dict[net_name]['net'].module.n_calls
+        else:
+            return self.networks_dict[net_name]['net'].n_calls
+
     def set_n_calls(self, net_name, n_calls):
         if isinstance(self.networks_dict[net_name]['net'], torch.nn.DataParallel):
             self.networks_dict[net_name]['net'].module.n_calls = n_calls
