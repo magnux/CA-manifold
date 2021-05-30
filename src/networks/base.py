@@ -28,7 +28,7 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.embed_size)
+        self.proj_yembed = nn.Linear(n_labels, self.embed_size)
         self.lat_to_score = DynaLinear(self.embed_size, self.lat_size, 1, bias=False)
 
     def forward(self, lat, y):
@@ -41,7 +41,7 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        yembed = self.exp_yembed(yembed)
+        yembed = self.proj_yembed(yembed)
         score = self.lat_to_score(lat, yembed)
 
         return score
@@ -57,8 +57,8 @@ class Generator(nn.Module):
         self.norm_z = norm_z
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.embed_size)
-        self.z_to_z = nn.Linear(self.z_dim, self.z_dim)
+        self.proj_yembed = nn.Linear(n_labels, self.embed_size)
+        self.proj_z = nn.Linear(self.z_dim, self.z_dim)
         self.z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size)
 
     def forward(self, z, y):
@@ -74,20 +74,24 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        yembed = self.exp_yembed(yembed)
-        z = self.z_to_z(z)
+        yembed = self.proj_yembed(yembed)
+        z = self.proj_z(z)
         lat = self.z_to_lat(z, yembed)
 
         return lat
 
 
 class LabsEncoder(nn.Module):
-    def __init__(self, n_labels, lat_size, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
+        self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.yembed_to_lat = nn.Linear(n_labels, self.lat_size)
+        self.yembed_to_lat = nn.Sequential(
+            nn.Linear(n_labels, self.embed_size),
+            nn.Linear(self.embed_size, self.lat_size),
+        )
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -122,14 +126,15 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.norm_z = norm_z
 
-        self.z_to_z = nn.Linear(self.z_dim, self.z_dim)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size)
+        self.z_to_lat = nn.Sequential(
+            nn.Linear(self.z_dim, self.z_dim),
+            nn.Linear(self.z_dim, self.lat_size)
+        )
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        z = self.z_to_z(z)
         lat = self.z_to_lat(z)
 
         return lat
