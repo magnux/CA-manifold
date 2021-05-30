@@ -30,7 +30,8 @@ class Discriminator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size, bias=False),
-            IRMLinear(self.embed_size, 3)
+            LetterEncoder(self.embed_size),
+            LetterDecoder(self.embed_size)
         )
         self.lat_to_score = DynaLinear(self.embed_size, self.lat_size, 1, bias=False)
 
@@ -62,9 +63,13 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size, bias=False),
-            IRMLinear(self.embed_size, 3)
+            LetterEncoder(self.embed_size),
+            LetterDecoder(self.embed_size)
         )
-        self.z_irm = IRMLinear(self.z_dim, 3)
+        self.z_irm = nn.Sequential(
+            LetterEncoder(self.z_dim),
+            LetterDecoder(self.z_dim)
+        )
         self.z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
@@ -96,7 +101,8 @@ class LabsEncoder(nn.Module):
 
         self.yembed_to_lat = nn.Sequential(
             nn.Linear(n_labels, self.embed_size, bias=False),
-            IRMLinear(self.embed_size, 2),
+            LetterEncoder(self.embed_size),
+            LetterDecoder(self.embed_size),
             nn.Linear(self.embed_size, lat_size, bias=False)
         )
 
@@ -224,14 +230,14 @@ class VarDecoder(nn.Module):
 
 
 class LetterEncoder(nn.Module):
-    def __init__(self, lat_size, letter_channels=4, letter_bits=16, **kwargs):
+    def __init__(self, lat_size, letter_channels=4, letter_bits=16, n_layers=4, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.letter_channels = letter_channels
         self.letter_bits = letter_bits
         self.lat_to_letters = nn.Sequential(
             ResidualBlock(1, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d) for _ in range(3)]),
+            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d) for _ in range(n_layers-1)]),
         )
 
     def forward(self, lat):
@@ -244,13 +250,13 @@ class LetterEncoder(nn.Module):
 
 
 class LetterDecoder(nn.Module):
-    def __init__(self, lat_size, letter_channels=4, letter_bits=16, **kwargs):
+    def __init__(self, lat_size, letter_channels=4, letter_bits=16, n_layers=4, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.letter_channels = letter_channels
         self.letter_bits = letter_bits
         self.letters_to_lat = nn.Sequential(
-            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d) for _ in range(3)]),
+            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d) for _ in range(n_layers-1)]),
             ResidualBlock(letter_channels * letter_bits, 1, None, 1, 1, 0, nn.Conv1d),
         )
 
