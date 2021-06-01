@@ -184,6 +184,7 @@ class Decoder(nn.Module):
         )
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
+        self.seed_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers)])
 
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
@@ -202,7 +203,6 @@ class Decoder(nn.Module):
             for _ in range(1 if self.shared_params else self.n_layers)])
 
         self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
-        self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers * n_calls)])
 
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
@@ -257,6 +257,8 @@ class Decoder(nn.Module):
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
+            if c % self.n_calls == 0:
+                out_new = self.seed_noise[0 if self.shared_params else c // self.n_calls](out_new)
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
@@ -271,7 +273,6 @@ class Decoder(nn.Module):
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(float_type)
-            out_new = self.frac_noise[c](out_new)
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
