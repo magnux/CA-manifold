@@ -32,7 +32,8 @@ class LinearResidualMemory(nn.Module):
         if self.dropout is not None:
             mem_x = self.dropout(mem_x)
         mem_x = torch.bmm(mem_x, x_v)
-        mem_x = mem_x.mean(1)
+        mem_x = F.softmax(mem_x, dim=1)
+        mem_x = mem_x.sum(1)
         mem_x = self.l_out(mem_x)
 
         return x + mem_x
