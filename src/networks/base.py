@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.irm import IRMLinear
 from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
@@ -61,7 +60,6 @@ class Generator(nn.Module):
         self.proj_yembed = nn.Linear(n_labels, self.embed_size, bias=False)
         self.proj_z = nn.Linear(self.z_dim, self.z_dim, bias=False)
         self.yembed_to_lat = DynaLinear(self.z_dim, self.embed_size, self.lat_size, bias=False)
-        self.lat_mem = LinearResidualMemory(self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -79,7 +77,6 @@ class Generator(nn.Module):
         yembed = self.proj_yembed(yembed)
         z = self.proj_z(z)
         lat = self.yembed_to_lat(yembed, z)
-        lat = self.lat_mem(lat)
 
         return lat
 
@@ -133,14 +130,12 @@ class UnconditionalGenerator(nn.Module):
             nn.Linear(self.z_dim, self.z_dim, bias=False),
             nn.Linear(self.z_dim, self.lat_size, bias=False)
         )
-        self.lat_mem = LinearResidualMemory(self.lat_size)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
         lat = self.z_to_lat(z)
-        lat = self.lat_mem(lat)
 
         return lat
 
