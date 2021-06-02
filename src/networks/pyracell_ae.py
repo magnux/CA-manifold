@@ -70,6 +70,7 @@ class InjectedEncoder(nn.Module):
         )
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
+        self.register_buffer('out_weights', 1 + 0.5 * torch.rand(1, 1, 16, 16))
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -124,6 +125,8 @@ class InjectedEncoder(nn.Module):
             out_embs.append(out)
 
         out = self.out_conv(out)
+        if out.requires_grad:
+            out.register_hook(lambda grad: grad * self.out_weights)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
             conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
