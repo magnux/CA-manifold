@@ -83,7 +83,7 @@ class LabsEncoder(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.yembed_to_lat = LinearResidualBlock(n_labels, self.lat_size),
+        self.yembed_to_lat = LinearResidualBlock(n_labels, self.lat_size)
 
     def forward(self, y):
         if y.dtype is torch.int64:
