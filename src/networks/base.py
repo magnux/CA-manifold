@@ -45,7 +45,7 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=False, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, norm_z=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
@@ -112,7 +112,7 @@ class UnconditionalDiscriminator(nn.Module):
 
 
 class UnconditionalGenerator(nn.Module):
-    def __init__(self, lat_size, z_dim, norm_z=False, **kwargs):
+    def __init__(self, lat_size, z_dim, norm_z=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
