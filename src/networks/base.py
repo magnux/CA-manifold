@@ -27,7 +27,6 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.embed_size)
         self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
 
     def forward(self, lat, y):
@@ -55,9 +54,11 @@ class Generator(nn.Module):
         self.norm_z = norm_z
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.embed_size)
-        self.z_irm = IRMLinear(self.z_dim, 3)
-        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size)
+        self.yembed_irm = nn.Sequential(
+            nn.Linear(n_labels, self.embed_size, bias=False),
+            IRMLinear(self.embed_size, 2)
+        )
+        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -72,8 +73,7 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        yembed = self.exp_yembed(yembed)
-        z = self.z_irm(z)
+        yembed = self.yembed_irm(yembed)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
@@ -86,7 +86,11 @@ class LabsEncoder(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.yembed_to_lat = nn.Linear(n_labels, self.lat_size)
+        self.yembed_to_lat = nn.Sequential(
+            nn.Linear(n_labels, self.embed_size, bias=False),
+            IRMLinear(self.embed_size, 2),
+            nn.Linear(self.embed_size, lat_size, bias=False)
+        )
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -122,7 +126,7 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
 
         self.z_irm = IRMLinear(self.z_dim, 3)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
