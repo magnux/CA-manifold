@@ -141,9 +141,16 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
                             pers_out_embs = torch.stack(pers_out_embs, dim=-1)
-                            pers_out_diff = 10 * (pers_out_embs[..., 1:] - pers_out_embs[..., :-1])
 
-                            loss_pers = (1 / batch_mult) * F.mse_loss(pers_out_diff, torch.zeros_like(pers_out_diff))
+                            # Slow down aging: minimize the differences, to slow down the motion as much as possible
+                            pers_out_diff = pers_out_embs[..., 1:] - pers_out_embs[..., :-1]
+                            loss_pers = (1 / batch_mult) * 10 * F.mse_loss(pers_out_diff, torch.zeros_like(pers_out_diff))
+
+                            # Repair aging drift: preserve the differences WRT the mean
+                            out_embs_mean = out_embs[-1].mean(dim=(2, 3), keepdim=True)
+                            pers_out_mean = pers_out_embs[..., 1:].mean(dim=4)
+                            loss_pers += (1 / batch_mult) * 10 * F.mse_loss(pers_out_mean - out_embs_mean, out_embs[-1] - out_embs_mean)
+
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                             loss_pers_sum += loss_pers.item()
 
@@ -160,6 +167,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             regen_target_out_embs = [out_embs[-1] for _ in range(regen_steps)]
 
+                            # Make all damaged and undamaged bits tend towards the true final state
                             loss_regen = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(regen_out_embs[1:]), torch.stack(regen_target_out_embs))
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                             loss_regen_sum += loss_regen.item()
