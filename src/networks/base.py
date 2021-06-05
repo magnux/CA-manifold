@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
+from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 import numpy as np
@@ -27,6 +28,11 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
+        self.yembed_irm = nn.Sequential(
+            nn.Linear(n_labels, self.embed_size, bias=False),
+            IRMLinear(self.embed_size, 2)
+        )
+        self.dyna_lat_to_score = DynaLinear(self.embed_size, self.lat_size, 1, bias=False)
         self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
 
     def forward(self, lat, y):
@@ -40,6 +46,7 @@ class Discriminator(nn.Module):
             yembed = y
 
         score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / np.sqrt(yembed.shape[1]))
+        score = score + self.dyna_lat_to_score(lat, self.yembed_irm(yembed))
 
         return score
 
@@ -58,6 +65,8 @@ class Generator(nn.Module):
             nn.Linear(n_labels, self.embed_size, bias=False),
             IRMLinear(self.embed_size, 2)
         )
+        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
+        self.z_irm = IRMLinear(self.z_dim, 3)
         self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
 
     def forward(self, z, y):
@@ -74,7 +83,9 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.yembed_irm(yembed)
+        z = self.z_irm(z)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
+        lat = lat + self.dyna_z_to_lat(z, yembed)
 
         return lat
 
