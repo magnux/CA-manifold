@@ -32,8 +32,8 @@ class Discriminator(nn.Module):
             nn.Linear(n_labels, self.embed_size, bias=False),
             IRMLinear(self.embed_size, 2)
         )
-        self.dyna_lat_to_score = DynaLinear(self.embed_size, self.lat_size, 1, bias=False)
         self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
+        self.dyna_lat_to_score = DynaLinear(self.embed_size, self.lat_size, 1, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -65,9 +65,9 @@ class Generator(nn.Module):
             nn.Linear(n_labels, self.embed_size, bias=False),
             IRMLinear(self.embed_size, 2)
         )
-        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
         self.z_irm = IRMLinear(self.z_dim, 3)
         self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
