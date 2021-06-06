@@ -12,7 +12,10 @@ class NoiseInjection(nn.Module):
 
     def forward(self, x, noise=None):
         if noise is None:
-            noise = torch.randn_like(x)
+            noise_shape = [int(s) for s in x.shape]
+            if x.dim() > 2:
+                noise_shape[1] = 1
+            noise = torch.randn(noise_shape, device=x.device())
 
         exp_weights = self.noise_weights
         if x.dim() > 2:
