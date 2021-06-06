@@ -14,6 +14,9 @@ class NoiseInjection(nn.Module):
         if noise is None:
             noise = torch.randn_like(x)
 
-        x_new = x + self.noise_weights.expand_as(x) * noise
+        exp_weights = self.noise_weights
+        if x.dim() > 2:
+            exp_weights = exp_weights.view([1, self.fin] + [1 for _ in x.shape[2:]])
+        x_new = x + exp_weights * noise
 
         return x_new
