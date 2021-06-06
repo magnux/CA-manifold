@@ -15,7 +15,7 @@ class NoiseInjection(nn.Module):
             noise_shape = [int(s) for s in x.shape]
             if x.dim() > 2:
                 noise_shape[1] = 1
-            noise = torch.randn(noise_shape, device=x.device())
+            noise = torch.randn(noise_shape, device=x.device)
 
         exp_weights = self.noise_weights
         if x.dim() > 2:
