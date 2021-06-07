@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import random
 
 class EnsembleLinear(nn.Module):
     def __init__(self, fin, fout, bias=True, n_ensemble=8):
@@ -11,11 +11,11 @@ class EnsembleLinear(nn.Module):
         self.bias = bias
         self.n_ensemble = n_ensemble
 
-        self.linear = nn.Linear(self.fin, self.fout * self.n_ensemble, self.bias)
+        self.linear = nn.ModuleList([
+            nn.Linear(self.fin, self.fout, self.bias) for _ in range(self.n_ensemble)
+        ])
 
     def forward(self, x):
-        x_new = self.linear(x)
-        x_new_l = torch.split(x_new, self.fout, dim=1)
-        x_new = torch.stack(x_new_l, dim=2).mean(dim=2)
+        x_new = self.linear[random.randrange(0, self.n_ensemble)](x)
 
         return x_new
