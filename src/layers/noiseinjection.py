@@ -11,6 +11,12 @@ class NoiseInjection(nn.Module):
 
     def forward(self, x, noise=None):
         batch_size = x.size(0)
+
+        squeeze_x = False
+        if x.dim() == 2:
+            x = x.unsqueeze(2)
+            squeeze_x = True
+
         in_size = x.size(2)
         x_dim = x.dim() - 2
 
@@ -19,5 +25,8 @@ class NoiseInjection(nn.Module):
         noise = self.lat_to_fin(noise).permute(*[0, x_dim+1] + [i for i in range(2, x_dim+1)] + [1])
 
         x_new = x + noise
+
+        if squeeze_x:
+            x_new = x_new.squeeze(2)
 
         return x_new

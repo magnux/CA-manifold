@@ -202,8 +202,8 @@ class Decoder(nn.Module):
             ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
-        self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers * n_calls)])
+        self.frac_lat_exp = nn.ModuleList([nn.Sequential(NoiseInjection(self.lat_size), nn.Linear(self.lat_size, self.lat_size)) for _ in range(self.n_layers * n_calls)])
+        # self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers * n_calls)])
 
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
@@ -274,7 +274,7 @@ class Decoder(nn.Module):
                 out_new = out_new * torch.sigmoid(out_new_gate)
             if self.fire_rate < 1.0:
                 out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(float_type)
-            out_new = self.frac_noise[c](out_new)
+            # out_new = self.frac_noise[c](out_new)
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
