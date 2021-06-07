@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
-from src.layers.ensemblelinear import EnsembleLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 import numpy as np
@@ -28,7 +27,7 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.lat_to_score = EnsembleLinear(self.lat_size, n_labels, bias=False)
+        self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -56,7 +55,7 @@ class Generator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.exp_yembed = nn.Linear(n_labels, self.embed_size, bias=False)
-        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -86,7 +85,7 @@ class LabsEncoder(nn.Module):
 
         self.yembed_to_lat = nn.Sequential(
             nn.Linear(n_labels, self.embed_size, bias=False),
-            nn.Linear(self.embed_size, lat_size, bias=False)
+            nn.Linear(self.embed_size, lat_size)
         )
 
     def forward(self, y):
@@ -107,7 +106,7 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_score = EnsembleLinear(self.lat_size, 1, bias=False)
+        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
         score = self.lat_to_score(lat)
@@ -122,7 +121,7 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.norm_z = norm_z
 
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size)
 
     def forward(self, z):
         if self.norm_z:
