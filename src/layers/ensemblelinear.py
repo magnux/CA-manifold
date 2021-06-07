@@ -3,10 +3,9 @@ import torch.nn as nn
 
 
 class EnsembleLinear(nn.Module):
-    def __init__(self, lat_size, fin, fout, bias=True, n_ensemble=8):
+    def __init__(self, fin, fout, bias=True, n_ensemble=8):
         super(EnsembleLinear, self).__init__()
 
-        self.lat_size = lat_size
         self.fin = fin
         self.fout = fout
         self.bias = bias
