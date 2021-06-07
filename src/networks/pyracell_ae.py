@@ -184,7 +184,7 @@ class Decoder(nn.Module):
         )
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
-        # self.seed_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers)])
+        self.seed_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers)])
 
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
@@ -255,11 +255,11 @@ class Decoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for c in range(self.n_layers * self.n_calls):
+            if c % self.n_calls == 0:
+                out = self.seed_noise[0 if self.shared_params else c // self.n_calls](out)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
-            # if c % self.n_calls == 0:
-            #     out_new = self.seed_noise[0 if self.shared_params else c // self.n_calls](out_new)
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
