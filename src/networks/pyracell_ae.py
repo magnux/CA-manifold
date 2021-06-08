@@ -184,7 +184,7 @@ class Decoder(nn.Module):
         )
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
-        # self.seed_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers)])
+        self.seed_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers)])
 
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
@@ -202,7 +202,7 @@ class Decoder(nn.Module):
             ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_lat_exp = nn.ModuleList([nn.Sequential(NoiseInjection(self.lat_size), nn.Linear(self.lat_size, self.lat_size)) for _ in range(self.n_layers * n_calls)])
+        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
 
         self.frac_us = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
@@ -254,8 +254,8 @@ class Decoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for c in range(self.n_layers * self.n_calls):
-            # if c % self.n_calls == 0:
-            #     out = self.seed_noise[0 if self.shared_params else c // self.n_calls](out)
+            if c % self.n_calls == 0:
+                out = self.seed_noise[0 if self.shared_params else c // self.n_calls](out)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
