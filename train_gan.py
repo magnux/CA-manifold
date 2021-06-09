@@ -166,20 +166,19 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 # Discriminator step
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
-                    batch_mult_dis = batch_mult * int(1 / (0.5 * (g_factor_enc + g_factor_dec)))
-                    for _ in range(batch_mult_dis):
+                    for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_top_enc, _, _ = dis_encoder(images, labels)
                         labs_enc = discriminator(lat_top_enc)
-                        labs_dis_enc_sign += ((1 / batch_mult_dis) * labs_enc.sign().mean()).item()
+                        labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_enc = (1 / batch_mult_dis) * d_reg_factor * compute_grad_reg(labs_enc, images)
+                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
-                        loss_dis_enc = (1 / batch_mult_dis) * compute_gan_loss(labs_enc, 1)
+                        loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
                         labs_enc.register_hook(grad_noise_hook(g_factor_enc))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
@@ -192,14 +191,14 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec)
-                        labs_dis_dec_sign -= ((1 / batch_mult_dis) * labs_dec.sign().mean()).item()
+                        labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_dec = (1 / batch_mult_dis) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
+                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
-                        loss_dis_dec = (1 / batch_mult_dis) * compute_gan_loss(labs_dec, 0)
+                        loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
                         labs_dec.register_hook(grad_noise_hook(g_factor_dec))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
@@ -213,6 +212,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                                                                     reg_dis_mean, reg_dis_target, loss_dis_mean)
 
                     g_factor_enc, g_factor_dec = update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target)
+                    reg_dis_target = 1e-4 * ((0.5 * (g_factor_enc + g_factor_dec)) ** 4)
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
                     # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
