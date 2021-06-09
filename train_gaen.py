@@ -220,7 +220,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
-                    for _ in range(batch_mult):
+                    batch_mult_dis = batch_mult * int(1 / (0.5 * (g_factor_enc + g_factor_dec)))
+                    for _ in range(batch_mult_dis):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
@@ -230,18 +231,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc)
-                        labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
+                        labs_dis_enc_sign += ((1 / batch_mult_dis) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images)
+                            reg_dis_enc = (1 / batch_mult_dis) * d_reg_factor * compute_grad_reg(labs_enc, images)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
-                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, lat_enc)
+                            reg_dis_enc = (1 / batch_mult_dis) * d_reg_factor * compute_grad_reg(labs_enc, lat_enc)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
-                        loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
+                        loss_dis_enc = (1 / batch_mult_dis) * compute_gan_loss(labs_enc, 1)
                         labs_enc.register_hook(grad_noise_hook(g_factor_enc))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
@@ -255,18 +256,18 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec)
-                        labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
+                        labs_dis_dec_sign -= ((1 / batch_mult_dis) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
+                            reg_dis_dec = (1 / batch_mult_dis) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, lat_gen)
+                            reg_dis_dec = (1 / batch_mult_dis) * d_reg_factor * compute_grad_reg(labs_dec, lat_gen)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
-                        loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
+                        loss_dis_dec = (1 / batch_mult_dis) * compute_gan_loss(labs_dec, 0)
                         labs_dec.register_hook(grad_noise_hook(g_factor_dec))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
@@ -285,8 +286,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
                     # dis_grad_norm = get_grad_norm(discriminator).item()
                     # dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
-                    # Set learning rate according to g_factor
-                    model_manager.set_lr(config['training']['lr'] * ((0.5 * (g_factor_enc + g_factor_dec)) ** 4))
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
@@ -347,7 +346,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     # grad_mult(encoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
-                    model_manager.set_lr(config['training']['lr'])
 
                 # Streaming Images
                 with torch.no_grad():
