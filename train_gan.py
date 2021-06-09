@@ -134,8 +134,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_gen = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
+        # Set learning rate according to g_factor
+        model_manager.set_lr(config['training']['lr'] * ((0.5 * (g_factor_enc + g_factor_dec)) ** 4))
         # Discriminator reg target
-        reg_dis_target = 1e-4 * ((0.5 * (g_factor_enc + g_factor_dec)) ** 4)  # 1. * (1. - 0.999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        reg_dis_target = 1e-4  # 1. * (1. - 0.999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
         # Discriminator mean sign target
         sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
 
