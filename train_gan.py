@@ -134,8 +134,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         running_loss_gen = np.zeros(window_size)
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
-        # Set learning rate according to g_factor
-        model_manager.set_lr(config['training']['lr'] * ((0.5 * (g_factor_enc + g_factor_dec)) ** 4))
         # Discriminator reg target
         reg_dis_target = 1e-4  # 1. * (1. - 0.999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
         # Discriminator mean sign target
@@ -217,6 +215,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
                     # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
+                    # Set learning rate according to g_factor
+                    model_manager.set_lr(config['training']['lr'] * ((0.5 * (g_factor_enc + g_factor_dec)) ** 4))
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
