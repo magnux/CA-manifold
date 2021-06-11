@@ -109,7 +109,7 @@ def get_inputs(trainiter, batch_size, device):
     return images, labels, z_gen, trainiter
 
 
-images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
+images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size if batch_size > 1 else 64, device)
 
 
 if config['training']['inception_every'] > 0:
@@ -390,7 +390,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
+            images, labels, z_gen, trainiter = get_inputs(trainiter, labels_test.shape[0], device)
             lat_gen = generator(z_test, labels_test)
             images_gen, out_embs, _ = decoder(lat_gen)
             if not one_dec_pass:
@@ -407,7 +407,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
             model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
             for lab in range(config['training']['sample_labels']):
                 if labels_test.dim() == 1:
-                    fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
+                    fixed_lab = torch.full((labels_test.shape[0],), lab, device=device, dtype=torch.int64)
                 else:
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
