@@ -27,7 +27,7 @@ training:
   out_dir: save/emoji_s_cell_ae_sto_lat3
   persistence: False
   regeneration: False
-  batch_size: 16
+  batch_size: 64
   batch_split: 1
   batch_mult_steps: 1
   n_workers: 2
