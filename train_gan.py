@@ -135,7 +135,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
         batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
         # Discriminator reg target
-        reg_dis_target = 1e-4  # 1. * (1. - 0.999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        reg_dis_target = config['training']['lr']  # 1. * (1. - 0.999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
         # Discriminator mean sign target
         sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
 
@@ -212,7 +212,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                                                                     reg_dis_mean, reg_dis_target, loss_dis_mean)
 
                     g_factor_enc, g_factor_dec = update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target)
-                    reg_dis_target = 1e-4 * ((0.5 * (g_factor_enc + g_factor_dec)) ** 4)
+                    reg_dis_target = config['training']['lr'] * ((0.5 * (g_factor_enc + g_factor_dec)) ** 4)
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
                     # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))

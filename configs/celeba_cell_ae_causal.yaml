@@ -28,12 +28,12 @@ training:
   out_dir: save/celeba_cell_ae_causal
   batch_size: 64
   batch_split: 4
-  batch_mult_steps: 4
+  batch_mult_steps: 1
   n_workers: 2
   optimizer: adam
   lr: 0.0001
   equalize_lr: false
-  n_epochs: 32
+  n_epochs: 64
   save_every: 1
   lr_anneal: 1.0
   lr_anneal_every: 0
