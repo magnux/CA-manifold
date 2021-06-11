@@ -170,12 +170,13 @@ def compute_inception_score(generator, decoder, inception_sample_size, fid_sampl
 
 
 def update_network_average(network_tgt, network_src, beta):
-    param_dict_src = dict(network_src.named_parameters())
+    with torch.no_grad():
+        param_dict_src = dict(network_src.named_parameters())
 
-    for p_name, p_tgt in network_tgt.named_parameters():
-        p_src = param_dict_src[p_name]
-        assert(p_src is not p_tgt)
-        p_tgt.copy_(beta*p_tgt + (1. - beta)*p_src)
+        for p_name, p_tgt in network_tgt.named_parameters():
+            p_src = param_dict_src[p_name]
+            assert(p_src is not p_tgt)
+            p_tgt.copy_(beta * p_tgt + (1. - beta) * p_src)
 
 
 def ca_seed(batch_size, n_filter, image_size, device, seed_value=1.0, all_channels=False):
