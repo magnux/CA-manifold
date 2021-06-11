@@ -104,7 +104,7 @@ def get_inputs(trainiter, batch_size, device):
     return images, labels, z_gen, trainiter
 
 
-images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size if batch_size > 1 else 64, device)
+images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size if batch_size > 8 else 64, device)
 
 
 if config['training']['inception_every'] > 0:
