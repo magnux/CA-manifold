@@ -27,12 +27,12 @@ training:
   out_dir: save/emoji_s_conv_ae_dyncin
   persistence: False
   regeneration: False
-  batch_size: 64
+  batch_size: 16
   batch_split: 1
   batch_mult_steps: 1
   n_workers: 2
   optimizer: adam
-  lr: 0.001
+  lr: 0.0001
   equalize_lr: false
   n_epochs: 512
   save_every: 1
