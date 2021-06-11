@@ -138,12 +138,11 @@ class ModelManager(object):
                 self.log_manager.flush()
 
         if len(self.to_avg) > 0:
-            with torch.no_grad():
-                for net_name in self.to_avg:
-                    if self.epoch < 2:
-                        update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.0)
-                    else:
-                        update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.999)
+            for net_name in self.to_avg:
+                if self.epoch < 2:
+                    update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.0)
+                else:
+                    update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.999)
 
         if self.config['training']['lr_anneal_every'] > 0 and not (
                 self.config['training']['lr_anneal_every'] == 1 and self.config['training']['lr_anneal'] == 1.0):
@@ -169,9 +168,8 @@ class ModelManager(object):
     def on_batch_end(self):
         #TODO: Check all networks_dict are trained
         if len(self.to_avg) > 0 and self.epoch >= 2 and self.it % 10 == 0:
-            with torch.no_grad():
-                for net_name in self.to_avg:
-                    update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.999)
+            for net_name in self.to_avg:
+                update_network_average(self.networks_dict[net_name]['avg'], self.networks_dict[net_name]['net'], 0.999)
         self.it += 1
         if self.config['training']['lr_anneal_every'] == 1 and self.config['training']['lr_anneal'] == 1.0:
             for net_name in self.networks_dict.keys():
