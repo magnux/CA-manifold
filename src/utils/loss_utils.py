@@ -6,7 +6,7 @@ from src.layers.posencoding import cos_pos_encoding_nd
 CE_ZERO = np.log(0.5)
 
 
-def compute_gan_loss(d_out, target, gan_type='new_mse'):
+def compute_gan_loss(d_out, target, gan_type='new_one'):
 
     if gan_type == 'standard':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
@@ -31,10 +31,9 @@ def compute_gan_loss(d_out, target, gan_type='new_mse'):
         loss = F.relu((1 - 2*target) * d_out).mean()
     elif gan_type == 'softplus':
         loss = F.softplus((1 - 2*target) * d_out).mean()
-    elif gan_type == 'new_mse':
+    elif gan_type == 'new_one':
         target = d_out.new_full(size=d_out.size(), fill_value=(target - 0.5))
-        # loss = F.mse_loss(d_out, target)
-        loss = ((target - d_out) ** 4).mean()
+        loss = F.l1_loss(d_out, target)
     else:
         raise NotImplementedError
 
