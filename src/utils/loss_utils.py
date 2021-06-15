@@ -33,8 +33,7 @@ def compute_gan_loss(d_out, target, gan_type='new_mse'):
         loss = F.softplus((1 - 2*target) * d_out).mean()
     elif gan_type == 'new_mse':
         target = d_out.new_full(size=d_out.size(), fill_value=(target - 0.5))
-        loss = ((target - d_out) ** 2) + (1e-2 * torch.cos(d_out * 1e2))
-        loss = loss.mean()
+        loss = F.mse_loss(d_out, target)
     else:
         raise NotImplementedError
 
