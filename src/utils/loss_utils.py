@@ -6,7 +6,7 @@ from src.layers.posencoding import cos_pos_encoding_nd
 CE_ZERO = np.log(0.5)
 
 
-def compute_gan_loss(d_out, target, gan_type='softplus'):
+def compute_gan_loss(d_out, target, gan_type='new_one'):
 
     if gan_type == 'standard':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
