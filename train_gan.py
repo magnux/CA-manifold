@@ -219,7 +219,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
-                    model_manager.set_n_calls('decoder', (it % n_calls) + 1)
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
