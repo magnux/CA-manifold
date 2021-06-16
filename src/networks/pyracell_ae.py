@@ -70,11 +70,7 @@ class InjectedEncoder(nn.Module):
         )
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Sequential(
-            # LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            # LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
-        )
+        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
