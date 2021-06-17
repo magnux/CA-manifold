@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
+from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 import numpy as np
@@ -55,14 +56,15 @@ class Generator(nn.Module):
         self.norm_z = norm_z
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.yembed_to_lat = nn.Linear(n_labels, self.lat_size, bias=False)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size * self.lat_size, bias=False)
-        self.lat_bias = nn.Parameter(torch.randn(lat_size))
+        self.yembed_irm = nn.Sequential(
+            nn.Linear(n_labels, self.embed_size, bias=False),
+            IRMLinear(self.embed_size, 2)
+        )
+        self.z_irm = IRMLinear(self.z_dim, 3)
+        self.dyna_z_to_lat = DynaLinear(self.z_dim, self.embed_size, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
-        batch_size = z.shape[0]
-
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -74,9 +76,9 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        lat = (self.lat_bias * self.yembed_to_lat(yembed)).view(batch_size, 1, self.lat_size)
-        z_proj = self.z_to_lat(z).view(batch_size, self.lat_size, self.lat_size)
-        lat = torch.bmm(lat, z_proj).squeeze(1)
+        yembed = self.yembed_irm(yembed)
+        z = self.z_irm(z)
+        lat = self.dyna_z_to_lat(yembed, z)
 
         return lat
 
@@ -88,8 +90,11 @@ class LabsEncoder(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.yembed_to_lat = nn.Linear(n_labels, lat_size, bias=False)
-        self.lat_bias = nn.Parameter(torch.randn(lat_size))
+        self.yembed_to_lat = nn.Sequential(
+            nn.Linear(n_labels, self.embed_size, bias=False),
+            IRMLinear(self.embed_size, 2),
+            nn.Linear(self.embed_size, lat_size, bias=False)
+        )
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -100,7 +105,7 @@ class LabsEncoder(nn.Module):
         else:
             yembed = y
 
-        lat = self.lat_bias * self.yembed_to_lat(yembed)
+        lat = self.yembed_to_lat(yembed)
 
         return lat
 
@@ -124,18 +129,16 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.norm_z = norm_z
 
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size * self.lat_size, bias=False)
-        self.lat_bias = nn.Parameter(torch.randn(lat_size))
+        self.z_irm = IRMLinear(self.z_dim, 3)
+        self.dyna_z_to_lat = DynaLinear(self.z_dim, self.z_dim, self.lat_size, bias=False)
+        self.lat_bias = nn.Parameter(torch.randn(self.z_dim))
 
     def forward(self, z):
-        batch_size = z.shape[0]
-
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        lat = self.lat_bias.view(batch_size, 1, self.lat_size)
-        z_proj = self.z_to_lat(z).view(batch_size, self.lat_size, self.lat_size)
-        lat = torch.bmm(lat, z_proj).squeeze(1)
+        z = self.z_irm(z)
+        lat = self.dyna_z_to_lat(self.lat_bias, z)
 
         return lat
 
