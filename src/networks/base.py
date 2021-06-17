@@ -22,13 +22,13 @@ class Classifier(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, n_labels, lat_size, embed_size, **kwargs):
         super().__init__()
+        self.n_labels = n_labels
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
 
-        self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.exp_yembed = nn.Linear(n_labels, self.embed_size, bias=False)
-        self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
+        self.register_buffer('embedding_mat', torch.eye(self.n_labels))
+        self.lat_to_score = nn.Linear(self.lat_size, self.n_labels, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -40,7 +40,7 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / np.sqrt(yembed.shape[1]))
+        score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / self.n_labels ** 0.5)
 
         return score
 
@@ -57,10 +57,13 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size, bias=False),
-            IRMLinear(self.embed_size, 2)
+            IRMLinear(self.embed_size, 2),
+            nn.Linear(self.embed_size, self.lat_size, bias=False)
         )
-        self.z_irm = IRMLinear(self.z_dim, 3)
-        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.z_irm = nn.Sequential(
+            IRMLinear(self.z_dim, 3),
+            nn.Linear(self.z_dim, self.lat_size, bias=False)
+        )
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -77,7 +80,7 @@ class Generator(nn.Module):
 
         yembed = self.yembed_irm(yembed)
         z = self.z_irm(z)
-        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
+        lat = z * yembed
 
         return lat
 
