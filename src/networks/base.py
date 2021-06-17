@@ -6,7 +6,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
-import numpy as np
 
 
 class Classifier(nn.Module):
@@ -80,7 +79,7 @@ class Generator(nn.Module):
         yembed = self.yembed_irm(yembed)
         z = self.z_irm(z)
         yembed_proj = self.yembed_to_lat(yembed).view(batch_size, self.z_dim, self.lat_size)
-        lat = torch.bmm(z.view(1, 1, self.z_dim), yembed_proj).squeeze(1)
+        lat = torch.bmm(z.view(batch_size, 1, self.z_dim), yembed_proj).squeeze(1)
 
         return lat
 
