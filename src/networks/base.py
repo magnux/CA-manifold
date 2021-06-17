@@ -60,7 +60,9 @@ class Generator(nn.Module):
             IRMLinear(self.embed_size, 2)
         )
         self.z_irm = IRMLinear(self.z_dim, 3)
-        self.z_to_lat = nn.Linear(self.z_dim, self.embed_size * self.lat_size, bias=False)
+        self.yembed_to_lat = nn.Linear(self.embed_size, self.z_dim * self.z_dim, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.z_dim * self.lat_size, bias=False)
+        self.lat_bias = nn.Parameter(torch.randn(self.z_dim))
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -77,10 +79,12 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        yembed = self.yembed_irm(yembed).view(batch_size, 1, self.embed_size)
+        yembed = self.yembed_irm(yembed)
         z = self.z_irm(z)
-        z_proj = self.z_to_lat(z).view(batch_size, self.embed_size, self.lat_size)
-        lat = torch.bmm(yembed, z_proj).squeeze(1)
+        yembed_proj = self.yembed_to_lat(yembed).view(batch_size, self.z_dim, self.z_dim)
+        z_proj = self.z_to_lat(z).view(batch_size, self.z_dim, self.lat_size)
+        lat = torch.bmm(self.lat_bias.view(batch_size, 1, self.z_dim), yembed_proj)
+        lat = torch.bmm(lat, z_proj).squeeze(1)
 
         return lat
 
@@ -142,9 +146,8 @@ class UnconditionalGenerator(nn.Module):
             z = F.normalize(z, dim=1)
 
         z = self.z_irm(z)
-        lat = self.lat_bias.view(batch_size, 1, self.z_dim)
         z_proj = self.z_to_lat(z).view(batch_size, self.z_dim, self.lat_size)
-        lat = torch.bmm(lat, z_proj).squeeze(1)
+        lat = torch.bmm(self.lat_bias.view(batch_size, 1, self.z_dim), z_proj).squeeze(1)
 
         return lat
 
