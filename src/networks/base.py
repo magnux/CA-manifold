@@ -97,13 +97,16 @@ class LabsEncoder(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.yembed_to_lat = nn.Sequential(
+        self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size, bias=False),
-            IRMLinear(self.embed_size, 2),
-            nn.Linear(self.embed_size, lat_size, bias=False)
+            IRMLinear(self.embed_size, 2)
         )
+        self.yembed_to_lat = nn.Linear(self.embed_size, self.embed_size * self.lat_size, bias=False)
+        self.lat_bias = nn.Parameter(torch.randn(self.embed_size))
 
     def forward(self, y):
+        batch_size = y.shape[0]
+
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -112,7 +115,10 @@ class LabsEncoder(nn.Module):
         else:
             yembed = y
 
-        lat = self.yembed_to_lat(yembed)
+        yembed = self.yembed_irm(yembed)
+        yembed_proj = self.yembed_to_lat(yembed).view(batch_size, self.yembed, self.lat_size)
+        lat = self.lat_bias.view(1, 1, self.yembed).repeat(batch_size, 1, 1)
+        lat = torch.bmm(lat, yembed_proj).squeeze(1)
 
         return lat
 
