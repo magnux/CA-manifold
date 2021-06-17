@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
-from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 import numpy as np
@@ -61,10 +60,12 @@ class Generator(nn.Module):
             IRMLinear(self.embed_size, 2)
         )
         self.z_irm = IRMLinear(self.z_dim, 3)
-        self.dyna_z_to_lat = DynaLinear(self.z_dim, self.embed_size, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.embed_size * self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
+        batch_size = z.shape[0]
+
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -76,9 +77,10 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        yembed = self.yembed_irm(yembed)
+        yembed = self.yembed_irm(yembed).view(batch_size, 1, self.embed_size)
         z = self.z_irm(z)
-        lat = self.dyna_z_to_lat(yembed, z)
+        z_proj = self.z_to_lat(z).view(batch_size, self.embed_size, self.lat_size)
+        lat = torch.bmm(yembed, z_proj).squeeze(1)
 
         return lat
 
@@ -130,15 +132,19 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
 
         self.z_irm = IRMLinear(self.z_dim, 3)
-        self.dyna_z_to_lat = DynaLinear(self.z_dim, self.z_dim, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.z_dim * self.lat_size, bias=False)
         self.lat_bias = nn.Parameter(torch.randn(self.z_dim))
 
     def forward(self, z):
+        batch_size = z.shape[0]
+
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
         z = self.z_irm(z)
-        lat = self.dyna_z_to_lat(self.lat_bias, z)
+        lat = self.lat_bias.view(batch_size, 1, self.z_dim)
+        z_proj = self.z_to_lat(z).view(batch_size, self.z_dim, self.lat_size)
+        lat = torch.bmm(lat, z_proj).squeeze(1)
 
         return lat
 
