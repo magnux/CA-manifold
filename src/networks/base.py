@@ -83,7 +83,8 @@ class Generator(nn.Module):
         z = self.z_irm(z)
         yembed_proj = self.yembed_to_lat(yembed).view(batch_size, self.z_dim, self.z_dim)
         z_proj = self.z_to_lat(z).view(batch_size, self.z_dim, self.lat_size)
-        lat = torch.bmm(self.lat_bias.view(batch_size, 1, self.z_dim), yembed_proj)
+        lat = self.lat_bias.view(1, 1, self.z_dim).repeat(batch_size, 1, 1)
+        lat = torch.bmm(lat, yembed_proj)
         lat = torch.bmm(lat, z_proj).squeeze(1)
 
         return lat
@@ -147,7 +148,8 @@ class UnconditionalGenerator(nn.Module):
 
         z = self.z_irm(z)
         z_proj = self.z_to_lat(z).view(batch_size, self.z_dim, self.lat_size)
-        lat = torch.bmm(self.lat_bias.view(batch_size, 1, self.z_dim), z_proj).squeeze(1)
+        lat = self.lat_bias.view(1, 1, self.z_dim).repeat(batch_size, 1, 1)
+        lat = torch.bmm(lat, z_proj).squeeze(1)
 
         return lat
 
