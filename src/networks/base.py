@@ -55,7 +55,7 @@ class Generator(nn.Module):
         self.norm_z = norm_z
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
+        self.yembed_to_lat = nn.Linear(n_labels, self.lat_size, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
