@@ -20,7 +20,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, gauss_grads=False, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, gauss_grads=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -70,7 +70,11 @@ class InjectedEncoder(nn.Module):
         )
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Sequential(
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
