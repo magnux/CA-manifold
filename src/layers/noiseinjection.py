@@ -6,10 +6,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 class NoiseInjection(nn.Module):
     def __init__(self, fin):
         super().__init__()
-        self.lat_to_fin = nn.Sequential(
-            LinearResidualBlock(1, fin),
-            LinearResidualBlock(fin, fin)
-        )
+        self.lat_to_fin = LinearResidualBlock(1, fin)
 
     def forward(self, x, noise=None):
         batch_size = x.size(0)
@@ -24,7 +21,7 @@ class NoiseInjection(nn.Module):
 
         if noise is None:
             noise = torch.randn([batch_size] + [in_size for _ in range(x_dim)] + [1], device=x.device)
-        noise = self.lat_to_fin(noise).permute(*[0, x_dim+1] + [i for i in range(2, x_dim+1)] + [1])
+        noise = self.lat_to_fin(noise.exp()).permute(*[0, x_dim+1] + [i for i in range(2, x_dim+1)] + [1])
 
         x_new = x + noise
 
