@@ -55,12 +55,9 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
-        )
+        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -112,6 +109,7 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
+        out = out + torch.cat([self.seed.to(float_type)] * batch_size, 0)
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
