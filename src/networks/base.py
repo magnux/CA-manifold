@@ -77,7 +77,7 @@ class Generator(nn.Module):
         yembed = self.yembed_irm(yembed)
         z = self.z_irm(z)
         lat = F.normalize(torch.cat([z, yembed], dim=1), dim=1)
-        lat = self.z_to_lat(lat, dim=1)
+        lat = self.z_to_lat(lat)
 
         return lat
 
