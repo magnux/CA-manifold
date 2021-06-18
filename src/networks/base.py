@@ -59,6 +59,7 @@ class Generator(nn.Module):
         )
         self.z_irm = IRMLinear(self.z_dim, 3)
         self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.lat_fact = nn.Parameter(torch.rand(1, self.lat_size) * 4)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -76,6 +77,7 @@ class Generator(nn.Module):
         yembed = self.yembed_irm(yembed)
         z = self.z_irm(z)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
+        lat = self.lat_fact.exp() * lat
 
         return lat
 
