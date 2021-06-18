@@ -55,11 +55,11 @@ class Generator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
-            nn.Linear(n_labels, self.embed_size, bias=False),
-            IRMLinear(self.embed_size, 2)
+            nn.Linear(n_labels, self.z_dim, bias=False),
+            IRMLinear(self.z_dim, 2)
         )
         self.z_irm = IRMLinear(self.z_dim, 3)
-        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -76,8 +76,7 @@ class Generator(nn.Module):
 
         yembed = self.yembed_irm(yembed)
         z = self.z_irm(z)
-        lat = F.normalize(torch.cat([z, yembed], dim=1), dim=1)
-        lat = self.z_to_lat(lat)
+        lat = self.z_to_lat(z * yembed)
 
         return lat
 
@@ -105,7 +104,6 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.yembed_irm(yembed)
-        yembed = F.normalize(yembed, dim=1)
         lat = self.yembed_to_lat(yembed)
 
         return lat
@@ -138,7 +136,6 @@ class UnconditionalGenerator(nn.Module):
             z = F.normalize(z, dim=1)
 
         z = self.z_irm(z)
-        z = F.normalize(z, dim=1)
         lat = self.z_to_lat(z)
 
         return lat
