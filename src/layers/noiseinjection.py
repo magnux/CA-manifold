@@ -6,7 +6,10 @@ from src.layers.linearresidualblock import LinearResidualBlock
 class NoiseInjection(nn.Module):
     def __init__(self, fin):
         super().__init__()
-        self.lat_to_fin = LinearResidualBlock(1, fin)
+        self.lat_to_fin = nn.Sequential(
+            LinearResidualBlock(1, fin),
+            LinearResidualBlock(fin, fin)
+        )
 
     def forward(self, x, noise=None):
         batch_size = x.size(0)
