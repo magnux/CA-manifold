@@ -55,14 +55,19 @@ class Generator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
-            nn.Linear(n_labels, self.z_dim, bias=False),
-            IRMLinear(self.z_dim, 2)
+            nn.Linear(n_labels, self.embed_size, bias=False),
+            IRMLinear(self.embed_size, 2)
         )
-        self.z_irm = IRMLinear(self.z_dim, 3)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.z_irm = nn.Sequential(
+            IRMLinear(self.z_dim, 2),
+            nn.Linear(self.z_dim, self.lat_size, bias=False),
+        )
+        self.lat_proj = nn.Linear(self.embed_size, 1, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
+        batch_size = z.size(0)
+
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -74,9 +79,10 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        yembed = self.yembed_irm(yembed)
-        z = self.z_irm(z)
-        lat = self.z_to_lat(z * yembed)
+        yembed = self.yembed_irm(yembed).view(batch_size, 1, self.embed_size)
+        z = self.z_irm(z).view(batch_size, self.lat_size, 1)
+        lat = torch.bmm(z, yembed)
+        lat = self.lat_proj(lat).squeeze(2)
 
         return lat
 
