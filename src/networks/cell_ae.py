@@ -179,6 +179,7 @@ class Decoder(nn.Module):
         self.frac_conv = ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
 
         self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(n_calls)])
+        self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -249,6 +250,7 @@ class Decoder(nn.Module):
                     out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
+            out_new = self.frac_noise[c](out_new)
             out = out + (leak_factor * out_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
