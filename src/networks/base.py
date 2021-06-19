@@ -93,11 +93,12 @@ class LabsEncoder(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.yembed_irm = nn.Sequential(
+        self.yembed_to_lat = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
             IRMLinear(self.embed_size, 2),
+            nn.Linear(self.embed_size, lat_size, bias=False),
+            ExpMult(self.lat_size)
         )
-        self.yembed_to_lat = nn.Linear(self.embed_size, lat_size, bias=False)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -108,7 +109,6 @@ class LabsEncoder(nn.Module):
         else:
             yembed = y
 
-        yembed = self.yembed_irm(yembed)
         lat = self.yembed_to_lat(yembed)
 
         return lat
