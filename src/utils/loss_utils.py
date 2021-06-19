@@ -42,26 +42,26 @@ def compute_gan_loss(d_out, target, gan_type='dyna_gan'):
 
 def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     batch_size = d_in.size(0)
-    grad_dout = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
+    grad_d_in = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
-    assert(grad_dout.size() == d_in.size())
+    assert(grad_d_in.size() == d_in.size())
 
     if norm_type == 1:
-        grad_dout = grad_dout.abs()
+        grad_d_in = grad_d_in.abs()
     elif norm_type == 2:
-        grad_dout = grad_dout.pow(2)
+        grad_d_in = grad_d_in.pow(2)
     elif norm_type == 4:
-        grad_dout = grad_dout.pow(4)
+        grad_d_in = grad_d_in.pow(4)
     elif norm_type == 'sqrt':
-        grad_dout = (grad_dout.abs() + 1e-8).sqrt()
+        grad_d_in = (grad_d_in.abs() + 1e-8).sqrt()
     elif norm_type == 'log':
-        grad_dout = (grad_dout.abs() + 1.).log()
+        grad_d_in = (grad_d_in.abs() + 1.).log()
     elif norm_type == 'exp':
-        grad_dout = grad_dout.exp() - 1.
+        grad_d_in = grad_d_in.exp() - 1.
     elif norm_type == 'neg':
-        grad_dout = -1 * grad_dout.abs()
+        grad_d_in = -1 * grad_d_in.abs()
 
-    reg = grad_dout.view(batch_size, -1)
+    reg = grad_d_in.view(batch_size, -1)
     if norm_type == 'sqrt':
         reg = reg / reg.size(1)
     if margin > 0:
@@ -69,6 +69,17 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     reg = reg.sum(1).mean()
 
     return reg
+
+
+def compute_hinted_sample(g_out, g_target, g_in):
+    g_loss = ((g_target - g_out) ** 2).mean(1, keepdim=True)
+    grad_g_in = torch.autograd.grad(outputs=g_loss.mean(), inputs=g_in,
+                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
+    assert (grad_g_in.size() == g_in.size())
+
+    hinted_sample = g_in - ((g_loss > g_loss.mean()).float() * grad_g_in)
+
+    return hinted_sample.detach()
 
 
 def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, reg_loss, reg_loss_target,

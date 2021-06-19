@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, update_g_factors
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, update_g_factors, compute_hinted_sample
 from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_noise_hook
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -222,6 +222,21 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+
+                        lat_gen = generator(z_gen, labels)
+                        images_dec, _, _ = decoder(lat_gen)
+
+                        g_loss = ((images - images_dec) ** 2).mean(1, keepdim=True)
+                        grad_g_in = torch.autograd.grad(outputs=g_loss.mean(), inputs=z_gen,
+                                                        create_graph=True, retain_graph=True, only_inputs=True)[0]
+                        assert (grad_g_in.size() == z_gen.size())
+
+                        hinted_sample = lat_gen - grad_g_in
+
+                        images_dec, _, _ = decoder(hinted_sample.detach())
+                        g_loss_hint = ((images - images_dec) ** 2).mean(1, keepdim=True)
+
+                        assert g_loss_hint.mean() < g_loss.mean()
 
                         lat_gen = generator(z_gen, labels)
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
