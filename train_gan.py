@@ -154,6 +154,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_dec_sum = 0
 
+                dis_bottle_neck_size = int(lat_size * 0.5 * (g_factor_enc + g_factor_dec))
+                dis_bottle_neck = torch.zeros((1, lat_size), device=device)
+                dis_bottle_neck[:, :dis_bottle_neck_size] = 1.
+
                 if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                     d_reg_factor = (d_reg_every_mean_next - (it % d_reg_every_mean_next)) * (1 / d_reg_param_mean)
                 else:
@@ -169,7 +173,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        lat_top_enc, _, _ = dis_encoder(images, labels)
+                        lat_top_enc, _, _ = dis_encoder(images, labels) * dis_bottle_neck
                         labs_enc = discriminator(lat_top_enc)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
@@ -189,7 +193,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_gen)
 
                         images_dec.requires_grad_()
-                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels) * dis_bottle_neck
                         labs_dec = discriminator(lat_top_dec)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
@@ -227,7 +231,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                         images_dec, _, _ = decoder(lat_gen)
 
-                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels) * dis_bottle_neck
                         labs_dec = discriminator(lat_top_dec)
 
                         if g_reg_every > 0 and it % g_reg_every == 1:
