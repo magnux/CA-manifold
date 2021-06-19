@@ -58,7 +58,11 @@ class Generator(nn.Module):
             IRMLinear(self.embed_size, 2)
         )
         self.z_irm = IRMLinear(self.z_dim, 3)
-        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.z_to_lat = nn.Sequential(
+            nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+        )
         self.lat_fact = nn.Parameter(torch.rand(1, self.lat_size) * 4)
 
     def forward(self, z, y):
