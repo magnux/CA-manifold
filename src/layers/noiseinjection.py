@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.expmult import ExpMult
+from src.layers.irm import IRMLinear
 
 
 class NoiseInjection(nn.Module):
@@ -9,9 +8,7 @@ class NoiseInjection(nn.Module):
         super().__init__()
         self.lat_to_fin = nn.Sequential(
             nn.Linear(1, fin),
-            ExpMult(fin),
-            LinearResidualBlock(fin, fin),
-            LinearResidualBlock(fin, fin),
+            IRMLinear(fin, exp_mult=True),
         )
 
     def forward(self, x, noise=None):

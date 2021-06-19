@@ -5,7 +5,6 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
-from src.layers.expmult import ExpMult
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
 
@@ -56,12 +55,11 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
-            IRMLinear(self.embed_size, 2)
+            IRMLinear(self.embed_size, exp_mult=True)
         )
-        self.z_irm = IRMLinear(self.z_dim, 3)
+        self.z_irm = IRMLinear(self.z_dim, exp_mult=True)
         self.z_to_lat = nn.Sequential(
             nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
-            ExpMult(self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
         )
@@ -95,9 +93,8 @@ class LabsEncoder(nn.Module):
 
         self.yembed_to_lat = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
-            IRMLinear(self.embed_size, 2),
+            IRMLinear(self.embed_size, exp_mult=True),
             nn.Linear(self.embed_size, lat_size, bias=False),
-            ExpMult(self.lat_size)
         )
 
     def forward(self, y):

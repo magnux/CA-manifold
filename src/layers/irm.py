@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from src.layers.expmult import ExpMult
 
 
 class IRMLinear(nn.Module):
-    def __init__(self, fin, n_layers=8):
+    def __init__(self, fin, n_layers=4, exp_mult=False):
         super(IRMLinear, self).__init__()
         self.fin = fin
+        self.exp_mult = ExpMult(fin) if exp_mult else None
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
         # for l in self.block:
         #     nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
@@ -15,7 +17,7 @@ class IRMLinear(nn.Module):
     def forward(self, x):
         if self.training:
             self.compressed_block = None
-            return self.block(x)
+            res = self.block(x)
         else:
             if self.compressed_block is None:
                 with torch.no_grad():
@@ -23,11 +25,15 @@ class IRMLinear(nn.Module):
                     for l in self.block[1:]:
                         compressed_block = compressed_block @ l.weight.t()
                     self.compressed_block = compressed_block.t()
-            return F.linear(x, self.compressed_block)
+            res = F.linear(x, self.compressed_block)
+
+        if self.exp_mult is not None:
+            res = self.exp_mult(res)
+        return res
 
 
 class IRMConv(nn.Module):
-    def __init__(self, fin, n_layers=8, dim=2):
+    def __init__(self, fin, n_layers=4, dim=2):
         super(IRMConv, self).__init__()
         self.fin = fin
         self.dim = dim
