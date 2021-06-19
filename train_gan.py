@@ -231,9 +231,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                                         create_graph=True, retain_graph=True, only_inputs=True)[0]
                         assert (grad_g_in.size() == z_gen.size())
 
-                        hinted_sample = lat_gen - grad_g_in
+                        hinted_sample = z_gen - grad_g_in
 
-                        images_dec, _, _ = decoder(hinted_sample.detach())
+                        lat_gen = generator(hinted_sample.detach(), labels)
+                        images_dec, _, _ = decoder(lat_gen)
                         g_loss_hint = ((images - images_dec) ** 2).mean(1, keepdim=True)
 
                         assert g_loss_hint.mean() < g_loss.mean()
