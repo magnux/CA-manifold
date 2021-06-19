@@ -231,13 +231,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                                         create_graph=True, retain_graph=True, only_inputs=True)[0]
                         assert (grad_g_in.size() == z_gen.size())
 
-                        hinted_sample = z_gen - grad_g_in
+                        hinted_sample = (z_gen - grad_g_in).detach()
 
-                        lat_gen = generator(hinted_sample.detach(), labels)
+                        lat_gen = generator(hinted_sample, labels)
                         images_dec, _, _ = decoder(lat_gen)
                         g_loss_hint = ((images - images_dec) ** 2).mean(1, keepdim=True)
 
-                        assert g_loss_hint.mean() < g_loss.mean()
+                        print(g_loss_hint.mean() < g_loss.mean())
 
                         lat_gen = generator(z_gen, labels)
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
