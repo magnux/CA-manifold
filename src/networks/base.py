@@ -5,6 +5,7 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
+from src.layers.expmult import ExpMult
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
 
@@ -60,10 +61,10 @@ class Generator(nn.Module):
         self.z_irm = IRMLinear(self.z_dim, 3)
         self.z_to_lat = nn.Sequential(
             nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
+            ExpMult(self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
         )
-        self.lat_fact = nn.Parameter(torch.rand(1, self.lat_size) * 4)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -81,7 +82,6 @@ class Generator(nn.Module):
         yembed = self.yembed_irm(yembed)
         z = self.z_irm(z)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
-        lat = self.lat_fact.exp() * lat
 
         return lat
 
