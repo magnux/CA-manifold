@@ -72,12 +72,13 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
 
 
 def compute_hinted_sample(g_out, g_target, g_in):
+    batch_size = g_in.size(0)
     g_loss = ((g_target - g_out) ** 2).mean([i for i in range(1, g_out.dim())], keepdim=True)
     grad_g_in = torch.autograd.grad(outputs=g_loss.mean(), inputs=g_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
     assert (grad_g_in.size() == g_in.size())
 
-    hinted_sample = g_in - ((g_loss > g_loss.mean()).float() * grad_g_in)
+    hinted_sample = g_in - ((g_loss.view(batch_size, 1) > g_loss.mean()).float() * grad_g_in)
 
     return hinted_sample.detach()
 
