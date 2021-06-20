@@ -7,7 +7,7 @@ class NoiseInjection(nn.Module):
     def __init__(self, fin):
         super().__init__()
         self.fin = fin
-        self.lat_to_fin = IRMLinear(fin, exp_mult=True)
+        self.lat_to_fin = IRMLinear(fin, exp_scale=True)
 
     def forward(self, x, noise=None):
         batch_size = x.shape[0]
