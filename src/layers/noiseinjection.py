@@ -21,7 +21,7 @@ class NoiseInjection(nn.Module):
         x_dim = x.dim() - 2
 
         if noise is None:
-            noise = torch.randn([batch_size] + sp_size + [self.fin], device=x.device)
+            noise = torch.randn([batch_size] + sp_size + [1], device=x.device)
         noise = self.lat_to_fin(noise).permute(*[0, x_dim+1] + [i for i in range(1, x_dim+1)])
 
         x_new = x + noise
