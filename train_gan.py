@@ -236,7 +236,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
 
-                        g_mode_reg = -((images_dec.unsqueeze(0) - images_dec.unsqueeze(1)) / (z_gen.unsqueeze(0) - z_gen.unsqueeze(1))).mean()
+                        g_mode_reg = -((images_dec.unsqueeze(0) - images_dec.unsqueeze(1)).mean([2, 3, 4]) / (z_gen.unsqueeze(0) - z_gen.unsqueeze(1)).mean(2)).mean()
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1) + g_mode_reg
                         labs_dec.register_hook(grad_noise_hook(g_factor_enc ** 0.5))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
