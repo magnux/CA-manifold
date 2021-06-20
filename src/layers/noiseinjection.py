@@ -1,13 +1,17 @@
 import torch
 import torch.nn as nn
 from src.layers.irm import IRMLinear
+from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class NoiseInjection(nn.Module):
     def __init__(self, fin):
         super().__init__()
         self.fin = fin
-        self.lat_to_fin = IRMLinear(fin, exp_scale=True)
+        self.lat_to_fin = nn.Sequential(
+            IRMLinear(fin, exp_scale=True),
+            LinearResidualBlock(fin, fin)
+        )
 
     def forward(self, x, noise=None):
         batch_size = x.shape[0]
