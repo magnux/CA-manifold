@@ -188,7 +188,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_gen)
                             lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                             labs_dec = discriminator(lat_top_dec)
-                            z_gen_hinted = compute_hinted_sample(z_gen, lat_top_dec, 1)
+                            z_gen_hinted = compute_hinted_sample(z_gen, labs_dec.requires_grad_(), 1)
 
                             lat_gen = generator(z_gen_hinted, labels)
                             # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
@@ -234,7 +234,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_gen)
                             lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                             labs_dec = discriminator(lat_top_dec)
-                            z_gen_hinted = compute_hinted_sample(z_gen, lat_top_dec, 1)
+                            z_gen_hinted = compute_hinted_sample(z_gen, labs_dec.requires_grad_(), 1)
 
                         lat_gen = generator(z_gen_hinted, labels)
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
