@@ -230,7 +230,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec)
 
-                        if g_reg_every > 0 and it % g_reg_every == 1:
+                        if g_reg_every > 0 and it % g_reg_every == 0:
                             # reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = -(0.1 * ((images_dec.unsqueeze(0) - images_dec.unsqueeze(1)) ** 2).mean([2, 3, 4])
                                             / ((z_gen.unsqueeze(0) - z_gen.unsqueeze(1)) ** 2 + 1e-4).mean(2)).mean()
