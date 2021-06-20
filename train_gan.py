@@ -36,7 +36,7 @@ n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
 d_reg_param = config['training']['d_reg_param']
 d_reg_every = config['training']['d_reg_every']
-g_reg_every = 1  #config['training']['g_reg_every']
+g_reg_every = config['training']['g_reg_every']
 batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
@@ -231,9 +231,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_dec = discriminator(lat_top_dec)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
-                            # reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
-                            reg_gen_dec = (0.1 * (images_dec.unsqueeze(0) - images_dec.unsqueeze(1)).abs().mean([2, 3, 4])
-                                            / ((z_gen.unsqueeze(0) - z_gen.unsqueeze(1)).abs() + 1e-4).mean(2)).mean()
+                            reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
                             model_manager.loss_backward(-reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
