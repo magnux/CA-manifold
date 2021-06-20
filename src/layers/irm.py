@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.layers.expmult import ExpMult
+from src.layers.expscale import ExpScale
 
 
 class IRMLinear(nn.Module):
-    def __init__(self, fin, n_layers=4, exp_mult=False):
+    def __init__(self, fin, n_layers=4, exp_scale=False):
         super(IRMLinear, self).__init__()
         self.fin = fin
-        self.exp_mult = ExpMult(fin) if exp_mult else None
+        self.exp_scale = ExpScale(fin) if exp_scale else None
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
         # for l in self.block:
         #     nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
@@ -27,8 +27,8 @@ class IRMLinear(nn.Module):
                     self.compressed_block = compressed_block.t()
             res = F.linear(x, self.compressed_block)
 
-        if self.exp_mult is not None:
-            res = self.exp_mult(res)
+        if self.exp_scale is not None:
+            res = self.exp_scale(res)
         return res
 
 
