@@ -224,6 +224,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_gen = generator(z_gen, labels)
+                        images_dec, _, _ = decoder(lat_gen)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
+                        labs_dec = discriminator(lat_top_dec)
+
+                        z_gen_hinted = compute_hinted_sample(z_gen, lat_top_dec, 1)
+
+                        lat_gen = generator(z_gen_hinted, labels)
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                         images_dec, _, _ = decoder(lat_gen)
 
@@ -233,7 +240,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
                             reg_gen_dec = (1 / batch_mult) * g_reg_every * reg_gen_dec
-                            model_manager.loss_backward(-reg_gen_dec, nets_to_train, retain_graph=True)
+                            model_manager.loss_backward(reg_gen_dec, nets_to_train, retain_graph=True)
                             reg_gen_dec_sum += reg_gen_dec.item() / g_reg_every
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)

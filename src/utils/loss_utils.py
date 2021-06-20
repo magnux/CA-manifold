@@ -77,7 +77,7 @@ def compute_hinted_sample(g_in, d_out, target, gan_type='dyna_gan'):
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
     assert (grad_g_in.size() == g_in.size())
 
-    hinted_sample = g_in - (0.1 * grad_g_in)
+    hinted_sample = g_in - grad_g_in
 
     return hinted_sample.detach()
 
