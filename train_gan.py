@@ -183,13 +183,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                        with torch.no_grad():
-                            lat_gen = generator(z_gen, labels)
-                            images_dec, _, _ = decoder(lat_gen)
-                            lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                            labs_dec = discriminator(lat_top_dec)
-                            z_gen_hinted = compute_hinted_sample(z_gen.requires_grad_(), labs_dec.requires_grad_(), 1)
+                        lat_gen = generator(z_gen, labels)
+                        images_dec, _, _ = decoder(lat_gen)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
+                        labs_dec = discriminator(lat_top_dec)
+                        z_gen_hinted = compute_hinted_sample(z_gen, labs_dec, 1)
 
+                        with torch.no_grad():
                             lat_gen = generator(z_gen_hinted, labels)
                             # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                             images_dec, _, _ = decoder(lat_gen)
@@ -229,12 +229,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        with torch.no_grad():
-                            lat_gen = generator(z_gen, labels)
-                            images_dec, _, _ = decoder(lat_gen)
-                            lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                            labs_dec = discriminator(lat_top_dec)
-                            z_gen_hinted = compute_hinted_sample(z_gen.requires_grad_(), labs_dec.requires_grad_(), 1)
+                        lat_gen = generator(z_gen, labels)
+                        images_dec, _, _ = decoder(lat_gen)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
+                        labs_dec = discriminator(lat_top_dec)
+                        z_gen_hinted = compute_hinted_sample(z_gen, labs_dec, 1)
 
                         lat_gen = generator(z_gen_hinted, labels)
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
