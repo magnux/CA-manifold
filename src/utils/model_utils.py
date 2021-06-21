@@ -224,7 +224,8 @@ class SamplePool:
             if self._size is None:
                 self._size = len(v)
             assert self._size == len(v)
-            setattr(self, k, np.asarray(v))
+            # setattr(self, k, np.asarray(v))
+            setattr(self, k, v)
 
     def sample(self, n):
         idx = np.random.choice(self._size, n, False)
