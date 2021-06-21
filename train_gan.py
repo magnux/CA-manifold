@@ -105,7 +105,7 @@ def get_inputs(trainiter, batch_size, device):
 
 
 images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
-z_pool = SamplePool(z=torch.cat([z_test] * 8), labels=torch.cat([labels_test] * 8))
+z_pool = SamplePool(z=torch.cat([z_test] * 8).requires_grad_(False), labels=torch.cat([labels_test] * 8).requires_grad_(False))
 
 if config['training']['inception_every'] > 0:
     fid_real_samples = []
@@ -239,8 +239,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if it % 2 == 0:
                             worse_imgs_idx = torch.argsort(labs_dec.squeeze(1))[:batch_split_size//4]
-                            rand_sample.z = z_gen[worse_imgs_idx].detach_()
-                            rand_sample.labels = labels[worse_imgs_idx].detach_()
+                            rand_sample.z = z_gen[worse_imgs_idx].detach_().requires_grad_(False)
+                            rand_sample.labels = labels[worse_imgs_idx]
                             rand_sample.commit()
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
