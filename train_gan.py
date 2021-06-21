@@ -105,7 +105,7 @@ def get_inputs(trainiter, batch_size, device):
 
 
 images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
-z_pool = SamplePool(z=torch.cat([z_test] * 8).requires_grad_(False), labels=torch.cat([labels_test] * 8).requires_grad_(False))
+z_pool = SamplePool(z=torch.cat([z_test] * 8).detach(), labels=torch.cat([labels_test] * 8).detach())
 
 if config['training']['inception_every'] > 0:
     fid_real_samples = []
