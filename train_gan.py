@@ -225,8 +225,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         rand_sample = z_pool.sample(batch_split_size // 4)
 
                         if it % 2 == 1:
-                            z_gen[:batch_split_size//4] = rand_sample.z
-                            labels[:batch_split_size//4] = rand_sample.labels
+                            z_gen = rand_sample.z
+                            labels = rand_sample.labels
 
                         lat_gen = generator(z_gen, labels)
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
@@ -237,8 +237,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if it % 2 == 0:
                             worse_imgs_idx = torch.argsort(labs_dec.squeeze(1))[:batch_split_size//4]
-                            rand_sample.z = z_gen[worse_imgs_idx].detach_()
-                            rand_sample.labels = labels[worse_imgs_idx].detach_()
+                            rand_sample.z[:batch_split_size//4] = z_gen[worse_imgs_idx].detach_()
+                            rand_sample.labels[:batch_split_size//4] = labels[worse_imgs_idx].detach_()
                             rand_sample.commit()
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
