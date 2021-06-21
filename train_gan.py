@@ -237,8 +237,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         if it % 2 == 0:
                             worse_imgs_idx = torch.argsort(labs_dec.squeeze(1))[:batch_split_size//4]
-                            rand_sample.z = z_gen[worse_imgs_idx]
-                            rand_sample.labels = labels[worse_imgs_idx]
+                            rand_sample.z = z_gen[worse_imgs_idx].detach_()
+                            rand_sample.labels = labels[worse_imgs_idx].detach_()
                             rand_sample.commit()
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
