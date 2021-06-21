@@ -6,7 +6,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
-from src.layers.lambd import LambdaLayer
 
 
 class Classifier(nn.Module):
@@ -56,7 +55,6 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
-            LambdaLayer(lambda x: F.normalize(x) + 1e-2 * torch.randn_like(x)),
             IRMLinear(self.embed_size, exp_scale=True)
         )
         self.z_irm = IRMLinear(self.z_dim, exp_scale=True)
@@ -95,7 +93,6 @@ class LabsEncoder(nn.Module):
 
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
-            LambdaLayer(lambda x: F.normalize(x) + 1e-2 * torch.randn_like(x)),
             IRMLinear(self.embed_size, exp_scale=True),
         )
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
