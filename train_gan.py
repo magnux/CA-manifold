@@ -105,9 +105,9 @@ def get_inputs(trainiter, batch_size, device):
 
 
 images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
-# z_pool = SamplePool(z=torch.cat([z_test] * 8).detach().requires_grad_(False),
-#                     labels=torch.cat([labels_test] * 8).detach().requires_grad_(False))
 
+z_pool = SamplePool(z=torch.cat([z_test] * 8).detach().requires_grad_(False),
+                    labels=torch.cat([labels_test] * 8).detach().requires_grad_(False))
 images_pool = SamplePool(images=torch.cat([images_test] * 8).detach().requires_grad_(False),
                          labels=torch.cat([labels_test] * 8).detach().requires_grad_(False))
 
@@ -173,11 +173,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        rand_sample = images_pool.sample(batch_split_size // 4)
                         if it % 2 == 1:
+                            images_pool_sample = images_pool.sample(batch_split_size // 4)
                             images.requires_grad_(False)
-                            images[:batch_split_size // 4] = rand_sample.images
-                            labels[:batch_split_size // 4] = rand_sample.labels
+                            images[:batch_split_size // 4] = images_pool_sample.images
+                            labels[:batch_split_size // 4] = images_pool_sample.labels
                             images.requires_grad_()
 
                         lat_top_enc, _, _ = dis_encoder(images, labels)
@@ -195,10 +195,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         if it % 2 == 0:
+                            images_pool_sample = images_pool.sample(batch_split_size // 4)
                             worse_imgs_idx = torch.argsort(labs_enc.squeeze(1))[:batch_split_size // 4]
-                            rand_sample.images = images[worse_imgs_idx].detach_().requires_grad_(False)
-                            rand_sample.labels = labels[worse_imgs_idx]
-                            rand_sample.commit()
+                            images_pool_sample.images = images[worse_imgs_idx].detach_().requires_grad_(False)
+                            images_pool_sample.labels = labels[worse_imgs_idx]
+                            images_pool_sample.commit()
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
@@ -220,11 +221,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
-                        # rand_sample = z_pool.sample(batch_split_size // 4)
-                        # worse_imgs_idx = torch.argsort(labs_dec.squeeze(1))[:batch_split_size // 4]
-                        # rand_sample.z = z_gen[worse_imgs_idx].detach_().requires_grad_(False)
-                        # rand_sample.labels = labels[worse_imgs_idx]
-                        # rand_sample.commit()
+                        z_pool_sample = z_pool.sample(batch_split_size // 4)
+                        worse_imgs_idx = torch.argsort(labs_dec.squeeze(1))[:batch_split_size // 4]
+                        z_pool_sample.z = z_gen[worse_imgs_idx].detach_().requires_grad_(False)
+                        z_pool_sample.labels = labels[worse_imgs_idx]
+                        z_pool_sample.commit()
 
                     if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                         reg_dis_mean = 0.5 * (reg_dis_enc_sum + reg_dis_dec_sum)
@@ -246,11 +247,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        # rand_sample = z_pool.sample(batch_split_size // 4)
-                        # z_gen.requires_grad_(False)
-                        # z_gen[:batch_split_size//4] = rand_sample.z
-                        # labels[:batch_split_size//4] = rand_sample.labels
-                        # z_gen.requires_grad_()
+                        z_pool_sample = z_pool.sample(batch_split_size // 4)
+                        z_gen.requires_grad_(False)
+                        z_gen[:batch_split_size//4] = z_pool_sample.z
+                        labels[:batch_split_size//4] = z_pool_sample.labels
+                        z_gen.requires_grad_()
 
                         lat_gen = generator(z_gen, labels)
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
