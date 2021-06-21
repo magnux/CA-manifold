@@ -205,16 +205,16 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_dis_enc_sum = model_manager.log_manager.get_last('regs', 'reg_dis_enc')
                     reg_dis_dec_sum = model_manager.log_manager.get_last('regs', 'reg_dis_dec')
 
-                with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
+                with model_manager.on_step(['dis_encoder', 'discriminator', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
                             z_enc, _, _ = encoder(images, labels)
-                            lat_enc = generator(z_enc, labels)
 
-                        lat_enc.requires_grad_()
+                        z_enc.requires_grad_()
+                        lat_enc = generator(z_enc, labels)
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc)
 
@@ -231,16 +231,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                        with torch.no_grad():
-                            lat_gen = generator(z_gen, labels)
-                            images_dec, out_embs, _ = decoder(lat_gen)
-                            if one_dec_pass:
-                                images_redec = images_dec
-                            else:
-                                images_redec, _, _ = decoder(lat_gen, out_embs[-1], seed_n=(it % (n_seed - 1)) + 1)
+                        lat_gen = generator(z_gen, labels)
+                        images_dec, out_embs, _ = decoder(lat_gen)
+                        if one_dec_pass:
+                            images_redec = images_dec
+                        else:
+                            images_redec, _, _ = decoder(lat_gen, out_embs[-1], seed_n=(it % (n_seed - 1)) + 1)
 
-                        lat_gen.requires_grad_()
-                        images_redec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_gen)
                         labs_dec = discriminator(lat_top_dec)
 
