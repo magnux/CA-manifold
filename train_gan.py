@@ -173,8 +173,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
+                        rand_sample = images_pool.sample(batch_split_size // 4)
                         if it % 2 == 1:
-                            rand_sample = images_pool.sample(batch_split_size // 4)
                             images.requires_grad_(False)
                             images[:batch_split_size // 4] = rand_sample.images
                             labels[:batch_split_size // 4] = rand_sample.labels
