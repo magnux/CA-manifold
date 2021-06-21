@@ -73,7 +73,7 @@ def grad_mult(network, g_factor):
 def grad_mult_hook(g_factor):
     def _grad_mult_hook(grad, g_factor=1):
         with torch.no_grad():
-            return g_factor * grad
+            return g_factor ** 2 * grad
     return partial(_grad_mult_hook, g_factor=g_factor)
 
 
