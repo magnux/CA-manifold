@@ -194,12 +194,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_dec = discriminator(lat_top_dec)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
-                        rand_sample = z_pool.sample(batch_split_size // 4)
-                        worse_imgs_idx = torch.argsort(labs_dec.squeeze(1))[:batch_split_size // 4]
-                        rand_sample.z = z_gen[worse_imgs_idx].detach_().requires_grad_(False)
-                        rand_sample.labels = labels[worse_imgs_idx]
-                        rand_sample.commit()
-
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                             reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
@@ -209,6 +203,12 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         labs_dec.register_hook(grad_noise_hook(g_factor_dec))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
+
+                        rand_sample = z_pool.sample(batch_split_size // 4)
+                        worse_imgs_idx = torch.argsort(labs_dec.squeeze(1))[:batch_split_size // 4]
+                        rand_sample.z = z_gen[worse_imgs_idx].detach_().requires_grad_(False)
+                        rand_sample.labels = labels[worse_imgs_idx]
+                        rand_sample.commit()
 
                     if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                         reg_dis_mean = 0.5 * (reg_dis_enc_sum + reg_dis_dec_sum)
@@ -229,8 +229,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
-                        rand_sample = z_pool.sample(batch_split_size // 4)
 
+                        rand_sample = z_pool.sample(batch_split_size // 4)
                         z_gen.requires_grad_(False)
                         z_gen[:batch_split_size//4] = rand_sample.z
                         labels[:batch_split_size//4] = rand_sample.labels
