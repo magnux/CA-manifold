@@ -243,10 +243,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 if isinstance(dis_encoder, torch.nn.DataParallel):
                     dis_yembed = dis_encoder.module.labs_encoder.yembed_irm
-                    gen_yembed = generator.module.labs_encoder.yembed_irm
+                    gen_yembed = generator.module.yembed_irm
                 else:
                     dis_yembed = dis_encoder.labs_encoder.yembed_irm
-                    gen_yembed = generator.labs_encoder.yembed_irm
+                    gen_yembed = generator.yembed_irm
                 update_network_average(gen_yembed, dis_yembed, 0)
 
                 # Generator step
@@ -284,10 +284,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 if isinstance(dis_encoder, torch.nn.DataParallel):
                     dis_yembed = dis_encoder.module.labs_encoder.yembed_irm
-                    gen_yembed = generator.module.labs_encoder.yembed_irm
+                    gen_yembed = generator.module.yembed_irm
                 else:
                     dis_yembed = dis_encoder.labs_encoder.yembed_irm
-                    gen_yembed = generator.labs_encoder.yembed_irm
+                    gen_yembed = generator.yembed_irm
                 update_network_average(dis_yembed, gen_yembed, 0)
 
                 # Streaming Images
