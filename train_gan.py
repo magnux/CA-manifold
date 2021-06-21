@@ -225,8 +225,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         rand_sample = z_pool.sample(batch_split_size // 4)
 
                         if it % 2 == 1:
-                            z_gen = rand_sample.z
-                            labels = rand_sample.labels
+                            z_gen[:batch_split_size//4] = rand_sample.z
+                            labels[:batch_split_size//4] = rand_sample.labels
 
                         lat_gen = generator(z_gen, labels)
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
