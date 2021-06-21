@@ -53,11 +53,7 @@ class Generator(nn.Module):
         self.norm_z = norm_z
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.yembed_irm = nn.Sequential(
-            nn.Linear(n_labels, self.embed_size),
-            IRMLinear(self.embed_size, exp_scale=True)
-        )
-        self.z_irm = IRMLinear(self.z_dim, exp_scale=True)
+        self.yembed_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.z_to_lat = nn.Sequential(
             nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -77,8 +73,8 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        yembed = self.yembed_irm(yembed)
-        z = self.z_irm(z)
+        yembed = self.yembed_to_yembed(yembed).normalize(dim=1)
+        yembed = yembed + 42e-3 * torch.rand_like(yembed)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
@@ -91,11 +87,8 @@ class LabsEncoder(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.yembed_to_lat = nn.Sequential(
-            nn.Linear(n_labels, self.embed_size),
-            IRMLinear(self.embed_size, exp_scale=True),
-            nn.Linear(self.embed_size, lat_size, bias=False),
-        )
+        self.yembed_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.yembed_to_lat = nn.Linear(self.embed_size, lat_size, bias=False)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -106,6 +99,8 @@ class LabsEncoder(nn.Module):
         else:
             yembed = y
 
+        yembed = self.yembed_to_yembed(yembed).normalize(dim=1)
+        yembed = yembed + 42e-3 * torch.rand_like(yembed)
         lat = self.yembed_to_lat(yembed)
 
         return lat
@@ -130,14 +125,12 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.norm_z = norm_z
 
-        self.z_irm = IRMLinear(self.z_dim, 3)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        z = self.z_irm(z)
         lat = self.z_to_lat(z)
 
         return lat
