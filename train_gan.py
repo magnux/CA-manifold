@@ -8,8 +8,8 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, update_g_factors, compute_hinted_sample
-from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_noise_hook
+from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, update_g_factors
+from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_noise_hook, SamplePool
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -105,7 +105,7 @@ def get_inputs(trainiter, batch_size, device):
 
 
 images_test, labels_test, z_test, trainiter = get_inputs(iter(trainloader), batch_size, device)
-
+z_pool = SamplePool(z=torch.cat([z_test] * 8), labels=torch.cat([labels_test] * 8))
 
 if config['training']['inception_every'] > 0:
     fid_real_samples = []
@@ -183,14 +183,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                        lat_gen = generator(z_gen, labels)
-                        images_dec, _, _ = decoder(lat_gen)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                        labs_dec = discriminator(lat_top_dec)
-                        z_gen_hinted = compute_hinted_sample(z_gen, labs_dec, 1)
-
                         with torch.no_grad():
-                            lat_gen = generator(z_gen_hinted, labels)
+                            lat_gen = generator(z_gen, labels)
                             # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                             images_dec, _, _ = decoder(lat_gen)
 
@@ -228,19 +222,24 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
+                        rand_sample = z_pool.sample(batch_split_size // 4)
+
+                        if it % 2 == 1:
+                            z_gen = rand_sample.z
+                            labels = rand_sample.labels
 
                         lat_gen = generator(z_gen, labels)
-                        images_dec, _, _ = decoder(lat_gen)
-                        lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                        labs_dec = discriminator(lat_top_dec)
-                        z_gen_hinted = compute_hinted_sample(z_gen, labs_dec, 1)
-
-                        lat_gen = generator(z_gen_hinted, labels)
                         # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
                         images_dec, _, _ = decoder(lat_gen)
 
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
                         labs_dec = discriminator(lat_top_dec)
+
+                        if it % 2 == 0:
+                            worse_imgs_idx = torch.argsort(labs_dec.squeeze(1))[:batch_split_size//4]
+                            rand_sample.z = z_gen[worse_imgs_idx]
+                            rand_sample.labels = labels[worse_imgs_idx]
+                            rand_sample.commit()
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
