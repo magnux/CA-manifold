@@ -14,6 +14,7 @@ from src.layers.dynaresidualblock import DynaResidualBlock
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
+from src.layers.quantize import QLinear
 import numpy as np
 from itertools import chain
 
@@ -62,7 +63,7 @@ class InjectedEncoder(nn.Module):
             ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
+        self.frac_lat_exp = nn.ModuleList([QLinear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
 
         self.frac_ds = nn.Sequential(
             GaussianSmoothing(n_filter, 3, 1, 1),
@@ -200,7 +201,7 @@ class Decoder(nn.Module):
             ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
             for _ in range(1 if self.shared_params else self.n_layers)])
 
-        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
+        self.frac_lat_exp = nn.ModuleList([QLinear(self.lat_size, self.lat_size) for _ in range(self.n_layers * n_calls)])
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers * n_calls)])
 
         self.frac_us = nn.Sequential(
