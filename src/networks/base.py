@@ -55,9 +55,9 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
-            IRMLinear(self.embed_size, exp_scale=True)
+            IRMLinear(self.embed_size, q_out=True, exp_scale=True)
         )
-        self.z_irm = IRMLinear(self.z_dim, exp_scale=True)
+        self.z_irm = IRMLinear(self.z_dim, q_out=True, exp_scale=True)
         self.z_to_lat = nn.Sequential(
             nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
             LinearResidualBlock(self.lat_size, self.lat_size),
@@ -93,7 +93,7 @@ class LabsEncoder(nn.Module):
 
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
-            IRMLinear(self.embed_size, exp_scale=True),
+            IRMLinear(self.embed_size, q_out=True, exp_scale=True),
         )
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
@@ -131,7 +131,7 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.norm_z = norm_z
 
-        self.z_irm = IRMLinear(self.z_dim, 3, exp_scale=True)
+        self.z_irm = IRMLinear(self.z_dim, 3, q_out=True, exp_scale=True)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):

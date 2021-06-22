@@ -1,13 +1,15 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from src.layers.quantize import QLinear
 from src.layers.expscale import ExpScale
 
 
 class IRMLinear(nn.Module):
-    def __init__(self, fin, n_layers=4, exp_scale=False):
+    def __init__(self, fin, n_layers=4,  q_out=False, exp_scale=False):
         super(IRMLinear, self).__init__()
         self.fin = fin
+        self.q_out = QLinear(fin, fin, bias=False) if q_out else None
         self.exp_scale = ExpScale(fin) if exp_scale else None
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
         # for l in self.block:
@@ -27,6 +29,8 @@ class IRMLinear(nn.Module):
                     self.compressed_block = compressed_block.t()
             res = F.linear(x, self.compressed_block)
 
+        if self.q_out is not None:
+            res = self.q_out(res)
         if self.exp_scale is not None:
             res = self.exp_scale(res)
         return res
