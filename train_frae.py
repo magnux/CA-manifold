@@ -283,7 +283,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
 
-                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
+                with model_manager.on_step(['encoder', 'decoder']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
