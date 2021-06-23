@@ -144,7 +144,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             # Slow down aging: minimize the differences, to slow down the motion energy as much as possible
                             pers_out_diff = pers_out_embs[..., 1:] - pers_out_embs[..., :-1]
-                            loss_pers = (1 / batch_mult) * 10 * (torch.fft.rfft2(pers_out_diff).abs() + 1).log().mean()
+                            loss_pers = (1 / batch_mult) * 10 * (torch.fft.rfft(pers_out_diff).abs() + 1).log().mean()
 
                             # Repair aging drift: preserve the differences WRT the mean
                             # out_embs_mean = out_embs[-1].mean(dim=(2, 3), keepdim=True)
