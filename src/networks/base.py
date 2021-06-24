@@ -54,8 +54,22 @@ class Generator(nn.Module):
         self.norm_z = norm_z
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.yembed_irm = nn.Sequential(
+            nn.Linear(n_labels, self.embed_size),
+            IRMLinear(self.embed_size),
+            ExpScale(self.embed_size),
+        )
+        self.z_irm = nn.Sequential(
+            IRMLinear(self.z_dim, 3),
+            ExpScale(self.z_dim),
+        )
+        self.z_to_lat = nn.Sequential(
+            nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
+            ExpScale(self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            ExpScale(self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+        )
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -70,7 +84,8 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        yembed = self.labs_to_yembed(yembed)
+        yembed = self.yembed_irm(yembed)
+        z = self.z_irm(z)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
@@ -83,7 +98,11 @@ class LabsEncoder(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.yembed_irm = nn.Sequential(
+            nn.Linear(n_labels, self.embed_size),
+            IRMLinear(self.embed_size),
+            ExpScale(self.embed_size),
+        )
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
@@ -95,7 +114,7 @@ class LabsEncoder(nn.Module):
         else:
             yembed = y
 
-        yembed = self.labs_to_yembed(yembed)
+        yembed = self.yembed_irm(yembed)
         lat = self.yembed_to_lat(yembed)
 
         return lat
@@ -120,12 +139,17 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.norm_z = norm_z
 
+        self.z_irm = nn.Sequential(
+            IRMLinear(self.z_dim, 3),
+            ExpScale(self.z_dim),
+        )
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
+        z = self.z_irm(z)
         lat = self.z_to_lat(z)
 
         return lat
