@@ -70,6 +70,7 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
+        yembed = self.labs_to_yembed(yembed)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         return lat
@@ -94,6 +95,7 @@ class LabsEncoder(nn.Module):
         else:
             yembed = y
 
+        yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
 
         return lat
