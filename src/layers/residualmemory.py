@@ -54,8 +54,7 @@ class ResidualMemory(nn.Module):
         elif self.dim == 3:
             mem_x = mem_x.view(batch_size, self.n_mem, self.fin, x.size(2), x.size(3), x.size(4))
 
-        mem_x = F.softmax(mem_x, dim=1)
-        mem_x = mem_x.sum(1)
+        mem_x = mem_x.mean(1)
         mem_x = self.conv_out(mem_x)
 
         return x + mem_x
