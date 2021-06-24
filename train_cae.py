@@ -151,7 +151,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 for _ in range(it % 64):
                                     _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
-                            _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach_().requires_grad_())
+                            _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach().requires_grad_())
                             pers_target_out_embs = [out_embs[-1] for _ in range(pers_steps)]
                             loss_pers += (1 / batch_mult) * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
 
