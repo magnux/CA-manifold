@@ -147,7 +147,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             loss_pers = (1 / batch_mult) * 10 * (pers_out_diff.abs() + 1).log().mean()
 
                             # Repair aging drift: reverse the differences that occurred after many execs
-                            with torch.no_grad:
+                            with torch.no_grad():
                                 for _ in range(it % 64):
                                     _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
