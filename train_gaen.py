@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, compute_pl_reg, update_g_factors
-from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_noise_hook
+from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_noise_hook, update_network_average
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -283,6 +283,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
                     # dis_grad_norm = get_grad_norm(discriminator).item()
                     # dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
+
+                # Copy class params to encoder
+                if isinstance(dis_encoder, torch.nn.DataParallel):
+                    dis_yembed = generator.module.labs_encoder.labs_to_yembed
+                    gen_yembed = encoder.module.labs_to_yembed
+                else:
+                    dis_yembed = generator.labs_encoder.labs_to_yembed
+                    gen_yembed = encoder.labs_to_yembed
+                update_network_average(gen_yembed, dis_yembed, 0)
 
                 with model_manager.on_step(['encoder', 'decoder']) as nets_to_train:
 
