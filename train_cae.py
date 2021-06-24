@@ -140,10 +140,10 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             model_manager.set_n_calls('decoder', pers_steps)
 
                             _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
-                            pers_out_embs = torch.stack(pers_out_embs, dim=-1)
+                            pers_out_embs_s = torch.stack(pers_out_embs, dim=-1)
 
                             # Slow down aging: minimize the differences, to slow down the motion energy as much as possible
-                            pers_out_diff = pers_out_embs[..., 1:] - pers_out_embs[..., :-1]
+                            pers_out_diff = pers_out_embs_s[..., 1:] - pers_out_embs_s[..., :-1]
                             loss_pers = (1 / batch_mult) * 10 * (pers_out_diff.abs() + 1).log().mean()
 
                             # Repair aging drift: reverse the differences that occurred after many execs
