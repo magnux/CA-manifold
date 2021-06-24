@@ -5,6 +5,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
+from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
@@ -48,7 +49,7 @@ class InjectedEncoder(nn.Module):
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter * 4, 1, 1, 0)
+        self.frac_conv = ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
 
         self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(n_calls)])
 
@@ -57,7 +58,13 @@ class InjectedEncoder(nn.Module):
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        if z_out:
+            self.out_to_lat = nn.Sequential(
+                nn.Linear(sum(self.conv_state_size), z_dim),
+                LinearResidualMemory(z_dim)
+            )
+        else:
+            self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -174,7 +181,7 @@ class Decoder(nn.Module):
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter * 4, 1, 1, 0)
+        self.frac_conv = ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
 
         self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(n_calls)])
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
