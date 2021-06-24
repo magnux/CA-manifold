@@ -63,13 +63,7 @@ class Generator(nn.Module):
             IRMLinear(self.z_dim, 3),
             ExpScale(self.z_dim),
         )
-        self.z_to_lat = nn.Sequential(
-            nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
-            ExpScale(self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            ExpScale(self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
+        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
