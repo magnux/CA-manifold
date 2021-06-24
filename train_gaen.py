@@ -305,7 +305,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         # labs_enc.register_hook(grad_mult_hook(g_factor_dec ** 0.5))
-                        model_manager.loss_backward(loss_gen_enc, nets_to_train)  # , retain_graph=config['training']['through_grads']
+                        model_manager.loss_backward(loss_gen_enc, nets_to_train, retain_graph=config['training']['through_grads'])
                         loss_gen_enc_sum += loss_gen_enc.item()
 
                         if config['training']['through_grads']:
