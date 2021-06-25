@@ -5,7 +5,6 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.gaussiansmoothing import GaussianSmoothing
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.lambd import LambdaLayer
@@ -75,7 +74,8 @@ class InjectedEncoder(nn.Module):
         if z_out:
             self.out_to_lat = nn.Sequential(
                 nn.Linear(sum(self.conv_state_size), z_dim),
-                LinearResidualMemory(z_dim)
+                LinearResidualBlock(z_dim, z_dim),
+                LinearResidualBlock(z_dim, z_dim),
             )
         else:
             self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size)
