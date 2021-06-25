@@ -218,16 +218,16 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     reg_gen_enc_sum = model_manager.log_manager.get_last('regs', 'reg_gen_enc')
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
-                with model_manager.on_step(['dis_encoder', 'discriminator', 'generator']) as nets_to_train:
+                with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         with torch.no_grad():
                             z_enc, _, _ = encoder(images, labels)
+                            lat_enc = generator(z_enc, labels)
 
-                        z_enc.requires_grad_()
-                        lat_enc = generator(z_enc, labels)
+                        lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
                         labs_enc = discriminator(lat_top_enc)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
@@ -246,10 +246,13 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                        lat_gen = generator(z_gen, labels)
-                        # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
-                        images_dec, _, _ = decoder(lat_gen)
+                        with torch.no_grad():
+                            lat_gen = generator(z_gen, labels)
+                            # ca_noise = 1e-3 * torch.randn(lat_gen.size(0), n_filter, image_size, image_size, device=device)
+                            images_dec, _, _ = decoder(lat_gen)
 
+                        lat_gen.requires_grad_()
+                        images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, lat_gen)
                         labs_dec = discriminator(lat_top_dec)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
@@ -284,16 +287,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     # dis_grad_norm = get_grad_norm(discriminator).item()
                     # dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
 
-                # Copy class params to encoder
-                if isinstance(dis_encoder, torch.nn.DataParallel):
-                    dis_yembed = generator.module.yembed_irm
-                    gen_yembed = encoder.module.labs_encoder.yembed_irm
-                else:
-                    dis_yembed = generator.yembed_irm
-                    gen_yembed = encoder.labs_encoder.yembed_irm
-                update_network_average(gen_yembed, dis_yembed, 0)
-
-                with model_manager.on_step(['encoder', 'decoder']) as nets_to_train:
+                with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
@@ -352,6 +346,15 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     # grad_mult(encoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
+
+                # Copy class params to encoder
+                if isinstance(dis_encoder, torch.nn.DataParallel):
+                    dis_yembed = generator.module.yembed_irm
+                    gen_yembed = encoder.module.labs_encoder.yembed_irm
+                else:
+                    dis_yembed = generator.yembed_irm
+                    gen_yembed = encoder.labs_encoder.yembed_irm
+                update_network_average(gen_yembed, dis_yembed, 0)
 
                 # Streaming Images
                 with torch.no_grad():
