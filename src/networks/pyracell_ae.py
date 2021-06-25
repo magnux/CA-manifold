@@ -71,7 +71,11 @@ class InjectedEncoder(nn.Module):
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Sequential(
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -184,6 +188,11 @@ class Decoder(nn.Module):
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         # self.seed_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers)])
 
+        self.lat_in = nn.Sequential(
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+        )
+
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
         else:
@@ -249,6 +258,7 @@ class Decoder(nn.Module):
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_layers * self.n_calls], device=lat.device))
 
+        lat = self.lat_in(lat)
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
