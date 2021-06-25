@@ -56,11 +56,11 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
-            # IRMLinear(self.embed_size),
+            IRMLinear(self.embed_size),
             ExpScale(self.embed_size),
         )
         self.z_irm = nn.Sequential(
-            # IRMLinear(self.z_dim, 3),
+            IRMLinear(self.z_dim, 3),
             ExpScale(self.z_dim),
         )
         self.z_to_lat = nn.Sequential(
@@ -100,7 +100,7 @@ class LabsEncoder(nn.Module):
 
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
-            # IRMLinear(self.embed_size),
+            IRMLinear(self.embed_size),
             ExpScale(self.embed_size),
         )
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
@@ -140,7 +140,7 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
 
         self.z_irm = nn.Sequential(
-            # IRMLinear(self.z_dim, 3),
+            IRMLinear(self.z_dim, 3),
             ExpScale(self.z_dim),
         )
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
