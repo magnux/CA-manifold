@@ -11,6 +11,7 @@ from src.layers.lambd import LambdaLayer
 from src.layers.sobel import SinSobel
 from src.layers.gaussgrads import GaussGrads
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.expscale import ExpScale
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed, checkerboard_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -191,6 +192,7 @@ class Decoder(nn.Module):
         self.lat_in = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
+            ExpScale(self.lat_size)
         )
 
         if gauss_grads:

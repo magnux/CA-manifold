@@ -344,11 +344,11 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                 # Copy class params to encoder
                 if isinstance(dis_encoder, torch.nn.DataParallel):
-                    dis_yembed = generator.module.yembed_irm
-                    gen_yembed = encoder.module.labs_encoder.yembed_irm
+                    dis_yembed = generator.module.labs_to_yembed
+                    gen_yembed = encoder.module.labs_encoder.labs_to_yembed
                 else:
-                    dis_yembed = generator.yembed_irm
-                    gen_yembed = encoder.labs_encoder.yembed_irm
+                    dis_yembed = generator.labs_to_yembed
+                    gen_yembed = encoder.labs_encoder.labs_to_yembed
                 update_network_average(gen_yembed, dis_yembed, 0)
 
                 # Streaming Images

@@ -8,6 +8,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.expscale import ExpScale
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -176,6 +177,7 @@ class Decoder(nn.Module):
         self.lat_in = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
+            ExpScale(self.lat_size)
         )
 
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
