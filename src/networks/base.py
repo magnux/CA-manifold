@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.irm import IRMLinear, FreqIRMLinear
+from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
@@ -54,7 +54,7 @@ class Generator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.z_irm = FreqIRMLinear(self.z_dim + self.embed_size)
+        self.z_irm = IRMLinear(self.z_dim + self.embed_size)
         self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
 
     def forward(self, z, y):
@@ -85,7 +85,7 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.yembed_irm = FreqIRMLinear(self.embed_size)
+        self.yembed_irm = IRMLinear(self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
@@ -123,7 +123,7 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.norm_z = norm_z
 
-        self.z_irm = FreqIRMLinear(self.z_dim)
+        self.z_irm = IRMLinear(self.z_dim)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):

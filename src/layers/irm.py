@@ -4,13 +4,14 @@ import torch.nn.functional as F
 
 
 class IRMLinear(nn.Module):
-    def __init__(self, fin, n_layers=4):
+    def __init__(self, fin, n_layers=4, norm_out=True):
         super(IRMLinear, self).__init__()
         self.fin = fin
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
         for l in self.block:
             nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
         self.compressed_block = None
+        self.norm_out = norm_out
 
     def forward(self, x):
         if self.training:
@@ -25,14 +26,10 @@ class IRMLinear(nn.Module):
                     self.compressed_block = compressed_block.t()
             res = F.linear(x, self.compressed_block)
 
-        return res
-
-
-class FreqIRMLinear(IRMLinear):
-    def __init__(self, fin, n_layers=6):
-        super(FreqIRMLinear, self).__init__(fin, n_layers)
-        for l, layer in enumerate(self.block):
-            nn.init.normal_(layer.weight, 0, 2 * (0.1 ** (n_layers-(l+1))))
+        if self.norm_out:
+            return F.normalize(res)
+        else:
+            return res
 
 
 class IRMConv(nn.Module):
