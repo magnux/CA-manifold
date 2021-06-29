@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class IRMLinear(nn.Module):
-    def __init__(self, fin, n_layers=6, scale_out=True):
+    def __init__(self, fin, n_layers=10, scale_out=True):
         super(IRMLinear, self).__init__()
         self.fin = fin
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
@@ -33,7 +33,7 @@ class IRMLinear(nn.Module):
 
 
 class IRMConv(nn.Module):
-    def __init__(self, fin, n_layers=4, dim=2):
+    def __init__(self, fin, n_layers=10, dim=2, scale_out=True):
         super(IRMConv, self).__init__()
         self.fin = fin
         self.dim = dim
@@ -53,11 +53,12 @@ class IRMConv(nn.Module):
         for l in self.block:
             nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
         self.compressed_block = None
+        self.scale_out = scale_out
 
     def forward(self, x):
         if self.training:
             self.compressed_block = None
-            return self.block(x)
+            res = self.block(x)
         else:
             if self.compressed_block is None:
                 with torch.no_grad():
@@ -65,4 +66,9 @@ class IRMConv(nn.Module):
                     for l in self.block[1:]:
                         compressed_block = compressed_block @ l.weight.view(self.fin, self.fin).t()
                     self.compressed_block = compressed_block.t().view(self.fin, self.fin, 1, 1)
-            return self.conv_fn(x, self.compressed_block)
+            res = self.conv_fn(x, self.compressed_block)
+
+        if self.scale_out:
+            return res * (2 * self.fin ** 0.5)
+        else:
+            return res
