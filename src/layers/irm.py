@@ -9,7 +9,7 @@ class IRMLinear(nn.Module):
         self.fin = fin
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
         for l in self.block:
-            nn.init.uniform_(l.weight, 0.1, 1.)
+            l.weight.data.copy_(torch.randn_like(l.weight).sign() * (0.1 + (torch.rand_like(l.weight) * 0.9)))
         self.compressed_block = None
 
     def forward(self, x):
@@ -45,7 +45,7 @@ class IRMConv(nn.Module):
 
         self.block = nn.Sequential(*[conv_mod(fin, fin, 1, 1, 0, bias=False) for _ in range(n_layers)])
         for l in self.block:
-            nn.init.uniform_(l.weight, 0.1, 1.)
+            l.weight.data.copy_(torch.randn_like(l.weight).sign() * (0.1 + (torch.rand_like(l.weight) * 0.9)))
         self.compressed_block = None
 
     def forward(self, x):
