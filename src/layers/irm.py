@@ -8,8 +8,8 @@ class IRMLinear(nn.Module):
         super(IRMLinear, self).__init__()
         self.fin = fin
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
-        # for l in self.block:
-        #     nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
+        for l in self.block:
+            nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
         self.compressed_block = None
 
     def forward(self, x):
@@ -62,3 +62,28 @@ class IRMConv(nn.Module):
                         compressed_block = compressed_block @ l.weight.view(self.fin, self.fin).t()
                     self.compressed_block = compressed_block.t().view(self.fin, self.fin, 1, 1)
             return self.conv_fn(x, self.compressed_block)
+
+
+class FreqIRMLinear(nn.Module):
+    def __init__(self, fin, n_layers=6):
+        super(IRMLinear, self).__init__()
+        self.fin = fin
+        self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
+        for l, layer in enumerate(self.block):
+            nn.init.normal_(layer.weight, 0, 2 * (0.1 ** (n_layers-(l+2))))
+        self.compressed_block = None
+
+    def forward(self, x):
+        if self.training:
+            self.compressed_block = None
+            res = self.block(x)
+        else:
+            if self.compressed_block is None:
+                with torch.no_grad():
+                    compressed_block = self.block[0].weight.t()
+                    for l in self.block[1:]:
+                        compressed_block = compressed_block @ l.weight.t()
+                    self.compressed_block = compressed_block.t()
+            res = F.linear(x, self.compressed_block)
+
+        return res
