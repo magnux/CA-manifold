@@ -6,7 +6,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
-from src.layers.expscale import ExpScale
+from src.layers.projscale import ProjScale
 
 
 class Classifier(nn.Module):
@@ -57,11 +57,11 @@ class Generator(nn.Module):
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
             IRMLinear(self.embed_size),
-            ExpScale(self.embed_size),
+            ProjScale(self.embed_size),
         )
         self.z_irm = nn.Sequential(
             IRMLinear(self.z_dim, 3),
-            ExpScale(self.z_dim),
+            ProjScale(self.z_dim),
         )
         self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
 
@@ -95,7 +95,7 @@ class LabsEncoder(nn.Module):
         self.yembed_irm = nn.Sequential(
             nn.Linear(n_labels, self.embed_size),
             IRMLinear(self.embed_size),
-            ExpScale(self.embed_size),
+            ProjScale(self.embed_size),
         )
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
@@ -135,7 +135,7 @@ class UnconditionalGenerator(nn.Module):
 
         self.z_irm = nn.Sequential(
             IRMLinear(self.z_dim, 3),
-            ExpScale(self.z_dim),
+            ProjScale(self.z_dim),
         )
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
