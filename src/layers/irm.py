@@ -32,7 +32,7 @@ class FreqIRMLinear(IRMLinear):
     def __init__(self, fin, n_layers=6):
         super(FreqIRMLinear, self).__init__(fin, n_layers)
         for l, layer in enumerate(self.block):
-            nn.init.normal_(layer.weight, 0, 2 * (0.1 ** (n_layers-(l+2))))
+            nn.init.normal_(layer.weight, 0, 2 * (0.1 ** (n_layers-(l+1))))
 
 
 class IRMConv(nn.Module):
