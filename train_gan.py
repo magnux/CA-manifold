@@ -243,15 +243,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                     # grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
 
-                # Copy class params to discriminator
-                if isinstance(dis_encoder, torch.nn.DataParallel):
-                    dis_yembed = dis_encoder.module.labs_encoder.labs_to_yembed
-                    gen_yembed = generator.module.labs_to_yembed
-                else:
-                    dis_yembed = dis_encoder.labs_encoder.labs_to_yembed
-                    gen_yembed = generator.labs_to_yembed
-                update_network_average(dis_yembed, gen_yembed, 0)
-
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
