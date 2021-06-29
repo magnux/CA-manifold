@@ -6,7 +6,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
-from src.layers.projscale import ProjScale
 
 
 class Classifier(nn.Module):
@@ -57,8 +56,9 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.z_irm = nn.Sequential(
             IRMLinear(self.z_dim + self.embed_size),
-            ProjScale(self.z_dim + self.embed_size),
+            nn.Linear(self.z_dim + self.embed_size, self.z_dim + self.embed_size, bias=False),
         )
+        torch.nn.init.normal_(self.z_irm[-1].weight, 0, 2)
         self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
 
     def forward(self, z, y):
@@ -91,8 +91,9 @@ class LabsEncoder(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_irm = nn.Sequential(
             IRMLinear(self.embed_size),
-            ProjScale(self.embed_size),
+            nn.Linear(self.embed_size, self.embed_size, bias=False),
         )
+        torch.nn.init.normal_(self.yembed_irm[-1].weight, 0, 2)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
@@ -132,8 +133,9 @@ class UnconditionalGenerator(nn.Module):
 
         self.z_irm = nn.Sequential(
             IRMLinear(self.z_dim),
-            ProjScale(self.z_dim),
+            nn.Linear(self.z_dim, self.z_dim, bias=False),
         )
+        torch.nn.init.normal_(self.z_irm[-1].weight, 0, 2)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
