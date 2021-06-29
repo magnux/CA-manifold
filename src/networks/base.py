@@ -65,7 +65,9 @@ class Generator(nn.Module):
         )
         self.z_to_lat = nn.Sequential(
             nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
+            ExpScale(self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
+            ExpScale(self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
         )
 
