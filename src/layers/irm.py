@@ -4,18 +4,19 @@ import torch.nn.functional as F
 
 
 class IRMLinear(nn.Module):
-    def __init__(self, fin, n_layers=6):
+    def __init__(self, fin, n_layers=6, scale_out=True):
         super(IRMLinear, self).__init__()
         self.fin = fin
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
         for l in self.block:
-            l.weight.data.copy_(torch.randn_like(l.weight).sign() * (0.1 + (torch.rand_like(l.weight) * 0.9)))
+            nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
         self.compressed_block = None
+        self.scale_out = scale_out
 
     def forward(self, x):
         if self.training:
             self.compressed_block = None
-            return self.block(x)
+            res = self.block(x)
         else:
             if self.compressed_block is None:
                 with torch.no_grad():
@@ -23,7 +24,12 @@ class IRMLinear(nn.Module):
                     for l in self.block[1:]:
                         compressed_block = compressed_block @ l.weight.t()
                     self.compressed_block = compressed_block.t()
-            return F.linear(x, self.compressed_block)
+            res = F.linear(x, self.compressed_block)
+
+        if self.scale_out:
+            return res * (2 * self.fin ** 0.5)
+        else:
+            return res
 
 
 class IRMConv(nn.Module):
@@ -45,7 +51,7 @@ class IRMConv(nn.Module):
 
         self.block = nn.Sequential(*[conv_mod(fin, fin, 1, 1, 0, bias=False) for _ in range(n_layers)])
         for l in self.block:
-            l.weight.data.copy_(torch.randn_like(l.weight).sign() * (0.1 + (torch.rand_like(l.weight) * 0.9)))
+            nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
         self.compressed_block = None
 
     def forward(self, x):
