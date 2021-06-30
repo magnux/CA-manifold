@@ -1,19 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 
 
 class IRMLinear(nn.Module):
-    def __init__(self, fin, n_layers=None, scale_out=True):
+    def __init__(self, fin, n_layers=4):
         super(IRMLinear, self).__init__()
         self.fin = fin
-        n_layers = int(np.log2(fin)) if n_layers is None else n_layers
         self.block = nn.Sequential(*[nn.Linear(fin, fin, bias=False) for _ in range(n_layers)])
-        for l in self.block:
-            nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
+        # for l in self.block:
+        #     nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
         self.compressed_block = None
-        self.scale_out = scale_out
 
     def forward(self, x):
         if self.training:
@@ -28,14 +25,11 @@ class IRMLinear(nn.Module):
                     self.compressed_block = compressed_block.t()
             res = F.linear(x, self.compressed_block)
 
-        if self.scale_out:
-            return res * (2 * self.fin ** 0.5)
-        else:
-            return res
+        return res
 
 
 class IRMConv(nn.Module):
-    def __init__(self, fin, n_layers=None, dim=2, scale_out=True):
+    def __init__(self, fin, n_layers=4, dim=2):
         super(IRMConv, self).__init__()
         self.fin = fin
         self.dim = dim
@@ -51,12 +45,10 @@ class IRMConv(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        n_layers = int(np.log2(fin)) if n_layers is None else n_layers
         self.block = nn.Sequential(*[conv_mod(fin, fin, 1, 1, 0, bias=False) for _ in range(n_layers)])
-        for l in self.block:
-            nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
+        # for l in self.block:
+        #     nn.init.normal_(l.weight, 0, 0.5 / self.fin ** 0.5)
         self.compressed_block = None
-        self.scale_out = scale_out
 
     def forward(self, x):
         if self.training:
@@ -71,7 +63,4 @@ class IRMConv(nn.Module):
                     self.compressed_block = compressed_block.t().view(self.fin, self.fin, 1, 1)
             res = self.conv_fn(x, self.compressed_block)
 
-        if self.scale_out:
-            return res * (2 * self.fin ** 0.5)
-        else:
-            return res
+        return res
