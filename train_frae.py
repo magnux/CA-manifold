@@ -317,7 +317,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        lat_gen = generator((z_gen + z_enc) / 2, labels)
+                        lat_gen = generator((z_gen + z_enc.clone().detach()) / 2, labels)
                         images_dec, out_embs, _ = decoder(lat_gen)
 
                         if one_dec_pass:
