@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
-from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
@@ -27,8 +26,7 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.dyna_lat_to_score = DynaLinear(self.embed_size, self.lat_size, 1, bias=False)
+        self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -40,8 +38,7 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        yembed = self.labs_to_yembed(yembed)
-        score = self.dyna_lat_to_score(lat, yembed)
+        score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / self.n_labels ** 0.5)
 
         return score
 
@@ -57,9 +54,17 @@ class Generator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.yembed_irm = IRMLinear(self.embed_size)
-        self.z_irm = IRMLinear(self.z_dim)
-        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
+        self.yembed_irm = nn.Sequential(
+            IRMLinear(self.embed_size),
+            nn.Linear(self.embed_size, self.embed_size, bias=False),
+        )
+        torch.nn.init.normal_(self.yembed_irm[-1].weight, 0, 2)
+        self.z_irm = nn.Sequential(
+            IRMLinear(self.z_dim),
+            nn.Linear(self.z_dim, self.z_dim, bias=False),
+        )
+        torch.nn.init.normal_(self.z_irm[-1].weight, 0, 2)
+        self.z_to_lat = nn.Linear(self.z_dim * self.embed_size, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -77,7 +82,7 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         yembed = self.yembed_irm(yembed)
         z = self.z_irm(z)
-        lat = self.dyna_z_to_lat(z, yembed)
+        lat = self.z_to_lat((z.unsqueeze_(1) * yembed.unsqueeze_(2)).reshape(z.shape[0], self.z_dim * self.embed_size))
 
         return lat
 
@@ -90,12 +95,12 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.yembed_irm = IRMLinear(self.embed_size)
-        self.yembed_to_lat = nn.Sequential(
+        self.yembed_irm = nn.Sequential(
+            IRMLinear(self.embed_size),
             nn.Linear(self.embed_size, self.embed_size, bias=False),
-            nn.Linear(self.embed_size, self.lat_size, bias=False),
         )
-        torch.nn.init.normal_(self.yembed_to_lat[0].weight, 0, 2)
+        torch.nn.init.normal_(self.yembed_irm[-1].weight, 0, 2)
+        self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -132,12 +137,12 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.norm_z = norm_z
 
-        self.z_irm = IRMLinear(self.z_dim)
-        self.z_to_lat = nn.Sequential(
-            nn.Linear(self.embed_size, self.embed_size, bias=False),
-            nn.Linear(self.embed_size, self.lat_size, bias=False),
+        self.z_irm = nn.Sequential(
+            IRMLinear(self.z_dim),
+            nn.Linear(self.z_dim, self.z_dim, bias=False),
         )
-        torch.nn.init.normal_(self.z_to_lat[0].weight, 0, 2)
+        torch.nn.init.normal_(self.z_irm[-1].weight, 0, 2)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
