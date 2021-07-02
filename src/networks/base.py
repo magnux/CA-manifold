@@ -56,7 +56,8 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_irm = IRMLinear(self.embed_size)
         self.z_irm = IRMLinear(self.z_dim)
-        self.z_to_lat = nn.Linear(self.z_dim * self.embed_size, self.lat_size, bias=False)
+        self.y_to_lat = nn.Linear(self.embed_size, self.z_dim * self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.embed_size * self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -73,9 +74,12 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        yembed = self.yembed_irm(yembed).reshape(batch_size, 1, self.embed_size)
-        z = self.z_irm(z).reshape(batch_size, self.z_dim, 1)
-        lat = self.z_to_lat((z * yembed).reshape(batch_size, self.z_dim * self.embed_size))
+        yembed = self.yembed_irm(yembed)
+        z = self.z_irm(z)
+        y_proj = self.y_to_lat(yembed).reshape(batch_size, self.z_dim, self.lat_size)
+        z_proj = self.z_to_lat(z).reshape(batch_size, self.embed_size, self.lat_size)
+        lat = torch.bmm(z.reshape(batch_size, 1, self.z_dim), y_proj).squeeze_(1)
+        lat = lat + torch.bmm(yembed.reshape(batch_size, 1, self.embed_size), z_proj).squeeze_(1)
 
         return lat
 
