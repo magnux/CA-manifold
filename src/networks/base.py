@@ -59,12 +59,10 @@ class Generator(nn.Module):
             IRMLinear(self.embed_size),
             nn.Linear(self.embed_size, self.embed_size, bias=False),
         )
-        torch.nn.init.normal_(self.yembed_irm[-1].weight, 0, 2)
         self.z_irm = nn.Sequential(
             IRMLinear(self.z_dim),
             nn.Linear(self.z_dim, self.z_dim, bias=False),
         )
-        torch.nn.init.normal_(self.z_irm[-1].weight, 0, 2)
         self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
         self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
 
