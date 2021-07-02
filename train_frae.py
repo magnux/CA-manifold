@@ -248,7 +248,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         z_gen.requires_grad_(False)
-                        z_gen += z_gen - z_enc.clone().detach()
+                        z_gen *= (2 - z_enc.var(dim=0, keepdim=True))
                         z_gen.requires_grad_()
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
@@ -321,7 +321,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         loss_gen_enc_sum += loss_gen_enc.item()
 
                         z_gen.requires_grad_(False)
-                        z_gen += z_gen - z_enc.clone().detach()
+                        z_gen *= (2 - z_enc.var(dim=0, keepdim=True))
                         z_gen.requires_grad_()
                         lat_gen = generator(z_gen, labels)
                         images_dec, out_embs, _ = decoder(lat_gen)
