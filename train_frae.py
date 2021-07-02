@@ -247,9 +247,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
-                        z_gen.requires_grad_(False)
-                        z_gen *= (2 - z_enc.clone().detach().var(dim=0, keepdim=True))
-                        z_gen.requires_grad_()
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
                             images_dec, out_embs, _ = decoder(lat_gen)
@@ -259,8 +256,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                                 images_redec, _, _ = decoder(lat_gen, out_embs[-1])
 
                         images_redec.requires_grad_()
-                        lat_dis_enc = dis_generator(z_gen, labels)
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_dis_enc)
+                        lat_dis_gen = dis_generator(z_gen, labels)
+                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_dis_gen)
                         labs_dec = discriminator(lat_top_dec)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
@@ -320,9 +317,6 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
                         loss_gen_enc_sum += loss_gen_enc.item()
 
-                        z_gen.requires_grad_(False)
-                        z_gen *= (2 - z_enc.clone().detach().var(dim=0, keepdim=True))
-                        z_gen.requires_grad_()
                         lat_gen = generator(z_gen, labels)
                         images_dec, out_embs, _ = decoder(lat_gen)
 
@@ -334,8 +328,8 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             else:
                                 images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
 
-                        lat_dis_enc = dis_generator(z_gen, labels)
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_dis_enc)
+                        lat_dis_gen = dis_generator(z_gen, labels)
+                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_dis_gen)
                         labs_dec = discriminator(lat_top_dec)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
@@ -401,7 +395,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
         # Log images
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
-            images, labels, z_gen, trainiter = get_inputs(trainiter, batch_size, device)
+            images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test, labels_test)
             images_gen, out_embs, _ = decoder(lat_gen)
             if not one_dec_pass:
