@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
+from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
@@ -54,12 +55,18 @@ class Generator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.yembed_irm = nn.Sequential(
+            IRMLinear(self.embed_size),
+            nn.Linear(self.embed_size, self.embed_size, bias=False),
+        )
+        torch.nn.init.normal_(self.yembed_irm[-1].weight, 0, 2)
         self.z_irm = nn.Sequential(
-            IRMLinear(self.z_dim + self.embed_size),
-            nn.Linear(self.z_dim + self.embed_size, self.z_dim + self.embed_size, bias=False),
+            IRMLinear(self.z_dim),
+            nn.Linear(self.z_dim, self.z_dim, bias=False),
         )
         torch.nn.init.normal_(self.z_irm[-1].weight, 0, 2)
         self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -75,8 +82,10 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        z = self.z_irm(torch.cat([z, yembed], dim=1))
-        lat = self.z_to_lat(z)
+        yembed = self.yembed_irm(yembed)
+        z = self.z_irm(z)
+        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
+        lat = lat + self.dyna_z_to_lat(z, yembed)
 
         return lat
 
