@@ -56,7 +56,7 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_irm = IRMLinear(self.embed_size)
         self.z_irm = IRMLinear(self.z_dim)
-        self.z_to_lat = nn.Linear(self.z_dim, self.embed_size * self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim * self.embed_size, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -74,9 +74,8 @@ class Generator(nn.Module):
 
         yembed = self.labs_to_yembed(yembed)
         yembed = self.yembed_irm(yembed).reshape(batch_size, 1, self.embed_size)
-        z = self.z_irm(z)
-        lat = self.z_to_lat(z).reshape(batch_size, self.embed_size, self.lat_size)
-        lat = torch.bmm(yembed, lat).squeeze_(1)
+        z = self.z_irm(z).reshape(batch_size, self.z_dim, 1)
+        lat = self.z_to_lat((z * yembed).reshape(batch_size, self.z_dim * self.embed_size))
 
         return lat
 
