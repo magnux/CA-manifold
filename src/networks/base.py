@@ -64,10 +64,11 @@ class Generator(nn.Module):
             nn.Linear(self.z_dim, self.z_dim, bias=False),
         )
         torch.nn.init.normal_(self.z_irm[-1].weight, 0, 2)
-        self.z_to_lat = nn.Linear(self.z_dim * self.embed_size, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.embed_size * self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
+        batch_size = z.shape[0]
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -80,9 +81,10 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        yembed = self.yembed_irm(yembed)
+        yembed = self.yembed_irm(yembed).reshape(batch_size, 1, self.embed_size)
         z = self.z_irm(z)
-        lat = self.z_to_lat((z.unsqueeze_(1) * yembed.unsqueeze_(2)).reshape(z.shape[0], self.z_dim * self.embed_size))
+        lat = self.z_to_lat(z).reshape(batch_size, self.embed_size, self.lat_size)
+        lat = torch.bmm(yembed, lat).squeeze_(1)
 
         return lat
 
