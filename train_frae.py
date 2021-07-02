@@ -8,7 +8,7 @@ from tqdm import trange
 from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
-from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, compute_pl_reg, update_g_factors
+from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, compute_pl_reg, update_g_factors, age_gaussian_kl_loss
 from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_noise_hook, update_network_average
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
@@ -204,7 +204,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 labs_dis_enc_sign, labs_dis_dec_sign = 0, 0
                 loss_gen_enc_sum, loss_gen_dec_sum = 0, 0
-                loss_dec_sum = 0
+                loss_kl_sum, loss_dec_sum = 0, 0
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_enc_sum, reg_gen_dec_sum = 0, 0
@@ -295,12 +295,17 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         z_enc, _, _ = encoder(images, labels)
+
+                        loss_kl = (1 / batch_mult) * age_gaussian_kl_loss(z_enc)
+                        model_manager.loss_backward(loss_kl, nets_to_train, retain_graph=True)
+                        loss_kl_sum += loss_kl.item()
+
                         lat_enc = generator(z_enc.clone().detach(), labels)
                         images_dec, _, _ = decoder(lat_enc)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                         model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
-                        loss_dec_sum += loss_dec.item() / np.sqrt(d_reg_every_mean)
+                        loss_dec_sum += loss_dec.item()
 
                         lat_dis_enc = dis_generator(z_enc, labels)
                         lat_top_enc, _, _ = dis_encoder(images, lat_dis_enc)
@@ -373,6 +378,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_kl', loss_kl_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'g_factor_enc', g_factor_enc, it=it)
