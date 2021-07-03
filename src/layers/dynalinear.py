@@ -17,7 +17,7 @@ class DynaLinear(nn.Module):
 
         self.dyna_w = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.w_size + self.b_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.w_size + self.b_size, self.lat_size),
         )
 
         self.prev_lat = None
