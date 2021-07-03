@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
+from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
@@ -26,7 +27,8 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
+        self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.dyna_lat_to_score = DynaLinear(self.embed_size, self.lat_size, 1, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -38,7 +40,8 @@ class Discriminator(nn.Module):
         else:
             yembed = y
 
-        score = (self.lat_to_score(lat) * yembed).sum(dim=1, keepdim=True) * (1 / self.n_labels ** 0.5)
+        yembed = self.labs_to_yembed(yembed)
+        score = self.dyna_lat_to_score(lat, yembed)
 
         return score
 
@@ -56,13 +59,10 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_irm = IRMLinear(self.embed_size)
         self.z_irm = IRMLinear(self.z_dim)
-        self.y_to_lat = nn.Linear(self.embed_size, self.z_dim * self.z_dim, bias=False)
-        self.z_to_lat = nn.Linear(self.z_dim, self.embed_size * self.embed_size, bias=False)
-        self.proj_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
-        batch_size = z.shape[0]
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -77,11 +77,7 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         yembed = self.yembed_irm(yembed)
         z = self.z_irm(z)
-        y_proj = self.y_to_lat(yembed).reshape(batch_size, self.z_dim, self.z_dim)
-        z_proj = self.z_to_lat(z).reshape(batch_size, self.embed_size, self.embed_size)
-        z = torch.bmm(z.reshape(batch_size, 1, self.z_dim), y_proj).squeeze_(1)
-        yembed = torch.bmm(yembed.reshape(batch_size, 1, self.embed_size), z_proj).squeeze_(1)
-        lat = self.proj_to_lat(torch.cat([z, yembed], dim=1))
+        lat = self.dyna_z_to_lat(z, yembed)
 
         return lat
 
