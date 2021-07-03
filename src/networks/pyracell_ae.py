@@ -71,7 +71,11 @@ class InjectedEncoder(nn.Module):
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Sequential(
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -182,7 +186,6 @@ class Decoder(nn.Module):
         )
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
-        # self.seed_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_layers)])
 
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
@@ -253,8 +256,6 @@ class Decoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for c in range(self.n_layers * self.n_calls):
-            # if c % self.n_calls == 0:
-            #     out = self.seed_noise[0 if self.shared_params else c // self.n_calls](out)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
