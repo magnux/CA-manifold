@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.expscale import ExpScale
 from src.layers.irm import IRMLinear
+from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
@@ -57,12 +57,8 @@ class Generator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.z_to_lat = nn.Sequential(
-            nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
-            ExpScale(self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size, bias=False),
-            LinearResidualBlock(self.lat_size, self.lat_size, bias=False),
-        )
+        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
+        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -79,6 +75,7 @@ class Generator(nn.Module):
 
         yembed = self.labs_to_yembed(yembed)
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
+        lat = lat + self.dyna_z_to_lat(z, yembed)
 
         return lat
 
