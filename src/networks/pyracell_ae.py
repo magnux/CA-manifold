@@ -72,8 +72,8 @@ class InjectedEncoder(nn.Module):
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
         self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2, bias=False),
+            LinearResidualBlock(self.lat_size, self.lat_size, bias=False),
             nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
         )
 

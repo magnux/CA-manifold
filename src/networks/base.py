@@ -58,8 +58,8 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.z_to_lat = nn.Sequential(
             nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size, bias=False),
+            LinearResidualBlock(self.lat_size, self.lat_size, bias=False),
         )
 
     def forward(self, z, y):
