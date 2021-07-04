@@ -15,7 +15,7 @@ class IRMLinear(nn.Module):
     def forward(self, x):
         if self.training:
             self.compressed_block = None
-            res = self.block(x)
+            return self.block(x)
         else:
             if self.compressed_block is None:
                 with torch.no_grad():
@@ -23,9 +23,7 @@ class IRMLinear(nn.Module):
                     for l in self.block[1:]:
                         compressed_block = compressed_block @ l.weight.t()
                     self.compressed_block = compressed_block.t()
-            res = F.linear(x, self.compressed_block)
-
-        return res
+            return F.linear(x, self.compressed_block)
 
 
 class IRMConv(nn.Module):
@@ -53,7 +51,7 @@ class IRMConv(nn.Module):
     def forward(self, x):
         if self.training:
             self.compressed_block = None
-            res = self.block(x)
+            return self.block(x)
         else:
             if self.compressed_block is None:
                 with torch.no_grad():
@@ -61,6 +59,4 @@ class IRMConv(nn.Module):
                     for l in self.block[1:]:
                         compressed_block = compressed_block @ l.weight.view(self.fin, self.fin).t()
                     self.compressed_block = compressed_block.t().view(self.fin, self.fin, 1, 1)
-            res = self.conv_fn(x, self.compressed_block)
-
-        return res
+            return self.conv_fn(x, self.compressed_block)
