@@ -56,12 +56,7 @@ class Generator(nn.Module):
         self.norm_z = norm_z
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_yembed = nn.Linear(n_labels, int(self.embed_size ** 0.5))
-        self.z_shrink = nn.Linear(self.z_dim, int(self.z_dim ** 0.5))
-        self.z_to_lat = nn.Sequential(
-            nn.Linear(int(self.z_dim ** 0.5) * int(self.embed_size ** 0.5), self.lat_size, bias=False),
-            LinearResidualMemory(self.lat_size),
-        )
+        self.yembed_to_lat = nn.Linear(n_labels, self.z_dim * self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -77,11 +72,8 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        yembed = self.labs_to_yembed(yembed)
-        proj_z = F.normalize(self.z_shrink(z)).reshape(batch_size, int(self.z_dim ** 0.5), 1)
-        proj_z = proj_z * F.normalize(yembed).reshape(batch_size, 1, int(self.embed_size ** 0.5))
-        proj_z = proj_z.reshape(batch_size, -1)
-        lat = self.z_to_lat(proj_z)
+        proj_yembed = self.yembed_to_lat(yembed).reshape(batch_size, self.z_dim, self.lat_size)
+        lat = torch.bmm(z.reshape(batch_size, 1, self.z_dim), proj_yembed).squeeze(1)
 
         return lat
 
