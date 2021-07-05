@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.irm import IRMLinear
-from src.layers.dynalinear import DynaLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
@@ -56,12 +55,13 @@ class Generator(nn.Module):
         self.norm_z = norm_z
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
-        self.dyna_z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size, bias=False)
+        self.labs_to_yembed = nn.Linear(n_labels, int(self.embed_size ** 0.5))
+        self.z_shrink = nn.Linear(self.z_dim, int(self.z_dim ** 0.5))
+        self.z_to_lat = nn.Linear(int(self.z_dim ** 0.5) * int(self.embed_size ** 0.5), self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
+        batch_size = z.shape[0]
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -74,8 +74,10 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
-        lat = lat + self.dyna_z_to_lat(z, yembed)
+        proj_z = z.reshape(batch_size, int(self.z_dim ** 0.5), 1)
+        proj_z = proj_z * yembed.reshape(batch_size, 1, int(self.embed_size ** 0.5))
+        proj_z = proj_z.reshape(batch_size, -1)
+        lat = self.z_to_lat(proj_z)
 
         return lat
 

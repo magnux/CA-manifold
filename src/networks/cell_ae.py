@@ -57,11 +57,9 @@ class InjectedEncoder(nn.Module):
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
-        )
+        self.out_shrink = nn.Linear(sum(self.conv_state_size), int(self.lat_size ** 0.5))
+        self.inj_lat_shrink = nn.Linear(self.lat_size, int(self.lat_size ** 0.5))
+        self.out_to_lat = nn.Linear(int(self.lat_size ** 0.5) ** 2, lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -123,7 +121,10 @@ class InjectedEncoder(nn.Module):
                                     conv_state_hw.view(batch_size, -1)], dim=1)
         else:
             conv_state = out.mean(dim=(2, 3))
-        lat = self.out_to_lat(conv_state)
+        lat = self.out_shrink(conv_state).reshape(batch_size, int(self.lat_size ** 0.5), 1)
+        lat = lat * self.inj_lat_shrink(inj_lat).reshape(batch_size, 1, int(self.lat_size ** 0.5))
+        lat = lat.reshape(batch_size, -1)
+        lat = self.out_to_lat(lat)
 
         return lat, out_embs, None
 
