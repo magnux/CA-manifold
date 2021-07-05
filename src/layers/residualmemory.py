@@ -43,7 +43,7 @@ class ResidualMemory(nn.Module):
         x_k = self.k(x_pos).view(batch_size,  self.n_mem, self.sqrt_fin, -1).permute(0, 3, 2, 1).contiguous().view(-1, self.sqrt_fin, self.n_mem)
         x_v = torch.cat([self.v] * x_q.size(0), 0)
 
-        mem_x = torch.bmm(F.normalize(x_q, dim=2), F.normalize(x_k, dim=1))
+        mem_x = F.relu(torch.bmm(F.normalize(x_q, dim=2), F.normalize(x_k, dim=1)))
         if self.dropout is not None:
             mem_x = self.dropout(mem_x)
         mem_x = torch.bmm(mem_x, x_v)

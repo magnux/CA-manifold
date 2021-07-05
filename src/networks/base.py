@@ -80,7 +80,7 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         proj_z = self.z_shrink(z).reshape(batch_size, int(self.z_dim ** 0.5), 1)
         proj_z = proj_z * yembed.reshape(batch_size, 1, int(self.embed_size ** 0.5))
-        proj_z = proj_z.reshape(batch_size, -1)
+        proj_z = F.relu(proj_z.reshape(batch_size, -1))
         lat = self.z_to_lat(proj_z)
 
         return lat
