@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
+from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
@@ -57,8 +58,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
-
-        self.z_cond_yembed = nn.Linear(self.z_dim, self.embed_size * self.lat_size, bias=False)
+        self.yembed_cond_z = nn.Linear(self.embed_size, self.z_dim * self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -77,8 +77,9 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
 
-        z_cond = self.z_cond_yembed(z).reshape(batch_size, self.embed_size, self.lat_size)
-        lat = lat + torch.bmm(yembed.reshape(batch_size, 1, self.embed_size), z_cond).squeeze(1) / (self.lat_size ** 0.5)
+        z = self.z_irm(z)
+        yembed_cond = self.yembed_cond_z(yembed).reshape(batch_size, self.z_dim, self.lat_size)
+        lat = lat + torch.bmm(z.reshape(batch_size, 1, self.z_dim), yembed_cond).squeeze(1) / (self.lat_size ** 0.5)
 
         return lat
 
@@ -127,12 +128,14 @@ class UnconditionalGenerator(nn.Module):
         self.z_dim = z_dim
         self.norm_z = norm_z
 
+        self.z_irm = IRMLinear(self.z_dim)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
+        z = self.z_irm(z)
         lat = self.z_to_lat(z)
 
         return lat
