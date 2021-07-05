@@ -78,7 +78,7 @@ class Generator(nn.Module):
         lat = self.yembed_to_lat(yembed)
 
         z_cond = self.z_cond_yembed(z).reshape(batch_size, self.embed_size, self.lat_size)
-        lat = lat + torch.bmm(yembed.reshape(batch_size, 1, self.embed_size), z_cond).squeeze(1)
+        lat = lat + torch.bmm(yembed.reshape(batch_size, 1, self.embed_size), z_cond).squeeze(1) / (self.lat_size ** 0.1)
 
         return lat
 
