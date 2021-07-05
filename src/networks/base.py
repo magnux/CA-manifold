@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
+from src.layers.linearresidualmemory import LinearResidualMemory
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
@@ -57,7 +58,10 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, int(self.embed_size ** 0.5))
         self.z_shrink = nn.Linear(self.z_dim, int(self.z_dim ** 0.5))
-        self.z_to_lat = nn.Linear(int(self.z_dim ** 0.5) * int(self.embed_size ** 0.5), self.lat_size, bias=False)
+        self.z_to_lat = nn.Sequential(
+            nn.Linear(int(self.z_dim ** 0.5) * int(self.embed_size ** 0.5), self.lat_size, bias=False),
+            LinearResidualMemory(self.lat_size),
+        )
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
