@@ -57,8 +57,9 @@ class Generator(nn.Module):
         self.n_calls = n_calls
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
+        self.labs_to_yembed = nn.Linear(n_labels, n_labels * 2)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
-        self.lat_trans = DynaLinear(n_labels, self.lat_size, self.lat_size)
+        self.lat_trans = DynaLinear(n_labels * 2, self.lat_size, self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -73,6 +74,7 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
+        yembed = self.labs_to_yembed(yembed)
         lat = self.z_to_lat(z)
 
         for _ in range(self.n_calls):
