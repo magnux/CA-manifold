@@ -52,7 +52,7 @@ class Generator(nn.Module):
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
         self.z_dim = z_dim
-        self.embed_size = embed_size
+        self.embed_size = min(embed_size, n_labels * 2)
         self.norm_z = norm_z
         self.n_calls = n_calls
 
