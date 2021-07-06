@@ -81,7 +81,7 @@ class Generator(nn.Module):
         for _ in range(self.n_calls):
             z = z + 0.1 * self.z_frac(z, yembed)
 
-        lat = lat + self.z_to_lat(z, yembed)
+        lat = lat + self.z_to_lat(z)
 
         return lat
 
