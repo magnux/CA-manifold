@@ -297,7 +297,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         z_enc, _, _ = encoder(images, labels)
                         lat_enc = generator(z_enc.clone().detach(), labels)
 
-                        if epoch > 0:
+                        if epoch > int(0.1 * config['training']['n_epochs']):
                             images_dec, _, _ = decoder(lat_enc)
                             loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
                             model_manager.loss_backward(loss_dec, nets_to_train, retain_graph=True)
