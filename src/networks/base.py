@@ -78,15 +78,14 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
 
-        auto_reg_grads = []
         for _ in range(self.n_calls):
             z_new = self.z_frac_block(z, yembed)
             z = z + 0.1 * z_new
-            if z.requires_grad:
-                with torch.no_grad():
-                    auto_reg_grad = (2 / z.numel()) * z
-                auto_reg_grads.append(auto_reg_grad)
-                z.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
+
+        if z.requires_grad:
+            with torch.no_grad():
+                auto_reg_grad = (2 / z.numel()) * z
+            z.register_hook(lambda grad: grad + auto_reg_grad)
 
         lat = lat + self.z_to_lat(z)
 
