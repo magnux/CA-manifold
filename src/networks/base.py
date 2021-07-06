@@ -60,8 +60,8 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, n_labels * 2)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
-        self.frac_conv = LinearResidualBlock(self.lat_size, self.lat_size, self.lat_size, False)
-        self.frac_dyna_conv = DynaLinearResidualBlock(n_labels * 2, self.lat_size, self.lat_size, self.lat_size, False)
+        self.frac_conv = LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim)
+        self.frac_dyna_conv = DynaLinearResidualBlock(n_labels * 2, self.z_dim, self.z_dim, self.z_dim)
 
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
