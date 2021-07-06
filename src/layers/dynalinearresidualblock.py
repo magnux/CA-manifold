@@ -24,9 +24,9 @@ class DynaLinearResidualBlock(nn.Module):
         self.b_short_size = self.fout if bias else 0
 
         self.dyna_w = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.w_in_size + self.w_mid_size + self.w_out_size + self.w_short_size +
-                                               self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size, self.lat_size),
+                                               self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size, self.lat_size * 2),
         )
 
         self.prev_lat = None
