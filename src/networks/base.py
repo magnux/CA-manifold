@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.expscale import ExpScale
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
@@ -62,7 +61,6 @@ class Generator(nn.Module):
         self.lat_trans = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            ExpScale(self.lat_size),
         )
 
     def forward(self, z, y):
@@ -83,7 +81,7 @@ class Generator(nn.Module):
         lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         for _ in range(self.n_calls):
-            lat = lat + 0.1 * self.lat_trans(lat)
+            lat = lat * (1. + self.lat_trans(lat))
 
         return lat
 
@@ -137,7 +135,6 @@ class UnconditionalGenerator(nn.Module):
         self.lat_trans = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            ExpScale(self.lat_size),
         )
 
     def forward(self, z):
@@ -147,7 +144,7 @@ class UnconditionalGenerator(nn.Module):
         lat = self.z_to_lat(z)
 
         for _ in range(self.n_calls):
-            lat = lat + 0.1 * self.lat_trans(lat)
+            lat = lat * (1. + self.lat_trans(lat))
 
         return lat
 
