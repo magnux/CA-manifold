@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.dynalinear import DynaLinear
+from src.layers.dynalinearresidualblock import DynaLinearResidualBlock
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
@@ -59,7 +59,8 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, n_labels * 2)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
-        self.lat_trans = DynaLinear(n_labels * 2, self.lat_size, self.lat_size)
+        self.frac_conv = LinearResidualBlock(self.lat_size, self.lat_size)
+        self.frac_dyna_conv = DynaLinearResidualBlock(n_labels * 2, self.lat_size, self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -78,7 +79,10 @@ class Generator(nn.Module):
         lat = self.z_to_lat(z)
 
         for _ in range(self.n_calls):
-            lat = lat + 0.1 * self.lat_trans(lat, yembed)
+            lat_new_f = self.frac_conv(lat)
+            lat_new_d = self.frac_dyna_conv(lat, yembed)
+            lat_new = lat_new_f + lat_new_d
+            lat = lat + 0.1 * lat_new
 
         return lat
 
