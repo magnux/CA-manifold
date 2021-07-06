@@ -82,7 +82,7 @@ class Generator(nn.Module):
         lat = self.yembed_to_lat(yembed)
 
         for _ in range(self.n_calls):
-            z_new = F.normalize(z_new, dim=1)
+            z_new = F.normalize(z, dim=1)
             z_new_f = self.frac_conv(z_new)
             z_new_d = self.frac_dyna_conv(z_new, yembed)
             z_new = z_new_f + z_new_d
