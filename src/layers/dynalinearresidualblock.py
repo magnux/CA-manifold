@@ -44,8 +44,8 @@ class DynaLinearResidualBlock(nn.Module):
                                                                                                       self.b_out_size, self.b_short_size], dim=1)
             self.w_in = w_in.view(batch_size, self.fin, self.fhidden)
             self.w_mid = w_mid.view(batch_size, self.fhidden, self.fhidden)
-            self.w_out = w_in.view(batch_size, self.fhidden, self.fout)
-            self.w_short = w_in.view(batch_size, self.fin, self.fout)
+            self.w_out = w_out.view(batch_size, self.fhidden, self.fout)
+            self.w_short = w_short.view(batch_size, self.fin, self.fout)
 
             if self.bias:
                 self.b_in = b_in.view(batch_size, 1, self.fhidden)
