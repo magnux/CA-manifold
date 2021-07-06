@@ -60,9 +60,9 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size, bias=False)
         self.lat_trans = nn.Sequential(
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             ExpScale(self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
         )
 
     def forward(self, z, y):
@@ -135,9 +135,9 @@ class UnconditionalGenerator(nn.Module):
 
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
         self.lat_trans = nn.Sequential(
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             ExpScale(self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
         )
 
     def forward(self, z):
