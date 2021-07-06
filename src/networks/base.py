@@ -76,7 +76,7 @@ class Generator(nn.Module):
 
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
-        lat = lat + self.z_to_lat(z, yembed)
+        lat = lat + (1 / self.lat_size ** 0.5) * self.z_to_lat(z, yembed)
 
         return lat
 
