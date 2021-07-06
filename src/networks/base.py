@@ -82,7 +82,7 @@ class Generator(nn.Module):
             lat_new_f = self.frac_conv(lat)
             lat_new_d = self.frac_dyna_conv(lat, yembed)
             lat_new = lat_new_f + lat_new_d
-            lat = lat + 0.1 * lat_new
+            lat = lat + (1 / self.lat_size ** 0.5) * lat_new
 
         return lat
 
