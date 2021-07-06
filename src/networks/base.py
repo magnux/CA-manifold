@@ -85,7 +85,7 @@ class Generator(nn.Module):
             z_new_f = self.frac_conv(z)
             z_new_d = self.frac_dyna_conv(z, yembed)
             z_new = z_new_f + z_new_d
-            z = z + (1 / self.z_dim ** 0.5) * z_new
+            z = z + (1 / self.z_dim) * z_new
 
         lat = lat + self.z_to_lat(z)
 
