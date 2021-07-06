@@ -59,7 +59,8 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
-        self.z_frac = DynaLinearResidualBlock(self.embed_size, self.z_dim, self.z_dim, self.z_dim)
+        self.z_frac_norm = nn.BatchNorm1d(self.z_dim)
+        self.z_frac_block = DynaLinearResidualBlock(self.embed_size, self.z_dim, self.z_dim, self.z_dim)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
@@ -79,7 +80,9 @@ class Generator(nn.Module):
         lat = self.yembed_to_lat(yembed)
 
         for _ in range(self.n_calls):
-            z = z + 0.1 * self.z_frac(F.normalize(z), yembed)
+            z_new = self.z_frac_norm(z)
+            z_new = self.z_frac_block(z_new, yembed)
+            z = z + 0.1 * z_new
 
         lat = lat + self.z_to_lat(z)
 
