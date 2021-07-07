@@ -82,8 +82,7 @@ class Generator(nn.Module):
         yembed_cond = self.labs_to_yembed_cond(yembed)
 
         for _ in range(self.n_calls):
-            z_new = self.z_frac_block(z, yembed_cond)
-            z = z + 0.1 * z_new
+            z = self.z_frac_block(z, yembed_cond)
 
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
