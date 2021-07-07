@@ -57,7 +57,10 @@ class Generator(nn.Module):
         self.n_calls = n_calls
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.z_to_lat = DynaLinearResidualBlock(n_labels, self.z_dim, self.lat_size, self.z_dim, bias=False)
+        self.z_to_lat = nn.ModuleList([
+            DynaLinearResidualBlock(n_labels, self.z_dim, self.z_dim, self.z_dim, bias=False),
+            DynaLinearResidualBlock(n_labels, self.z_dim, self.lat_size, self.z_dim, bias=False),
+            ])
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
@@ -75,7 +78,9 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        lat = self.z_to_lat(z, yembed)
+        lat = z
+        for l in self.z_to_lat:
+            lat = l(lat, yembed)
 
         yembed = self.labs_to_yembed(yembed)
         lat = lat + self.yembed_to_lat(yembed)
@@ -128,7 +133,10 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
         self.n_calls = n_calls
 
-        self.z_to_lat = LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim, bias=False)
+        self.z_to_lat = nn.Sequential(
+            LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim, bias=False),
+            LinearResidualBlock(self.z_dim, self.lat_size, self.z_dim, bias=False),
+        )
 
     def forward(self, z):
         if self.norm_z:
