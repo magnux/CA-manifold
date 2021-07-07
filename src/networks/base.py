@@ -80,7 +80,7 @@ class Generator(nn.Module):
 
         lat = z
         for l in self.z_to_lat:
-            lat = l(lat, yembed)
+            lat = l(lat, yembed.detach().clone())
 
         yembed = self.labs_to_yembed(yembed)
         lat = lat + self.yembed_to_lat(yembed)
