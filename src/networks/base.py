@@ -60,9 +60,8 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
-        self.z_frac_block = DynaLinearResidualBlock(n_labels, self.z_dim, self.z_dim, self.z_dim, bias=False)
-        self.z_irm = IRMLinear(self.z_dim, 16)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.z_irm = IRMLinear(self.z_dim)
+        self.z_to_lat = DynaLinearResidualBlock(n_labels, self.z_dim, self.lat_size, self.z_dim, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -77,12 +76,8 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        for _ in range(self.n_calls):
-            z_new = self.z_frac_block(z, yembed.detach().clone())
-            z = z + 0.1 * z_new
-
         z = self.z_irm(z)
-        lat = self.z_to_lat(z)
+        lat = self.z_to_lat(z, yembed)
 
         yembed = self.labs_to_yembed(yembed)
         lat = lat + self.yembed_to_lat(yembed)
@@ -135,17 +130,12 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
         self.n_calls = n_calls
 
-        self.z_frac_block = LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim, bias=False)
-        self.z_irm = IRMLinear(self.z_dim, 16)
+        self.z_irm = IRMLinear(self.z_dim)
         self.z_to_lat = LinearResidualBlock(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
-
-        for _ in range(self.n_calls):
-            z_new = self.z_frac_block(z)
-            z = z + 0.1 * z_new
 
         z = self.z_irm(z)
         lat = self.z_to_lat(z)
