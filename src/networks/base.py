@@ -55,15 +55,12 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.norm_z = norm_z
         self.n_calls = n_calls
-
         self.register_buffer('embedding_mat', torch.eye(n_labels))
+
+        self.z_to_lat = DynaLinearResidualBlock(n_labels, self.z_dim, self.lat_size, self.z_dim, bias=False)
+
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
-
-        self.labs_to_yembed_cond = nn.Linear(n_labels, n_labels * 4)
-        self.z_irm = IRMLinear(self.z_dim)
-        self.z_frac_block = DynaLinearResidualBlock(n_labels * 4, self.z_dim, self.z_dim, self.z_dim, bias=False)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -78,15 +75,10 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        z = self.z_irm(z)
-        yembed_cond = self.labs_to_yembed_cond(yembed)
-
-        for _ in range(self.n_calls):
-            z = self.z_frac_block(z, yembed_cond)
+        lat = self.z_to_lat(z, yembed)
 
         yembed = self.labs_to_yembed(yembed)
-        lat = self.yembed_to_lat(yembed)
-        lat = lat + self.z_to_lat(z)
+        lat = lat + self.yembed_to_lat(yembed)
 
         return lat
 
@@ -136,18 +128,11 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
         self.n_calls = n_calls
 
-        self.z_irm = IRMLinear(self.z_dim)
-        self.z_frac_block = LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim, bias=False)
-        self.z_to_lat = LinearResidualBlock(self.z_dim, self.lat_size, bias=False)
+        self.z_to_lat = LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim, bias=False)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
-
-        z = self.z_irm(z)
-
-        for _ in range(self.n_calls):
-            z = self.z_frac_block(z)
 
         lat = self.z_to_lat(z)
 
