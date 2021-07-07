@@ -61,7 +61,7 @@ class Generator(nn.Module):
         self.labs_to_yembed = QLinear(n_labels, self.embed_size, num_bits=8, num_bits_grad=8)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
         self.z_quant = QLinear(self.z_dim, self.z_dim, bias=False, num_bits=8, num_bits_grad=8)
-        self.z_to_lat = DynaLinearResidualBlock(self.embed_size, self.z_dim, self.lat_size, self.z_dim)
+        self.z_to_lat = DynaLinearResidualBlock(self.embed_size, self.z_dim, self.lat_size, self.z_dim, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))

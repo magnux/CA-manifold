@@ -42,16 +42,16 @@ class DynaLinearResidualBlock(nn.Module):
                                                                                                       self.w_out_size, self.w_short_size,
                                                                                                       self.b_in_size, self.b_mid_size,
                                                                                                       self.b_out_size, self.b_short_size], dim=1)
-            self.w_in = w_in.view(batch_size, self.fin, self.fhidden)
-            self.w_mid = w_mid.view(batch_size, self.fhidden, self.fhidden)
-            self.w_out = w_out.view(batch_size, self.fhidden, self.fout)
-            self.w_short = w_short.view(batch_size, self.fin, self.fout)
+            self.w_in = w_in.view(batch_size, self.fin, self.fhidden) / self.fin ** 0.5
+            self.w_mid = w_mid.view(batch_size, self.fhidden, self.fhidden) / self.fhidden ** 0.5
+            self.w_out = w_out.view(batch_size, self.fhidden, self.fout) / self.fhidden ** 0.5
+            self.w_short = w_short.view(batch_size, self.fin, self.fout) / self.fin ** 0.5
 
             if self.bias:
-                self.b_in = b_in.view(batch_size, 1, self.fhidden)
-                self.b_mid = b_mid.view(batch_size, 1, self.fhidden)
-                self.b_out = b_out.view(batch_size, 1, self.fout)
-                self.b_short = b_short.view(batch_size, 1, self.fout)
+                self.b_in = b_in.view(batch_size, 1, self.fhidden) / self.fhidden
+                self.b_mid = b_mid.view(batch_size, 1, self.fhidden) / self.fhidden
+                self.b_out = b_out.view(batch_size, 1, self.fout) / self.fout
+                self.b_short = b_short.view(batch_size, 1, self.fout) / self.fout
 
             self.prev_lat = lat
 
