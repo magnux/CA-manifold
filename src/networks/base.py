@@ -52,7 +52,7 @@ class Generator(nn.Module):
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
         self.z_dim = z_dim
-        self.embed_size = max(int(embed_size ** 0.5), n_labels * 4)
+        self.embed_size = embed_size
         self.norm_z = norm_z
         self.n_calls = n_calls
 
@@ -61,7 +61,7 @@ class Generator(nn.Module):
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
         self.z_irm = IRMLinear(self.z_dim)
-        self.z_frac_block = DynaLinearResidualBlock(self.embed_size, self.z_dim, self.z_dim, self.z_dim, bias=False)
+        self.z_frac_block = DynaLinearResidualBlock(n_labels, self.z_dim, self.z_dim, self.z_dim, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
@@ -77,15 +77,14 @@ class Generator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        yembed = self.labs_to_yembed(yembed)
-        lat = self.yembed_to_lat(yembed)
-
         z = self.z_irm(z)
 
         for _ in range(self.n_calls):
             z_new = self.z_frac_block(z, yembed)
             z = z + 0.1 * z_new
 
+        yembed = self.labs_to_yembed(yembed)
+        lat = self.yembed_to_lat(yembed)
         lat = lat + self.z_to_lat(z)
 
         return lat
