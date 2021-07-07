@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.dynalinearresidualblock import DynaLinearResidualBlock
-from src.layers.quantize import QLinear
 from src.layers.irm import IRMLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
@@ -28,7 +27,7 @@ class Discriminator(nn.Module):
         self.embed_size = embed_size
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_yembed = QLinear(n_labels, self.embed_size, num_bits=8, num_bits_grad=8)
+        self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.lat_to_score = nn.Linear(self.lat_size, n_labels, bias=False)
 
     def forward(self, lat, y):
@@ -58,10 +57,10 @@ class Generator(nn.Module):
         self.n_calls = n_calls
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.labs_to_yembed = QLinear(n_labels, self.embed_size, num_bits=8, num_bits_grad=8)
+        self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
-        self.z_quant = QLinear(self.z_dim, self.z_dim, bias=False, num_bits=8, num_bits_grad=8)
-        self.z_to_lat = DynaLinearResidualBlock(self.embed_size, self.z_dim, self.lat_size, self.z_dim, bias=False)
+        self.z_frac_block = DynaLinearResidualBlock(self.embed_size, self.z_dim, self.z_dim, self.z_dim)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -79,8 +78,11 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
 
-        z = self.z_quant(z)
-        lat = lat + self.z_to_lat(z, yembed)
+        for _ in range(self.n_calls):
+            z_new = self.z_frac_block(z, yembed)
+            z = z + 0.1 * z_new
+
+        lat = lat + self.z_to_lat(z)
 
         return lat
 
@@ -92,7 +94,7 @@ class LabsEncoder(nn.Module):
         self.embed_size = embed_size
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
-        self.labs_to_yembed = QLinear(n_labels, self.embed_size, num_bits=8, num_bits_grad=8)
+        self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
@@ -130,14 +132,17 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
         self.n_calls = n_calls
 
-        self.z_quant = QLinear(self.z_dim, self.z_dim, bias=False, num_bits=8, num_bits_grad=8)
+        self.z_frac_block = LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        z = self.z_quant(z)
+        for _ in range(self.n_calls):
+            z_new = self.z_frac_block(z)
+            z = z + 0.1 * z_new
+
         lat = self.z_to_lat(z)
 
         return lat
