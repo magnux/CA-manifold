@@ -59,13 +59,10 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
 
-        self.lat_frac_block = DynaLinearResidualBlock(self.embed_size + self.z_dim, self.lat_size, self.lat_size, self.lat_size)
-        self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.lat_size)))
+        self.z_to_lat = DynaLinearResidualBlock(self.embed_size, self.z_dim, self.lat_size, self.z_dim)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
-        batch_size = z.size(0)
-        float_type = torch.float16 if isinstance(z, torch.cuda.HalfTensor) else torch.float32
         if y.dtype is torch.int64:
             if y.dim() == 1:
                 yembed = self.embedding_mat[y]
@@ -78,13 +75,7 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        z_yembed = torch.cat([yembed, z], dim=1)
-
-        lat = torch.cat([self.lat_seed.to(float_type)] * batch_size, 0)
-
-        for _ in range(self.n_calls):
-            lat_new = self.lat_frac_block(lat, z_yembed)
-            lat = lat + 0.1 * lat_new
+        lat = self.z_to_lat(z, yembed)
 
         return lat
 
@@ -134,16 +125,11 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
         self.n_calls = n_calls
 
-        self.z_frac_block = LinearResidualBlock(self.z_dim, self.z_dim, self.z_dim)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.z_to_lat = LinearResidualBlock(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
-
-        for _ in range(self.n_calls):
-            z_new = self.z_frac_block(z)
-            z = z + 0.1 * z_new
 
         lat = self.z_to_lat(z)
 
