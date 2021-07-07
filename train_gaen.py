@@ -318,7 +318,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         #     with torch.no_grad():
                         #         images_dec, out_embs, _ = decoder(lat_enc)
                         #     out_embs[-1].requires_grad_()
-                        #     images_redec, _, _ = decoder(lat_enc.clone().detach(), out_embs[-1].clone().detach())
+                        #     images_redec, _, _ = decoder(lat_enc.detach().clone(), out_embs[-1].detach().clone())
                         #
                         # loss_dec = (1 / batch_mult) * F.mse_loss(images_redec, images)
                         # model_manager.loss_backward(loss_dec, nets_to_train)

@@ -295,7 +295,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         z_enc, _, _ = encoder(images, labels)
-                        lat_enc = generator(z_enc.clone().detach(), labels)
+                        lat_enc = generator(z_enc.detach().clone(), labels)
                         images_dec, _, _ = decoder(lat_enc)
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_dec, images)
@@ -326,7 +326,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             if config['training']['through_grads']:
                                 images_redec, _, _ = decoder(lat_gen, out_embs[-1])
                             else:
-                                images_redec, _, _ = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
+                                images_redec, _, _ = decoder(lat_gen.detach().clone(), out_embs[-1].detach().clone())
 
                         lat_dis_gen = dis_generator(z_gen, labels)
                         lat_top_dec, _, _ = dis_encoder(images_redec, lat_dis_gen)

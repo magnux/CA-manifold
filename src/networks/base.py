@@ -80,7 +80,7 @@ class Generator(nn.Module):
         z = self.z_irm(z)
 
         for _ in range(self.n_calls):
-            z_new = self.z_frac_block(z, yembed)
+            z_new = self.z_frac_block(z, yembed.detach().clone())
             z = z + 0.1 * z_new
 
         yembed = self.labs_to_yembed(yembed)

@@ -293,7 +293,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
                             if config['training']['through_grads']:
                                 _, _, images_redec_raw = decoder(lat_gen, out_embs[-1])
                             else:
-                                _, _, images_redec_raw = decoder(lat_gen.clone().detach(), out_embs[-1].clone().detach())
+                                _, _, images_redec_raw = decoder(lat_gen.detach().clone(), out_embs[-1].detach().clone())
 
                         lat_top_dec, _, _ = dis_encoder(images_redec_raw[0], lat_gen)
                         labs_dec = discriminator(lat_top_dec)
