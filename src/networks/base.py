@@ -60,8 +60,9 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
+        self.labs_to_yembed_cond = nn.Linear(n_labels, n_labels * 4)
         self.z_irm = IRMLinear(self.z_dim)
-        self.z_frac_block = DynaLinearResidualBlock(n_labels, self.z_dim, self.z_dim, self.z_dim, bias=False)
+        self.z_frac_block = DynaLinearResidualBlock(n_labels * 4, self.z_dim, self.z_dim, self.z_dim, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
@@ -78,9 +79,10 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         z = self.z_irm(z)
+        yembed_cond = self.labs_to_yembed_cond(yembed)
 
         for _ in range(self.n_calls):
-            z_new = self.z_frac_block(z, yembed.detach().clone())
+            z_new = self.z_frac_block(z, yembed_cond)
             z = z + 0.1 * z_new
 
         yembed = self.labs_to_yembed(yembed)
