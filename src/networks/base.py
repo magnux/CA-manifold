@@ -77,10 +77,10 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        lat = F.normalize(self.yembed_to_lat(yembed))
+        lat = self.yembed_to_lat(yembed)
 
         z = self.z_quant(z)
-        lat = 0.5 * (lat + F.normalize(self.z_to_lat(z, yembed)))
+        lat = lat + self.z_to_lat(z, yembed)
 
         return lat
 
@@ -105,7 +105,7 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.labs_to_yembed(yembed)
-        lat = F.normalize(self.yembed_to_lat(yembed))
+        lat = self.yembed_to_lat(yembed)
 
         return lat
 
@@ -138,7 +138,7 @@ class UnconditionalGenerator(nn.Module):
             z = F.normalize(z, dim=1)
 
         z = self.z_quant(z)
-        lat = F.normalize(self.z_to_lat(z))
+        lat = self.z_to_lat(z)
 
         return lat
 
