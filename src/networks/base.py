@@ -80,7 +80,7 @@ class Generator(nn.Module):
         lat = F.normalize(self.yembed_to_lat(yembed))
 
         z = self.z_quant(z)
-        lat = 0.9 * lat + 0.1 * F.normalize(self.z_to_lat(z, yembed))
+        lat = 0.5 * (lat + F.normalize(self.z_to_lat(z, yembed)))
 
         return lat
 
