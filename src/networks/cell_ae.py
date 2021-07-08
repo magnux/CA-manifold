@@ -82,10 +82,10 @@ class InjectedEncoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new_l = self.frac_sobel(out_new)
-            lat_new = torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat
             for i in range(len(out_new_l)):
                 if not self.auto_reg:
                     out_new_l[i] = self.frac_norm(out_new_l[i])
+                lat_new = torch.cat([inj_lat, out_new_l[i].mean((2, 3))], 1) if self.env_feedback else inj_lat
                 out_new_l[i] = self.frac_dyna_conv[i](out_new_l[i], lat_new)
             out_new = torch.cat(out_new_l, dim=-1).sum(dim=-1)
             if self.gated:
@@ -228,10 +228,10 @@ class Decoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new_l = self.frac_sobel(out_new)
-            lat_new = torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat
             for i in range(len(out_new_l)):
                 if not self.auto_reg:
                     out_new_l[i] = self.frac_norm(out_new_l[i])
+                lat_new = torch.cat([lat, out_new_l[i].mean((2, 3))], 1) if self.env_feedback else lat
                 out_new_l[i] = self.frac_dyna_conv[i](out_new_l[i], lat_new)
             out_new = torch.cat(out_new_l, dim=-1).sum(dim=-1)
             if self.gated:
