@@ -87,7 +87,7 @@ class InjectedEncoder(nn.Module):
                     out_new_l[i] = self.frac_norm(out_new_l[i])
                 lat_new = torch.cat([inj_lat, out_new_l[i].mean((2, 3))], 1) if self.env_feedback else inj_lat
                 out_new_l[i] = self.frac_dyna_conv[i](out_new_l[i], lat_new)
-            out_new = torch.cat(out_new_l, dim=-1).sum(dim=-1)
+            out_new = torch.stack(out_new_l, dim=-1).sum(dim=-1)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -233,7 +233,7 @@ class Decoder(nn.Module):
                     out_new_l[i] = self.frac_norm(out_new_l[i])
                 lat_new = torch.cat([lat, out_new_l[i].mean((2, 3))], 1) if self.env_feedback else lat
                 out_new_l[i] = self.frac_dyna_conv[i](out_new_l[i], lat_new)
-            out_new = torch.cat(out_new_l, dim=-1).sum(dim=-1)
+            out_new = torch.stack(out_new_l, dim=-1).sum(dim=-1)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
