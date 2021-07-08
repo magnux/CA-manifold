@@ -13,7 +13,7 @@ network:
     n_filter: 64
     embed_size: 256
     lat_size: 3
-    n_calls: 5
+    n_calls: 4
     shared_params: True
     adain: False
     dyncin: False
