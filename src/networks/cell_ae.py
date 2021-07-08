@@ -45,9 +45,9 @@ class InjectedEncoder(nn.Module):
 
         self.frac_sobel = nn.ModuleList([SinSobel(self.n_filter, (2 ** (i + 1)) + 1, 2 ** i, left_sided=self.causal) for i in range(n_calls - 1, -1, -1)])
         if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel[0].c_factor)
         self.frac_dyna_conv = nn.ModuleList(
-            [DynaResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter) for _ in range(self.frac_sobel.c_factor)]
+            [DynaResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.n_filter * self.frac_sobel[i].c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter) for i in range(n_calls)]
         )
 
         if self.skip_fire:
@@ -166,9 +166,9 @@ class Decoder(nn.Module):
 
         self.frac_sobel = nn.ModuleList([SinSobel(self.n_filter, (2 ** (i + 1)) + 1, 2 ** i, left_sided=self.causal) for i in range(n_calls - 1, -1, -1)])
         if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel[0].c_factor)
         self.frac_dyna_conv = nn.ModuleList(
-            [DynaResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter) for _ in range(self.frac_sobel.c_factor)]
+            [DynaResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.n_filter * self.frac_sobel[i].c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter) for i in range(n_calls)]
         )
 
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
