@@ -43,7 +43,7 @@ class InjectedEncoder(nn.Module):
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
-        self.frac_sobel = nn.ModuleList([SinSobel(self.n_filter, (2 ** (i + 1)) + 1, 2 ** i, left_sided=self.causal) for i in range(n_calls - 1, -1, -1)])
+        self.frac_sobel = nn.ModuleList([SinSobel(self.n_filter, (2 ** (i + 1)) + 1, 2 ** i, left_sided=self.causal) for i in range(n_calls)])
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel[0].c_factor)
         self.frac_dyna_conv = nn.ModuleList(
