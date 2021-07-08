@@ -43,12 +43,12 @@ class InjectedEncoder(nn.Module):
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal)
+        self.frac_sobel = nn.ModuleList([SinSobel(self.n_filter, (2 ** (i + 1)) + 1, 2 ** i, left_sided=self.causal) for i in range(n_calls - 1, -1, -1)])
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
+        self.frac_dyna_conv = nn.ModuleList(
+            [DynaResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter) for _ in range(self.frac_sobel.c_factor)]
+        )
 
         self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(n_calls)])
 
@@ -82,13 +82,11 @@ class InjectedEncoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            out_new = self.frac_sobel(out_new)
+            out_new = self.frac_sobel[c](out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new_f = self.frac_conv(out_new)
             lat_new = torch.cat([self.frac_lat_exp[c](inj_lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](inj_lat)
-            out_new_d = self.frac_dyna_conv(out_new, lat_new)
-            out_new = out_new_f + out_new_d
+            out_new = self.frac_dyna_conv[c](out_new, lat_new)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -168,12 +166,12 @@ class Decoder(nn.Module):
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal)
+        self.frac_sobel = nn.ModuleList([SinSobel(self.n_filter, (2 ** (i + 1)) + 1, 2 ** i, left_sided=self.causal) for i in range(n_calls - 1, -1, -1)])
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size + (self.n_filter * self.frac_sobel.c_factor if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_sobel.c_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
+        self.frac_dyna_conv = nn.ModuleList(
+            [DynaResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter) for _ in range(self.frac_sobel.c_factor)]
+        )
 
         self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(n_calls)])
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
@@ -228,13 +226,11 @@ class Decoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            out_new = self.frac_sobel(out_new)
+            out_new = self.frac_sobel[c](out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new_f = self.frac_conv(out_new)
             lat_new = torch.cat([self.frac_lat_exp[c](lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](lat)
-            out_new_d = self.frac_dyna_conv(out_new, lat_new)
-            out_new = out_new_f + out_new_d
+            out_new = self.frac_dyna_conv[c](out_new, lat_new)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
