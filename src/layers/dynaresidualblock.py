@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, norm_weights=False):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, groups=1, norm_weights=False):
         super(DynaResidualBlock, self).__init__()
 
         self.lat_size = lat_size if lat_size > 3 else 512
@@ -23,10 +23,10 @@ class DynaResidualBlock(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.k_in_size = self.fhidden * self.fin * (kernel_size ** dim)
-        self.k_mid_size = self.fhidden * self.fhidden * (kernel_size ** dim)
-        self.k_out_size = self.fout * self.fhidden * (kernel_size ** dim)
-        self.k_short_size = self.fout * self.fin * (kernel_size ** dim)
+        self.k_in_size = self.fhidden * self.fin * (kernel_size ** dim) // groups
+        self.k_mid_size = self.fhidden * self.fhidden * (kernel_size ** dim) // groups
+        self.k_out_size = self.fout * self.fhidden * (kernel_size ** dim) // groups
+        self.k_short_size = self.fout * self.fin * (kernel_size ** dim) // groups
         
         self.b_in_size = self.fhidden if not norm_weights else 0
         self.b_mid_size = self.fhidden if not norm_weights else 0
@@ -48,6 +48,7 @@ class DynaResidualBlock(nn.Module):
         self.kernel_size = [kernel_size for _ in range(self.dim)]
         self.stride = stride
         self.padding = padding
+        self.groups = groups
         self.norm_weights = norm_weights
 
     def forward(self, x, lat):
@@ -59,10 +60,10 @@ class DynaResidualBlock(nn.Module):
                                                                                         self.k_out_size, self.k_short_size,
                                                                                         self.b_in_size, self.b_mid_size,
                                                                                         self.b_out_size, self.b_short_size], dim=1)
-            self.k_in = k_in.view([batch_size, self.fhidden, self.fin] + self.kernel_size)
-            self.k_mid = k_mid.view([batch_size, self.fhidden, self.fhidden] + self.kernel_size)
-            self.k_out = k_out.view([batch_size, self.fout, self.fhidden] + self.kernel_size)
-            self.k_short = k_short.view([batch_size, self.fout, self.fin] + self.kernel_size)
+            self.k_in = k_in.view([batch_size, self.fhidden, self.fin // self.groups] + self.kernel_size)
+            self.k_mid = k_mid.view([batch_size, self.fhidden, self.fhidden // self.groups] + self.kernel_size)
+            self.k_out = k_out.view([batch_size, self.fout, self.fhidden // self.groups] + self.kernel_size)
+            self.k_short = k_short.view([batch_size, self.fout, self.fin // self.groups] + self.kernel_size)
 
             if self.norm_weights:
                 self.k_in = self.k_in * torch.rsqrt((self.k_in ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
@@ -70,10 +71,10 @@ class DynaResidualBlock(nn.Module):
                 self.k_out = self.k_out * torch.rsqrt((self.k_out ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
                 self.k_short = self.k_short * torch.rsqrt((self.k_short ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
 
-            self.k_in = self.k_in.reshape([batch_size * self.fhidden, self.fin] + self.kernel_size)
-            self.k_mid = self.k_mid.reshape([batch_size * self.fhidden, self.fhidden] + self.kernel_size)
-            self.k_out = self.k_out.reshape([batch_size * self.fout, self.fhidden] + self.kernel_size)
-            self.k_short = self.k_short.reshape([batch_size * self.fout, self.fin] + self.kernel_size)
+            self.k_in = self.k_in.reshape([batch_size * self.fhidden, self.fin // self.groups] + self.kernel_size)
+            self.k_mid = self.k_mid.reshape([batch_size * self.fhidden, self.fhidden // self.groups] + self.kernel_size)
+            self.k_out = self.k_out.reshape([batch_size * self.fout, self.fhidden // self.groups] + self.kernel_size)
+            self.k_short = self.k_short.reshape([batch_size * self.fout, self.fin // self.groups] + self.kernel_size)
 
             if not self.norm_weights:
                 self.b_in = b_in.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
@@ -84,12 +85,12 @@ class DynaResidualBlock(nn.Module):
             self.prev_lat = lat
 
         x_new = x.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
-        x_new_s = self.f_conv(x_new, self.k_short, stride=self.stride, padding=self.padding, groups=batch_size) + self.b_short
-        x_new = self.f_conv(x_new, self.k_in, stride=1, padding=self.padding, groups=batch_size) + self.b_in
+        x_new_s = self.f_conv(x_new, self.k_short, stride=self.stride, padding=self.padding, groups=batch_size * self.groups) + self.b_short
+        x_new = self.f_conv(x_new, self.k_in, stride=1, padding=self.padding, groups=batch_size * self.groups) + self.b_in
         x_new = F.relu(x_new, True)
-        x_new = self.f_conv(x_new, self.k_mid, stride=1, padding=self.padding, groups=batch_size) + self.b_mid
+        x_new = self.f_conv(x_new, self.k_mid, stride=1, padding=self.padding, groups=batch_size * self.groups) + self.b_mid
         x_new = F.relu(x_new, True)
-        x_new = self.f_conv(x_new, self.k_out, stride=self.stride, padding=self.padding, groups=batch_size) + self.b_out
+        x_new = self.f_conv(x_new, self.k_out, stride=self.stride, padding=self.padding, groups=batch_size * self.groups) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.reshape([batch_size, self.fout] + [x.size(d + 2) for d in range(self.dim)])
 
