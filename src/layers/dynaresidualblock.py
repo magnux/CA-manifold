@@ -11,7 +11,7 @@ class DynaResidualBlock(nn.Module):
         self.lat_size = lat_size if lat_size > 3 else 512
         self.fin = fin
         self.fout = fout
-        self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden
+        self.fhidden = max(((fin + fout) // groups) * groups, 1) if fhidden is None else fhidden
         self.dim = dim
 
         if dim == 1:
