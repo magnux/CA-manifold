@@ -76,7 +76,6 @@ class DynaResidualBlock(nn.Module):
             self.k_mid = self.k_mid.reshape([batch_size * self.fhidden, self.fhidden // self.groups] + self.kernel_size)
             self.k_out = self.k_out.reshape([batch_size * self.fout, self.fhidden // self.groups] + self.kernel_size)
             self.k_short = self.k_short.reshape([batch_size * self.fout, self.fin // self.groups] + self.kernel_size)
-            print(self.k_in.shape, self.k_mid.shape, self.k_out.shape, self.k_short.shape)
 
             if not self.norm_weights:
                 self.b_in = b_in.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
