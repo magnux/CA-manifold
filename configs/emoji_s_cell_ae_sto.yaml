@@ -10,7 +10,7 @@ network:
   class: cell_ae
   kwargs:
     ds_size: 32
-    n_filter: 32
+    n_filter: 16
     embed_size: 256
     lat_size: 512
     n_calls: 4
