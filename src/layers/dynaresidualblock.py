@@ -23,10 +23,10 @@ class DynaResidualBlock(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.k_in_size = self.fhidden * self.fin * (kernel_size ** dim) // groups
-        self.k_mid_size = self.fhidden * self.fhidden * (kernel_size ** dim) // groups
-        self.k_out_size = self.fout * self.fhidden * (kernel_size ** dim) // groups
-        self.k_short_size = self.fout * self.fin * (kernel_size ** dim) // groups
+        self.k_in_size = self.fhidden * (self.fin // groups) * (kernel_size ** dim)
+        self.k_mid_size = self.fhidden * (self.fhidden // groups) * (kernel_size ** dim)
+        self.k_out_size = self.fout * (self.fhidden // groups) * (kernel_size ** dim)
+        self.k_short_size = self.fout * (self.fin // groups) * (kernel_size ** dim)
         
         self.b_in_size = self.fhidden if not norm_weights else 0
         self.b_mid_size = self.fhidden if not norm_weights else 0
@@ -60,6 +60,7 @@ class DynaResidualBlock(nn.Module):
                                                                                         self.k_out_size, self.k_short_size,
                                                                                         self.b_in_size, self.b_mid_size,
                                                                                         self.b_out_size, self.b_short_size], dim=1)
+
             self.k_in = k_in.view([batch_size, self.fhidden, self.fin // self.groups] + self.kernel_size)
             self.k_mid = k_mid.view([batch_size, self.fhidden, self.fhidden // self.groups] + self.kernel_size)
             self.k_out = k_out.view([batch_size, self.fout, self.fhidden // self.groups] + self.kernel_size)
