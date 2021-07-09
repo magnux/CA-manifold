@@ -48,7 +48,7 @@ class InjectedEncoder(nn.Module):
         self.frac_groups = self.frac_sobel.c_factor // 3
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * 3 if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups)
+        self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * 3 if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -170,7 +170,7 @@ class Decoder(nn.Module):
         self.frac_groups = self.frac_sobel.c_factor // 3
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
-        self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * 3 if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups)
+        self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * 3 if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
 
