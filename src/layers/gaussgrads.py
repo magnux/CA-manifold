@@ -4,16 +4,19 @@ from torch.nn import functional as F
 import numpy as np
 
 
-def get_gauss_grads_kernel_nd(channels, kernel_size, dim, left_sided=False):
+def get_gauss_grads_kernel_nd(channels, kernel_size, dim, n_diff, left_sided=False):
     filter_space = np.linspace(-1., 1., kernel_size)
-    gauss_grads1 = -1/4 * np.exp(-2 * filter_space ** 2) * filter_space
-    gauss_grads2 = 1/4 * np.exp(-2 * filter_space ** 2) * (-1 + 4 * filter_space ** 2)
+    if n_diff == 1:
+        gauss_grads = -1/4 * np.exp(-2 * filter_space ** 2) * filter_space
+    elif n_diff == 2:
+        gauss_grads = 1/4 * np.exp(-2 * filter_space ** 2) * (-1 + 4 * filter_space ** 2)
+    else:
+        raise RuntimeError(
+            'Only 1 and 2 diffs are implemented'.format(dim)
+        )
     if left_sided:
-        gauss_grads1[int(kernel_size / 2):] = 0
-        gauss_grads2[int(kernel_size / 2):] = 0
-    gauss_grads1 = torch.tensor(gauss_grads1, dtype=torch.float32).view(*([1, 1, kernel_size] + [1 for _ in range(dim - 1)]))
-    gauss_grads2 = torch.tensor(gauss_grads2, dtype=torch.float32).view(*([1, 1, kernel_size] + [1 for _ in range(dim - 1)]))
-    gauss_grads = torch.cat([gauss_grads1, gauss_grads2], dim=0)
+        gauss_grads[int(kernel_size / 2):] = 0
+    gauss_grads = torch.tensor(gauss_grads, dtype=torch.float32).view(*([1, 1, kernel_size] + [1 for _ in range(dim - 1)]))
     if dim > 1:
         gauss_grads = gauss_grads.repeat(*([1, 1, 1] + [kernel_size for _ in range(dim - 1)]))
         gauss_grads_l = [gauss_grads]
@@ -40,7 +43,8 @@ class GaussGrads(nn.Module):
             assert len(kernel_sizes) == len(paddings), 'there should be equal number of kernel_sizes and paddings'
 
         for i, kernel_size in enumerate(kernel_sizes):
-            self.register_buffer('weight%d' % i, get_gauss_grads_kernel_nd(channels, kernel_size, dim, left_sided))
+            for d in [1, 2]:
+                self.register_buffer('weight%d%d' % (i, d), get_gauss_grads_kernel_nd(channels, kernel_size, dim, d, left_sided))
 
         self.groups = channels
         self.paddings = paddings
@@ -63,14 +67,16 @@ class GaussGrads(nn.Module):
         if self.rep_in:
             s_out = []
             for i, padding in enumerate(self.paddings):
-                weight = getattr(self, 'weight%d' % i)
-                s_out.extend([x, self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)])
+                for d in [1, 2]:
+                    weight = getattr(self, 'weight%d%d' % (i, d))
+                    s_out.extend([x, self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)])
             return torch.cat(s_out, dim=1)
         else:
             s_out = [x]
             for i, padding in enumerate(self.paddings):
-                weight = getattr(self, 'weight%d' % i)
-                s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+                for d in [1, 2]:
+                    weight = getattr(self, 'weight%d%d' % (i, d))
+                    s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
             return torch.cat(s_out, dim=1)
 
 
@@ -108,23 +114,26 @@ if __name__ == '__main__':
     # kernel_sizes = [3]
     kernels = []
     for i, kernel_size in enumerate(kernel_sizes):
-        kernels.append(get_gauss_grads_kernel_nd(1, kernel_size, 2))
+        for d in [1, 2]:
+            kernels.append(get_gauss_grads_kernel_nd(1, kernel_size, 2, d))
+    kernel_sizes = np.repeat(kernel_sizes, 2)
     # paddings = [1, 15, 31]
     # paddings = [2 ** (i - 1) for i in range(1, 5)]
     # paddings = [i // 2 for i in range(2, 10, 2)]
     paddings = [2 ** (i - 1) for i in range(1, 7, 2)]
+    paddings = np.repeat(paddings, 2)
     # paddings = [1]
     # print(kernels[0].shape)
-    # for i in range(kernels[0].shape[0]):
-    #     plt.imshow(kernels[0][i, 0, ...].t())
-    #     plt.show()
+    for i in range(kernels[0].shape[0]):
+        plt.imshow(kernels[0][i, 0, ...].t())
+        plt.show()
     print(kernel_sizes, paddings)
 
     for _ in range(n_calls):
-        canvas_sob = [canvas]
+        canvas_gauss = [canvas]
         for gauss_grad_f, pad_f in zip(kernels, paddings):
-            canvas_sob.append(F.conv2d(canvas, weight=gauss_grad_f, stride=1, padding=pad_f))
-        canvas = torch.cat(canvas_sob, dim=1)
+            canvas_gauss.append(F.conv2d(canvas, weight=gauss_grad_f, stride=1, padding=pad_f))
+        canvas = torch.cat(canvas_gauss, dim=1)
         canvas = F.instance_norm(canvas)
         canvas = canvas.mean(dim=1, keepdim=True)
         plt.imshow(canvas.view(c_size, c_size))
