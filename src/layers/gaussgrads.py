@@ -27,7 +27,7 @@ def get_gauss_grads_kernel_nd(channels, kernel_size, dim, left_sided=False):
 
 
 class GaussGrads(nn.Module):
-    def __init__(self, channels, kernel_sizes, paddings, dim=2, left_sided=False):
+    def __init__(self, channels, kernel_sizes, paddings, dim=2, left_sided=False, rep_in=False):
         super(GaussGrads, self).__init__()
 
         if isinstance(kernel_sizes, int):
@@ -45,6 +45,7 @@ class GaussGrads(nn.Module):
         self.groups = channels
         self.paddings = paddings
         self.dim = dim
+        self.rep_in = rep_in
 
         if dim == 1:
             self.conv = F.conv1d
@@ -56,14 +57,21 @@ class GaussGrads(nn.Module):
             raise RuntimeError(
                 'Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim)
             )
-        self.c_factor = 1 + (len(kernel_sizes) * dim * 2)
+        self.c_factor = len(kernel_sizes) * (dim * 2 + 1) if self.rep_in else (len(kernel_sizes) * dim * 2) + 1
 
     def forward(self, x):
-        s_out = [x]
-        for i, padding in enumerate(self.paddings):
-            weight = getattr(self, 'weight%d' % i)
-            s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
-        return torch.cat(s_out, dim=1)
+        if self.rep_in:
+            s_out = []
+            for i, padding in enumerate(self.paddings):
+                weight = getattr(self, 'weight%d' % i)
+                s_out.extend([x, self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)])
+            return torch.cat(s_out, dim=1)
+        else:
+            s_out = [x]
+            for i, padding in enumerate(self.paddings):
+                weight = getattr(self, 'weight%d' % i)
+                s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+            return torch.cat(s_out, dim=1)
 
 
 if __name__ == '__main__':
