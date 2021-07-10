@@ -176,7 +176,7 @@ class Decoder(nn.Module):
 
         # self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(n_calls)])
 
-        self.frac_noise = NoiseInjection(n_filter) for _ in range(n_calls)
+        self.frac_noise = NoiseInjection(n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
