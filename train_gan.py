@@ -140,6 +140,9 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
         it = epoch * (len(trainloader) // batch_split)
 
+        model_manager.set_n_calls('dis_encoder', (it % (n_calls * 2)) + 1)
+        model_manager.set_n_calls('decoder', (it % (n_calls * 2)) + 1)
+
         t = trange(len(trainloader) // batch_split)
         t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
         for batch in t:
