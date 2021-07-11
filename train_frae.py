@@ -190,7 +190,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
         running_loss_dec = np.zeros(window_size)
 
-        if (it % reset_seed_every) == 0:
+        if (epoch % reset_seed_every) == 0:
             dis_encoder.reset_seed()
             encoder.reset_seed()
             decoder.reset_seed()
