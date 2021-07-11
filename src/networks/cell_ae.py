@@ -86,7 +86,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            lat_new = torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            lat_new = torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat * torch.rand_like(inj_lat)
             out_new = self.frac_dyna_conv(out_new, lat_new)
             out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
@@ -234,7 +234,7 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            lat_new = torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat
+            lat_new = torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat * torch.rand_like(lat)
             out_new = self.frac_dyna_conv(out_new, lat_new)
             out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
