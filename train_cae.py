@@ -30,11 +30,13 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
 letter_encoding = config['network']['kwargs']['letter_encoding']
+n_epochs = config['training']['n_epochs']
 persistence = config['training']['persistence']
 regeneration = config['training']['regeneration']
 batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
+batch_mult_steps = config['training']['batch_mult_steps']
 n_workers = config['training']['n_workers']
 
 # Inputs
@@ -89,12 +91,12 @@ images_test, labels_test, trainiter = get_inputs(iter(trainloader), batch_size, 
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
-for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
+for epoch in range(model_manager.start_epoch, n_epochs):
     with model_manager.on_epoch(epoch):
 
         running_loss = np.zeros(window_size)
 
-        batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
+        batch_mult = (int((epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
 
         it = (epoch * (len(trainloader) // batch_split))
 
@@ -148,7 +150,7 @@ for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
 
                             # Repair aging drift: reverse the differences that occurred after many execs
                             with torch.no_grad():
-                                for _ in range(int(64 * epoch / config['training']['n_epochs'])):
+                                for _ in range(int(64 * epoch / n_epochs)):
                                     _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
                             _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach().requires_grad_())

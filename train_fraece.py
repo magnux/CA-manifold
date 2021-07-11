@@ -36,11 +36,13 @@ channels = config['data']['channels']
 n_labels = config['data']['n_labels']
 n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
+n_epochs = config['training']['n_epochs']
 d_reg_param = config['training']['d_reg_param']
 d_reg_every = config['training']['d_reg_every']
 batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
+batch_mult_steps = config['training']['batch_mult_steps']
 n_workers = config['training']['n_workers']
 pre_train = config['training']['pre_train'] if 'pre_train' in config['training'] else False
 one_dec_pass = config['training']['one_dec_pass'] if 'one_dec_pass' in config['training'] else False
@@ -123,7 +125,7 @@ if config['training']['inception_every'] > 0:
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
 if pre_train:
-    for epoch in range(model_manager.start_epoch, config['training']['n_epochs'] // 8):
+    for epoch in range(model_manager.start_epoch, n_epochs // 8):
         with model_manager.on_epoch(epoch):
             running_loss_dec = np.zeros(window_size)
 
@@ -167,21 +169,21 @@ if pre_train:
                 it += 1
 
     print('Pre-training is complete...')
-    model_manager.start_epoch = max(model_manager.start_epoch, config['training']['n_epochs'] // 8)
+    model_manager.start_epoch = max(model_manager.start_epoch, n_epochs // 8)
 
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', d_reg_every if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
 d_reg_param_mean = model_manager.log_manager.get_last('regs', 'd_reg_param_mean', 1 / d_reg_param)
 
-for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
+for epoch in range(model_manager.start_epoch, n_epochs):
     with model_manager.on_epoch(epoch):
         running_loss_dec = np.zeros(window_size)
 
-        batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
+        batch_mult = (int((epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
         # Discriminator reg target
-        reg_dis_target = config['training']['lr']  # 1. * (1. - 0.999 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        reg_dis_target = config['training']['lr']  # 1. * (1. - 0.999 ** (n_epochs / (epoch + 1e-8)))
         # Discriminator mean sign target
-        sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (config['training']['n_epochs'] / (epoch + 1e-8)))
+        sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (n_epochs / (epoch + 1e-8)))
 
         it = epoch * (len(trainloader) // batch_split)
 

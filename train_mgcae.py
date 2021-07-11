@@ -29,9 +29,11 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
+n_epochs = config['training']['n_epochs']
 batch_size = config['training']['batch_size']
 batch_split = config['training']['batch_split']
 batch_split_size = batch_size // batch_split
+batch_mult_steps = config['training']['batch_mult_steps']
 n_workers = config['training']['n_workers']
 n_goals = config['network']['kwargs']['n_goals'] if 'n_goals' in config['network']['kwargs'] else 2
 config['network']['kwargs']['n_goals'] = n_goals
@@ -90,12 +92,12 @@ for g in range(n_goals):
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
-for epoch in range(model_manager.start_epoch, config['training']['n_epochs']):
+for epoch in range(model_manager.start_epoch, n_epochs):
     with model_manager.on_epoch(epoch):
 
         running_loss = np.zeros(window_size)
 
-        batch_mult = (int((epoch / config['training']['n_epochs']) * config['training']['batch_mult_steps']) + 1) * batch_split
+        batch_mult = (int((epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
 
         it = (epoch * (len(trainloader) // batch_split))
 
