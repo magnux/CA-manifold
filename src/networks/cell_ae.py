@@ -50,8 +50,6 @@ class InjectedEncoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * 3 if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
-        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(self.n_calls)])
-
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
@@ -88,7 +86,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            lat_new = torch.cat([self.frac_lat_exp[c](inj_lat), out_new.mean((2, 3))], 1) if self.env_feedback else self.frac_lat_exp[c](inj_lat)
+            lat_new = torch.cat([inj_lat, out_new.mean((2, 3))], 1) if self.env_feedback else inj_lat
             out_new = self.frac_dyna_conv(out_new, lat_new)
             out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
@@ -177,6 +175,8 @@ class Decoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size + (self.n_filter * 3 if self.env_feedback else 0), self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
+        self.frac_lat_exp = nn.ModuleList([nn.Linear(self.lat_size, self.lat_size) for _ in range(n_calls * 2)])
+
         self.frac_noise = NoiseInjection(n_filter)
 
         if self.skip_fire:
@@ -236,7 +236,8 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            lat_new = torch.cat([lat, out_new.mean((2, 3))], 1) if self.env_feedback else lat
+            lat_new = self.frac_lat_exp[np.random.randint(self.n_calls * 2)](lat)
+            lat_new = torch.cat([lat_new, out_new.mean((2, 3))], 1) if self.env_feedback else lat_new
             out_new = self.frac_dyna_conv(out_new, lat_new)
             out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
