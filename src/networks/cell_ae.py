@@ -48,7 +48,7 @@ class InjectedEncoder(nn.Module):
                                                   [2 ** (i - 1) for i in range(2, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
         self.frac_gauss = GaussGrads(self.n_filter, 3, 1, rep_in=True)
         self.frac_factor = self.frac_sobel.c_factor + self.frac_gauss.c_factor
-        self.frac_groups = (self.frac_sobel.c_factor // 3) + (self.frac_gauss.c_factor // 5)
+        self.frac_groups = (self.frac_sobel.c_factor + self.frac_gauss.c_factor) // 3
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
@@ -181,7 +181,7 @@ class Decoder(nn.Module):
                                                   [2 ** (i - 1) for i in range(2, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
         self.frac_gauss = GaussGrads(self.n_filter, 3, 1, rep_in=True)
         self.frac_factor = self.frac_sobel.c_factor + self.frac_gauss.c_factor
-        self.frac_groups = (self.frac_sobel.c_factor // 3) + (self.frac_gauss.c_factor // 5)
+        self.frac_groups = (self.frac_sobel.c_factor + self.frac_gauss.c_factor) // 3
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
