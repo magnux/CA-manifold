@@ -4,7 +4,7 @@ import math
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, fin, fout, fhidden=None, kernel_size=3, stride=1, padding=1, groups=1, conv_fn=nn.Conv2d, bias=True, act_layer=nn.ReLU):
+    def __init__(self, fin, fout, fhidden=None, kernel_size=3, stride=1, padding=1, groups=1, conv_fn=nn.Conv2d, bias=True):
         super(ResidualBlock, self).__init__()
 
         self.fin = fin
@@ -13,9 +13,9 @@ class ResidualBlock(nn.Module):
 
         self.block = nn.Sequential(
             conv_fn(self.fin, self.fhidden, kernel_size, stride=1, padding=padding, groups=groups, bias=bias),
-            act_layer(True),
+            nn.ReLU(True),
             conv_fn(self.fhidden, self.fhidden, kernel_size, stride=1, padding=padding, groups=groups, bias=bias),
-            act_layer(True),
+            nn.ReLU(True),
             conv_fn(self.fhidden, self.fout, kernel_size, stride=stride, padding=padding, groups=groups, bias=bias)
         )
         self.shortcut = conv_fn(self.fin, self.fout, kernel_size, stride=stride, padding=padding, groups=groups, bias=bias)

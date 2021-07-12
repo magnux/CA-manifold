@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaLinearResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, bias=True, act_func=F.relu):
+    def __init__(self, lat_size, fin, fout, fhidden=None, bias=True):
         super(DynaLinearResidualBlock, self).__init__()
 
         self.lat_size = lat_size
@@ -13,7 +13,6 @@ class DynaLinearResidualBlock(nn.Module):
         self.fout = fout
         self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden
         self.bias = bias
-        self.act_func = act_func
 
         self.w_in_size = self.fhidden * self.fin
         self.w_mid_size = self.fhidden * self.fhidden
@@ -59,9 +58,9 @@ class DynaLinearResidualBlock(nn.Module):
         x_new = x.view(batch_size, 1, self.fin)
         x_new_s = torch.bmm(x_new, self.w_short) + self.b_short
         x_new = torch.bmm(x_new, self.w_in) + self.b_in
-        x_new = self.act_func(x_new, True)
+        x_new = F.relu(x_new, True)
         x_new = torch.bmm(x_new, self.w_mid) + self.b_mid
-        x_new = self.act_func(x_new, True)
+        x_new = F.relu(x_new, True)
         x_new = torch.bmm(x_new, self.w_out) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.squeeze(1)

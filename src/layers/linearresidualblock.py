@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class LinearResidualBlock(nn.Module):
-    def __init__(self, fin, fout, fhidden=None, bias=True, act_layer=nn.ReLU):
+    def __init__(self, fin, fout, fhidden=None, bias=True):
         super(LinearResidualBlock, self).__init__()
 
         self.fin = fin
@@ -12,9 +12,9 @@ class LinearResidualBlock(nn.Module):
 
         self.block = nn.Sequential(
             nn.Linear(self.fin, self.fhidden, bias=bias),
-            act_layer(True),
+            nn.ReLU(True),
             nn.Linear(self.fhidden, self.fhidden, bias=bias),
-            act_layer(True),
+            nn.ReLU(True),
             nn.Linear(self.fhidden, self.fout, bias=bias)
         )
         self.shortcut = nn.Linear(self.fin, self.fout, bias=bias)
