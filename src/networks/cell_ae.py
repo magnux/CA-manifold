@@ -8,7 +8,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.expscale import ExpScale
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -54,10 +53,8 @@ class InjectedEncoder(nn.Module):
         self.frac_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            ExpScale(self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            ExpScale(self.lat_size),
         )
 
         if self.skip_fire:
@@ -189,10 +186,8 @@ class Decoder(nn.Module):
         self.frac_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            ExpScale(self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
-            ExpScale(self.lat_size),
         )
 
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
