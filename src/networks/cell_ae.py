@@ -93,7 +93,7 @@ class InjectedEncoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            out_new = torch.cat([self.frac_sobel(out_new), self.frac_gauss], dim=1)
+            out_new = torch.cat([self.frac_sobel(out_new), self.frac_gauss(out_new)], dim=1)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, inj_lat)
@@ -249,7 +249,7 @@ class Decoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            out_new = torch.cat([self.frac_sobel(out_new), self.frac_gauss], dim=1)
+            out_new = torch.cat([self.frac_sobel(out_new), self.frac_gauss(out_new)], dim=1)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
