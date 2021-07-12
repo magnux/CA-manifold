@@ -61,7 +61,7 @@ class GaussGrads(nn.Module):
             raise RuntimeError(
                 'Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim)
             )
-        self.c_factor = len(kernel_sizes) * (dim * 3) if self.rep_in else (len(kernel_sizes) * dim * 2) + 1
+        self.c_factor = len(kernel_sizes) * (dim + 1) * 2 if self.rep_in else (len(kernel_sizes) * dim * 2) + 1
 
     def forward(self, x):
         if self.rep_in:
