@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, groups=1, lat_factor=1, norm_weights=False):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, groups=1, lat_factor=1, norm_weights=False, act_func=F.relu):
         super(DynaResidualBlock, self).__init__()
 
         self.lat_size = lat_size if lat_size > 3 else 512
@@ -13,6 +13,7 @@ class DynaResidualBlock(nn.Module):
         self.fout = fout
         self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden
         self.dim = dim
+        self.act_func = act_func
 
         if dim == 1:
             self.f_conv = F.conv1d
@@ -88,9 +89,9 @@ class DynaResidualBlock(nn.Module):
         x_new = x.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
         x_new_s = self.f_conv(x_new, self.k_short, stride=self.stride, padding=self.padding, groups=batch_size * self.groups) + self.b_short
         x_new = self.f_conv(x_new, self.k_in, stride=1, padding=self.padding, groups=batch_size * self.groups) + self.b_in
-        x_new = F.relu(x_new, True)
+        x_new = self.act_func(x_new, True)
         x_new = self.f_conv(x_new, self.k_mid, stride=1, padding=self.padding, groups=batch_size * self.groups) + self.b_mid
-        x_new = F.relu(x_new, True)
+        x_new = self.act_func(x_new, True)
         x_new = self.f_conv(x_new, self.k_out, stride=self.stride, padding=self.padding, groups=batch_size * self.groups) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.reshape([batch_size, self.fout] + [x.size(d + 2) for d in range(self.dim)])
