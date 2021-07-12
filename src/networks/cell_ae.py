@@ -50,7 +50,10 @@ class InjectedEncoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
-        self.frac_lat = LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size)
+        self.frac_lat = nn.Sequential(
+            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+        )
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -80,6 +83,8 @@ class InjectedEncoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for c in range(self.n_calls):
+            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            inj_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -101,9 +106,6 @@ class InjectedEncoder(nn.Module):
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=x.device).to(float_type))
             out = out + (leak_factor * out_new)
-            if c < self.n_calls - 1:
-                lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
-                inj_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
@@ -179,7 +181,10 @@ class Decoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
-        self.frac_lat = LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size)
+        self.frac_lat = nn.Sequential(
+            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
+        )
 
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
 
@@ -232,6 +237,8 @@ class Decoder(nn.Module):
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for c in range(self.n_calls):
+            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
+            lat = lat + 0.1 * self.frac_lat(lat_new)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -254,9 +261,6 @@ class Decoder(nn.Module):
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
             out_new = self.frac_noise[c](out_new)
             out = out + (leak_factor * out_new)
-            if c < self.n_calls - 1:
-                lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-                lat = lat + 0.1 * self.frac_lat(lat_new)
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
