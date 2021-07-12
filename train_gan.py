@@ -45,7 +45,6 @@ batch_mult_steps = config['training']['batch_mult_steps']
 n_workers = config['training']['n_workers']
 z_dim = config['z_dist']['z_dim']
 lat_size = lat_size = config['network']['kwargs']['lat_size']
-reset_seed_every = config['training']['reset_seed_every'] if 'reset_seed_every' in config['training'] else n_epochs // 8
 
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
@@ -134,10 +133,6 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
         running_loss_dis = np.zeros(window_size)
         running_loss_gen = np.zeros(window_size)
-
-        if (epoch % reset_seed_every) == 0:
-            dis_encoder.reset_seed()
-            decoder.reset_seed()
 
         batch_mult = (int((epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
         # Discriminator reg target
