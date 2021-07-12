@@ -51,10 +51,10 @@ class InjectedEncoder(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
         self.frac_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size, act_layer=nn.Hardswish),
+            LinearResidualBlock(self.lat_size, self.lat_size, act_layer=nn.Hardswish),
+            LinearResidualBlock(self.lat_size, self.lat_size, act_layer=nn.Hardswish),
+            LinearResidualBlock(self.lat_size, self.lat_size, act_layer=nn.Hardswish),
         )
 
         if self.skip_fire:
@@ -184,10 +184,10 @@ class Decoder(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
         self.frac_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size, act_layer=nn.Hardswish),
+            LinearResidualBlock(self.lat_size, self.lat_size, act_layer=nn.Hardswish),
+            LinearResidualBlock(self.lat_size, self.lat_size, act_layer=nn.Hardswish),
+            LinearResidualBlock(self.lat_size, self.lat_size, act_layer=nn.Hardswish),
         )
 
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
