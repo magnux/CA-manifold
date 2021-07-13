@@ -20,7 +20,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, gauss_grads=False, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, gauss_grads=False, n_seed=1, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -39,6 +39,7 @@ class InjectedEncoder(nn.Module):
         self.multi_cut = multi_cut
         self.auto_reg = auto_reg
         self.ce_in = ce_in
+        self.n_seed = n_seed
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
@@ -69,11 +70,10 @@ class InjectedEncoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False, recompute_scale_factor=True))
         )
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.ModuleList([nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim) for _ in range(self.n_seed)])
 
-    def forward(self, x, inj_lat=None):
+    def forward(self, x, inj_lat=None, seed_n=0):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
         batch_size = x.size(0)
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
@@ -120,7 +120,6 @@ class InjectedEncoder(nn.Module):
                 out = self.frac_ds(out)
             out_embs.append(out)
 
-        out = out + torch.cat([self.seed.to(float_type)] * batch_size, 0)
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
@@ -130,7 +129,7 @@ class InjectedEncoder(nn.Module):
                                     conv_state_hw.view(batch_size, -1)], dim=1)
         else:
             conv_state = out.mean(dim=(2, 3))
-        lat = self.out_to_lat(conv_state)
+        lat = self.out_to_lat[seed_n](conv_state)
 
         return lat, out_embs, None
 
@@ -140,9 +139,9 @@ class LabsInjectedEncoder(InjectedEncoder):
         super().__init__(**kwargs)
         self.labs_encoder = LabsEncoder(**kwargs)
 
-    def forward(self, x, labels):
+    def forward(self, x, labels, seed_n=0):
         inj_lat = self.labs_encoder(labels)
-        return super().forward(x, inj_lat)
+        return super().forward(x, inj_lat, seed_n)
 
 
 class ZInjectedEncoder(LabsInjectedEncoder):
@@ -171,7 +170,7 @@ class Decoder(nn.Module):
         self.env_feedback = env_feedback
         self.auto_reg = auto_reg
         self.ce_out = ce_out
-        self.n_seed = n_seed
+        self.n_seed = n_seed + 1
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
