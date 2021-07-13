@@ -234,8 +234,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                         z_enc.requires_grad_()
                         lat_dis_enc = dis_generator(z_enc, labels)
-                        lat_top_enc, _, _ = dis_encoder(images, lat_dis_enc, it % n_comb)
-                        labs_enc = discriminator(lat_top_enc)
+                        lat_top_enc, _, _ = dis_encoder(images, lat_dis_enc)
+                        labs_enc = discriminator(lat_top_enc, it % n_comb)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -262,8 +262,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                         images_redec.requires_grad_()
                         lat_dis_gen = dis_generator(z_gen, labels)
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_dis_gen, it % n_comb)
-                        labs_dec = discriminator(lat_top_dec)
+                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_dis_gen)
+                        labs_dec = discriminator(lat_top_dec, it % n_comb)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -308,8 +308,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         loss_dec_sum += loss_dec.item()
 
                         lat_dis_enc = dis_generator(z_enc, labels)
-                        lat_top_enc, _, _ = dis_encoder(images, lat_dis_enc, it % n_comb)
-                        labs_enc = discriminator(lat_top_enc)
+                        lat_top_enc, _, _ = dis_encoder(images, lat_dis_enc)
+                        labs_enc = discriminator(lat_top_enc, it % n_comb)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_enc, pl_mean_enc = compute_pl_reg(lat_enc, images, pl_mean_enc)
@@ -334,8 +334,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                                 images_redec, _, _ = decoder(lat_gen.detach().clone(), out_embs[-1].detach().clone())
 
                         lat_dis_gen = dis_generator(z_gen, labels)
-                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_dis_gen, it % n_comb)
-                        labs_dec = discriminator(lat_top_dec)
+                        lat_top_dec, _, _ = dis_encoder(images_redec, lat_dis_gen)
+                        labs_dec = discriminator(lat_top_dec, it % n_comb)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_redec, lat_gen, pl_mean_dec)
