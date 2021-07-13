@@ -6,7 +6,9 @@ import numpy as np
 
 def get_gauss_grads_kernel_nd(channels, kernel_size, dim, n_diff, left_sided=False):
     filter_space = np.linspace(-1., 1., kernel_size)
-    if n_diff == 1:
+    if n_diff == 0:
+        gauss_grads = 1/16 * np.exp(-2 * filter_space ** 2)
+    elif n_diff == 1:
         gauss_grads = -1/4 * np.exp(-2 * filter_space ** 2) * filter_space
     elif n_diff == 2:
         gauss_grads = 1/4 * np.exp(-2 * filter_space ** 2) * (-1 + 4 * filter_space ** 2)
@@ -61,15 +63,16 @@ class GaussGrads(nn.Module):
             raise RuntimeError(
                 'Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim)
             )
-        self.c_factor = len(kernel_sizes) * (dim + 1) * 2 if self.rep_in else (len(kernel_sizes) * dim * 2) + 1
+        self.c_factor = len(kernel_sizes) * (dim * 2 + 1) if self.rep_in else (len(kernel_sizes) * dim * 2) + 1
 
     def forward(self, x):
         if self.rep_in:
             s_out = []
             for i, padding in enumerate(self.paddings):
+                s_out.append(x)
                 for d in [1, 2]:
                     weight = getattr(self, 'weight%d%d' % (i, d))
-                    s_out.extend([x, self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)])
+                    s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
             return torch.cat(s_out, dim=1)
         else:
             s_out = [x]
