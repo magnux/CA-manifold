@@ -29,8 +29,8 @@ config_name = splitext(basename(args.config))[0]
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-n_seed = 16
-config['network']['kwargs']['n_seed'] = n_seed
+n_comb = 16
+config['network']['kwargs']['n_comb'] = n_comb
 
 image_size = config['data']['image_size']
 channels = config['data']['channels']
@@ -173,7 +173,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     for _ in range(batch_mult):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
-                        lat_top_enc, _, _ = dis_encoder(images, labels, it % n_seed)
+                        lat_top_enc, _, _ = dis_encoder(images, labels, it % n_comb)
                         labs_enc = discriminator(lat_top_enc)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
@@ -189,10 +189,10 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                         with torch.no_grad():
                             lat_gen = generator(z_gen, labels)
-                            images_dec, _, _ = decoder(lat_gen, seed_n=it % (n_seed + 1))
+                            images_dec, _, _ = decoder(lat_gen)
 
                         images_dec.requires_grad_()
-                        lat_top_dec, _, _ = dis_encoder(images_dec, labels, it % n_seed)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels, it % n_comb)
                         labs_dec = discriminator(lat_top_dec)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
@@ -227,9 +227,9 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_gen = generator(z_gen, labels)
-                        images_dec, _, _ = decoder(lat_gen, seed_n=it % (n_seed + 1))
+                        images_dec, _, _ = decoder(lat_gen)
 
-                        lat_top_dec, _, _ = dis_encoder(images_dec, labels, it % n_seed)
+                        lat_top_dec, _, _ = dis_encoder(images_dec, labels, it % n_comb)
                         labs_dec = discriminator(lat_top_dec)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
@@ -249,7 +249,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
-                    images_gen, _, _ = decoder(lat_gen, seed_n=it % (n_seed + 1))
+                    images_gen, _, _ = decoder(lat_gen)
 
                 stream_images(images_gen, config_name + '/gan', config['training']['out_dir'] + '/gan')
 
@@ -291,7 +291,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
             t.write('Creating samples...')
             images, labels, _, trainiter = get_inputs(trainiter, batch_size, device)
             lat_gen = generator(z_test, labels_test)
-            images_gen, _, _ = decoder(lat_gen, seed_n=it % (n_seed + 1))
+            images_gen, _, _ = decoder(lat_gen)
             model_manager.log_manager.add_imgs(images, 'all_input', it)
             model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
             for lab in range(config['training']['sample_labels']):
@@ -301,7 +301,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     fixed_lab = labels_test.clone()
                     fixed_lab[:, lab] = 1
                 lat_gen = generator(z_test, fixed_lab)
-                images_gen, _, _ = decoder(lat_gen, seed_n=it % (n_seed + 1))
+                images_gen, _, _ = decoder(lat_gen)
                 model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
 
         # Perform inception

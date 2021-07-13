@@ -20,7 +20,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, shared_params, perception_noise, fire_rate,
-                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, gauss_grads=False, n_seed=1, **kwargs):
+                 causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, gauss_grads=False, n_comb=1, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -39,7 +39,7 @@ class InjectedEncoder(nn.Module):
         self.multi_cut = multi_cut
         self.auto_reg = auto_reg
         self.ce_in = ce_in
-        self.n_seed = n_seed
+        self.n_comb = n_comb
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
@@ -71,9 +71,9 @@ class InjectedEncoder(nn.Module):
         )
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.ModuleList([nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim) for _ in range(self.n_seed)])
+        self.out_to_lat = nn.ModuleList([nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim) for _ in range(self.n_comb)])
 
-    def forward(self, x, inj_lat=None, seed_n=0):
+    def forward(self, x, inj_lat=None, comb_n=0):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
         batch_size = x.size(0)
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
@@ -129,7 +129,7 @@ class InjectedEncoder(nn.Module):
                                     conv_state_hw.view(batch_size, -1)], dim=1)
         else:
             conv_state = out.mean(dim=(2, 3))
-        lat = self.out_to_lat[seed_n](conv_state)
+        lat = self.out_to_lat[comb_n](conv_state)
 
         return lat, out_embs, None
 
@@ -139,9 +139,9 @@ class LabsInjectedEncoder(InjectedEncoder):
         super().__init__(**kwargs)
         self.labs_encoder = LabsEncoder(**kwargs)
 
-    def forward(self, x, labels, seed_n=0):
+    def forward(self, x, labels, comb_n=0):
         inj_lat = self.labs_encoder(labels)
-        return super().forward(x, inj_lat, seed_n)
+        return super().forward(x, inj_lat, comb_n)
 
 
 class ZInjectedEncoder(LabsInjectedEncoder):
@@ -170,7 +170,7 @@ class Decoder(nn.Module):
         self.env_feedback = env_feedback
         self.auto_reg = auto_reg
         self.ce_out = ce_out
-        self.n_seed = n_seed + 1
+        self.n_seed = n_seed
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
