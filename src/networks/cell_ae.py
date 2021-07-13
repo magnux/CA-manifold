@@ -5,7 +5,6 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.denselinearblock import DenseLinearBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
@@ -55,7 +54,7 @@ class InjectedEncoder(nn.Module):
 
         self.frac_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
-            DenseLinearBlock(self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
         )
 
         if self.skip_fire:
@@ -185,7 +184,7 @@ class Decoder(nn.Module):
 
         self.frac_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
-            DenseLinearBlock(self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
         )
 
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
