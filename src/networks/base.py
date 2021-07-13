@@ -117,7 +117,7 @@ class UnconditionalDiscriminator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
         self.n_comb = n_comb
-        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
+        self.lat_to_score = nn.ModuleList([nn.Linear(self.lat_size, 1, bias=False) for _ in range(n_comb)])
 
     def forward(self, lat, comb_n=0):
         score = self.lat_to_score[comb_n](lat)
