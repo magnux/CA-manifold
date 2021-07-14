@@ -8,6 +8,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.gaussgrads import GaussGrads
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.latentcube import LatentCube
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -51,10 +52,7 @@ class InjectedEncoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
-        self.frac_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
+        self.frac_lat = LatentCube(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size, self.n_filter)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -79,9 +77,9 @@ class InjectedEncoder(nn.Module):
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
+        lat_new_out = None
         for c in range(self.n_calls):
-            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
-            inj_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
+            lat_new, lat_new_out = self.frac_lat(torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat, lat_new_out)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -90,7 +88,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_gauss(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, inj_lat)
+            out_new = self.frac_dyna_conv(out_new, lat_new)
             out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -178,10 +176,7 @@ class Decoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
-        self.frac_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
+        self.frac_lat = LatentCube(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size, self.n_filter)
 
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(n_calls)])
 
@@ -229,9 +224,9 @@ class Decoder(nn.Module):
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
+        lat_new_out = None
         for c in range(self.n_calls):
-            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            lat = lat + 0.1 * self.frac_lat(lat_new)
+            lat_new, lat_new_out = self.frac_lat(torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat, lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -240,7 +235,7 @@ class Decoder(nn.Module):
             out_new = self.frac_gauss(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, lat)
+            out_new = self.frac_dyna_conv(out_new, lat_new)
             out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
