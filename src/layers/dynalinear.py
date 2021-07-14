@@ -31,12 +31,13 @@ class DynaLinear(nn.Module):
             w = self.dyna_w(lat)
             if self.bias:
                 w, b = torch.split(w, [self.w_size, self.b_size], dim=1)
-                self.b = b
+                self.b = b.view(batch_size, 1, self.fout)
             self.w = w.view(batch_size, self.fin, self.fout)
 
             self.prev_lat = lat
 
-        x_new = x.view(batch_size, 1, self.fin)
-        x_new = torch.bmm(x_new, self.w).squeeze(1) + self.b
+        x_new = x.view(batch_size, -1, self.fin)
+        x_new = torch.bmm(x_new, self.w) + self.b
+        x_new = x_new.view(x.shape)
 
         return x_new
