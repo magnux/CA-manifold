@@ -8,7 +8,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.gaussgrads import GaussGrads
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.dynalinear import DynaLinear
+from src.layers.dynalinearresidualblock import DynaLinearResidualBlock
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -170,7 +170,7 @@ class Decoder(nn.Module):
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, self.n_filter * 4)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size, 1))
-        self.seed_selector = DynaLinear(self.lat_size, self.n_filter * 4, 1)
+        self.seed_selector = DynaLinearResidualBlock(self.lat_size, self.n_filter * 4, 1)
 
         self.frac_gauss = GaussGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                     [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)

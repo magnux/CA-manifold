@@ -55,7 +55,7 @@ class DynaLinearResidualBlock(nn.Module):
 
             self.prev_lat = lat
 
-        x_new = x.view(batch_size, 1, self.fin)
+        x_new = x.view(batch_size, -1, self.fin)
         x_new_s = torch.bmm(x_new, self.w_short) + self.b_short
         x_new = torch.bmm(x_new, self.w_in) + self.b_in
         x_new = F.relu(x_new, True)
@@ -63,6 +63,6 @@ class DynaLinearResidualBlock(nn.Module):
         x_new = F.relu(x_new, True)
         x_new = torch.bmm(x_new, self.w_out) + self.b_out
         x_new = x_new + x_new_s
-        x_new = x_new.squeeze(1)
+        x_new = x_new.view(x.shape[:-1] + (self.fout,))
 
         return x_new
