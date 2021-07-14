@@ -226,7 +226,7 @@ class Decoder(nn.Module):
         auto_reg_grads = []
         lat_new_out = None
         for c in range(self.n_calls):
-            lat_new, lat_new_out = self.frac_lat(torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat, lat)
+            lat_new, lat_new_out = self.frac_lat(torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat, lat_new_out)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
