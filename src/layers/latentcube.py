@@ -30,7 +30,7 @@ class LatentCube(nn.Module):
         if out is None:
             out = torch.cat([self.seed.to(float_type)] * batch_size, 0)
 
-        out_new = self.frac_sobel(out)
+        out_new = self.frac_gauss(out)
         out_new = self.frac_norm(out_new)
         out_new = self.frac_dyna_conv(out_new, lat)
         out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.cube_size, self.cube_size, self.cube_size).sum(dim=2)
