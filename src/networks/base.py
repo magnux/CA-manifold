@@ -113,14 +113,13 @@ class LabsEncoder(nn.Module):
 
 
 class UnconditionalDiscriminator(nn.Module):
-    def __init__(self, lat_size, n_comb=1, **kwargs):
+    def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.n_comb = n_comb
-        self.lat_to_score = nn.ModuleList([nn.Linear(self.lat_size, 1, bias=False) for _ in range(n_comb)])
+        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
 
-    def forward(self, lat, comb_n=0):
-        score = self.lat_to_score[comb_n](lat)
+    def forward(self, lat):
+        score = self.lat_to_score(lat)
 
         return score
 

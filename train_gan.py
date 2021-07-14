@@ -29,9 +29,6 @@ config_name = splitext(basename(args.config))[0]
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-n_comb = 16
-config['network']['kwargs']['n_comb'] = n_comb
-
 image_size = config['data']['image_size']
 channels = config['data']['channels']
 n_labels = config['data']['n_labels']
@@ -174,7 +171,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_top_enc, _, _ = dis_encoder(images, labels)
-                        labs_enc = discriminator(lat_top_enc, it % n_comb)
+                        labs_enc = discriminator(lat_top_enc)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -193,7 +190,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                        labs_dec = discriminator(lat_top_dec, it % n_comb)
+                        labs_dec = discriminator(lat_top_dec)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -230,7 +227,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         images_dec, _, _ = decoder(lat_gen)
 
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                        labs_dec = discriminator(lat_top_dec, it % n_comb)
+                        labs_dec = discriminator(lat_top_dec)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
