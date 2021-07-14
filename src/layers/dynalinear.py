@@ -38,6 +38,6 @@ class DynaLinear(nn.Module):
 
         x_new = x.view(batch_size, -1, self.fin)
         x_new = torch.bmm(x_new, self.w) + self.b
-        x_new = x_new.view(x.shape[:-1] + [self.fout])
+        x_new = x_new.view(x.shape[:-1] + (self.fout,))
 
         return x_new
