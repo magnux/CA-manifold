@@ -6,8 +6,9 @@ import numpy as np
 
 def get_gauss_grads_kernel_nd(channels, kernel_size, dim, n_diff, left_sided=False):
     filter_space = np.linspace(-1., 1., kernel_size)
+    gauss_grads_0 = 1/16 * np.exp(-2 * filter_space ** 2)
     if n_diff == 0:
-        gauss_grads = 1/16 * np.exp(-2 * filter_space ** 2)
+        gauss_grads = np.copy(gauss_grads_0)
     elif n_diff == 1:
         gauss_grads = -1/4 * np.exp(-2 * filter_space ** 2) * filter_space
     elif n_diff == 2:
@@ -20,7 +21,9 @@ def get_gauss_grads_kernel_nd(channels, kernel_size, dim, n_diff, left_sided=Fal
         gauss_grads[int(kernel_size / 2):] = 0
     gauss_grads = torch.tensor(gauss_grads, dtype=torch.float32).view(*([1, 1, kernel_size] + [1 for _ in range(dim - 1)]))
     if dim > 1:
-        gauss_grads = gauss_grads.repeat(*([1, 1, 1] + [kernel_size for _ in range(dim - 1)]))
+        gauss_grads_0 = torch.tensor(gauss_grads_0, dtype=torch.float32).view(*([1, 1, 1, kernel_size] + [1 for _ in range(dim - 2)]))
+        gauss_grads_0 = gauss_grads_0.repeat(*([1, 1, 1, 1] + [kernel_size for _ in range(dim - 2)]))
+        gauss_grads = gauss_grads * gauss_grads_0
         gauss_grads_l = [gauss_grads]
         for i in range(3, dim + 2):
             gauss_grads_l.append(gauss_grads.transpose(2, i))
@@ -127,9 +130,10 @@ if __name__ == '__main__':
     paddings = np.repeat(paddings, 2)
     # paddings = [1]
     # print(kernels[0].shape)
-    for i in range(kernels[0].shape[0]):
-        plt.imshow(kernels[0][i, 0, ...].t())
-        plt.show()
+    for kernel in kernels:
+        for i in range(kernel.shape[0]):
+            plt.imshow(kernel[i, 0, ...].t())
+            plt.show()
     print(kernel_sizes, paddings)
 
     for _ in range(n_calls):
