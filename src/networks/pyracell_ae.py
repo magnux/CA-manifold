@@ -173,13 +173,14 @@ class Decoder(nn.Module):
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
-        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).reshape(n_seed, self.n_filter, 1, 1))
+        self.in_proj = nn.Parameter(torch.randn(self.n_seed, self.n_filter, 1, 1))
         self.in_ds = nn.Sequential(
             GaussianSmoothing(self.n_filter, 3, 1, 1),
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, 16, 16))
+        self.seed = nn.Parameter(torch.randn(self.n_seed, self.n_filter * 4, 1, 1) + 0.1 * torch.randn(self.n_seed, self.n_filter * 4, 16, 16))
+        self.seed_selector = DynaResidualBlock(self.lat_size, self.n_filter * 4, self.n_filter, self.n_filter)
 
         if gauss_grads:
             self.frac_sobel = GaussGrads(self.n_filter, 3, 1)
@@ -232,6 +233,7 @@ class Decoder(nn.Module):
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
             out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            out = self.seed_selector(out, lat)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
