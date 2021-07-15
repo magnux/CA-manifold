@@ -42,4 +42,4 @@ class ChannelDither(nn.Module):
 
     def forward(self, x):
         x_dither = self.conv(F.relu(-x), weight=self.weight, stride=1, padding=1, groups=self.groups)
-        return x + x_dither
+        return x - x_dither
