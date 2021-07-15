@@ -33,7 +33,7 @@ def compute_gan_loss(d_out, target, gan_type='dyna_gan'):
         loss = F.softplus((1 - 2*target) * d_out).mean()
     elif gan_type == 'dyna_gan':
         target = d_out.new_full(size=d_out.size(), fill_value=(target - 0.5))
-        loss = ((target - d_out).abs() + 1).log().mean()
+        loss = F.mse_loss(d_out, target)
     else:
         raise NotImplementedError
 
@@ -157,8 +157,8 @@ def update_ada_augment_p(current_p, logits_sign_mean, batch_size, ada_target=0.2
 
 
 def update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target):
-    g_factor_enc = np.clip(g_factor_enc - 1e-2 * (labs_dis_enc_sign - sign_mean_target), 0.1, 1.)
-    g_factor_dec = np.clip(g_factor_dec - 1e-2 * (labs_dis_dec_sign - sign_mean_target), 0.1, 1.)
+    g_factor_enc = np.clip(g_factor_enc - 1e-3 * ((labs_dis_enc_sign - sign_mean_target).abs() + 1).log(), 0.1, 1.)
+    g_factor_dec = np.clip(g_factor_dec - 1e-3 * ((labs_dis_dec_sign - sign_mean_target).abs() + 1).log(), 0.1, 1.)
     return g_factor_enc, g_factor_dec
 
 
