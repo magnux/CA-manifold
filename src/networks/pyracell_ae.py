@@ -179,7 +179,7 @@ class Decoder(nn.Module):
             LambdaLayer(lambda x: F.interpolate(x, size=16, mode='bilinear', align_corners=False)),
         )
 
-        self.seed = nn.Parameter(torch.randn(self.n_seed, self.n_filter * 4, 1, 1) + 0.1 * torch.randn(self.n_seed, self.n_filter * 4, 16, 16))
+        self.seed = nn.Parameter(torch.randn(self.n_seed, self.n_filter * 4, 1, 1) + 1e-3 * torch.randn(self.n_seed, self.n_filter * 4, 16, 16))
         self.seed_selector = DynaResidualBlock(self.lat_size, self.n_filter * 4, self.n_filter, self.n_filter)
 
         if gauss_grads:

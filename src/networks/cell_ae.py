@@ -168,7 +168,7 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.randn(self.n_seed, self.n_filter, 1, 1))
 
-        self.seed = nn.Parameter(torch.randn(self.n_seed, self.n_filter * 4, 1, 1) + 0.1 * torch.randn(self.n_seed, self.n_filter * 4, self.image_size, self.image_size))
+        self.seed = nn.Parameter(torch.randn(self.n_seed, self.n_filter * 4, 1, 1) + 1e-3 * torch.randn(self.n_seed, self.n_filter * 4, self.image_size, self.image_size))
         self.seed_selector = DynaResidualBlock(self.lat_size, self.n_filter * 4, self.n_filter, self.n_filter)
 
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
