@@ -223,7 +223,7 @@ class Decoder(nn.Module):
                 conv_state_f = conv_state_f.reshape(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size)
                 conv_state_fh = conv_state_fh.reshape(batch_size, self.n_filter, self.image_size, 1).repeat(1, 1, 1, self.image_size)
                 conv_state_fw = conv_state_fw.reshape(batch_size, self.n_filter, 1, self.image_size).repeat(1, 1, self.image_size, 1)
-                conv_state_hw = conv_state_hw.reshape(batch_size, 1, self.image_size, self.image_size).repeat(1, self.n_filter, 1, 1)
+                conv_state_hw = conv_state_hw.reshape(batch_size, 1, self.image_size, self.image_size)
                 out = torch.cat([conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw], dim=1)
             else:
                 out = out.reshape(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size)
