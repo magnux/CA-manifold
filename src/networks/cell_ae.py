@@ -168,8 +168,7 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter * 4)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.seed_selector = DynaResidualBlock(self.lat_size, self.n_filter * 4, self.n_filter, self.n_filter)
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
@@ -213,7 +212,6 @@ class Decoder(nn.Module):
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
             out = torch.cat([seed.to(float_type)] * batch_size, 0)
-            out = self.seed_selector(out, lat)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
