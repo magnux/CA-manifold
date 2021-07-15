@@ -164,7 +164,7 @@ class Decoder(nn.Module):
         self.ce_out = ce_out
         self.n_seed = n_seed
         self.multi_cut = multi_cut
-        self.merge_sizes = [self.nf, self.nf, self.nf, 1]
+        self.merge_sizes = [self.n_filter, self.n_filter, self.n_filter, 1]
         self.conv_state_size = [self.n_filter, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2] if self.multi_cut else [self.n_filter]
 
         self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
