@@ -5,21 +5,19 @@ import numpy as np
 
 
 def get_dither_kernel_1d(channels):
-    dither_x = torch.tensor([1/8, 0, 1/8], dtype=torch.float32).view(1, 1, 3)
+    dither_kernel = torch.tensor([1/8, 0, 1/8], dtype=torch.float32).view(1, 1, 3)
 
-    dither_kernel = dither_x.repeat(channels, 1, 1)
+    dither_kernel = dither_kernel.repeat(channels, 1, 1)
 
     return dither_kernel
 
 
 def get_dither_kernel_2d(channels):
-    dither_x = torch.tensor([[1/16, 1/16, 1/16],
-                             [1/16, 0.,   1/16],
-                             [1/16, 1/16, 1/16]], dtype=torch.float32).view(1, 1, 3, 3)
+    dither_kernel = torch.tensor([[1/16, 1/16, 1/16],
+                                  [1/16, 0.,   1/16],
+                                  [1/16, 1/16, 1/16]], dtype=torch.float32).view(1, 1, 3, 3)
 
-    dither_y = dither_x.permute(0, 1, 3, 2)
-
-    dither_kernel = torch.cat([dither_x, dither_y], dim=0).repeat(channels, 1, 1, 1)
+    dither_kernel = dither_kernel.repeat(channels, 1, 1, 1)
 
     return dither_kernel
 
