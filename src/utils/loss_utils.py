@@ -96,6 +96,8 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
     delta_reg = reg_loss_target - reg_loss
     reg_scale = 2 * reg_param / (reg_loss_target + reg_loss)
     reg_update = lr * reg_scale * delta_reg
+    if reg_update > 0:
+        reg_update *= 0.1
     if maximize:
         reg_param += reg_update
     else:
@@ -158,9 +160,13 @@ def update_ada_augment_p(current_p, logits_sign_mean, batch_size, ada_target=0.2
 
 def update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target):
     dis_enc_diff = labs_dis_enc_sign - sign_mean_target
-    g_factor_enc = np.clip(g_factor_enc - 1e-3 * np.sign(dis_enc_diff) * np.log(np.abs(dis_enc_diff) + 1), 0.1, 1.)
+    if dis_enc_diff > 0:
+        dis_enc_diff *= 0.1
+    g_factor_enc = np.clip(g_factor_enc - 1e-2 * dis_enc_diff, 0.1, 1.)
     dis_dec_diff = labs_dis_dec_sign - sign_mean_target
-    g_factor_dec = np.clip(g_factor_dec - 1e-3 * np.sign(dis_dec_diff) * np.log(np.abs(dis_dec_diff) + 1), 0.1, 1.)
+    if dis_dec_diff > 0:
+        dis_dec_diff *= 0.1
+    g_factor_dec = np.clip(g_factor_dec - 1e-2 * dis_dec_diff, 0.1, 1.)
     return g_factor_enc, g_factor_dec
 
 
