@@ -157,8 +157,10 @@ def update_ada_augment_p(current_p, logits_sign_mean, batch_size, ada_target=0.2
 
 
 def update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target):
-    g_factor_enc = np.clip(g_factor_enc - 1e-3 * np.log(np.abs(labs_dis_enc_sign - sign_mean_target) + 1), 0.1, 1.)
-    g_factor_dec = np.clip(g_factor_dec - 1e-3 * np.log(np.abs(labs_dis_dec_sign - sign_mean_target) + 1), 0.1, 1.)
+    dis_enc_diff = labs_dis_enc_sign - sign_mean_target
+    g_factor_enc = np.clip(g_factor_enc - 1e-3 * np.sign(dis_enc_diff) * np.log(np.abs(dis_enc_diff) + 1), 0.1, 1.)
+    dis_dec_diff = labs_dis_dec_sign - sign_mean_target
+    g_factor_dec = np.clip(g_factor_dec - 1e-3 * np.sign(dis_dec_diff) * np.log(np.abs(dis_dec_diff) + 1), 0.1, 1.)
     return g_factor_enc, g_factor_dec
 
 
