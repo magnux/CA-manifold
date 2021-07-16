@@ -138,47 +138,47 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         if persistence:
                             n_calls_save = model_manager.get_n_calls('decoder')
 
-                            pers_steps = n_calls_save // 4
-                            model_manager.set_n_calls('decoder', pers_steps)
+                            # pers_steps = n_calls_save // 4
+                            # model_manager.set_n_calls('decoder', pers_steps)
 
                             _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
-                            pers_out_embs_s = torch.stack(pers_out_embs, dim=-1)
 
                             # Slow down aging: minimize the differences, to slow down the motion energy as much as possible
-                            pers_out_diff = pers_out_embs_s[..., 1:] - pers_out_embs_s[..., :-1]
-                            loss_pers = (1 / batch_mult) * 10 * (pers_out_diff.abs() + 1).log().mean()
+                            # pers_out_embs_s = torch.stack(pers_out_embs, dim=-1)
+                            # pers_out_diff = pers_out_embs_s[..., 1:] - pers_out_embs_s[..., :-1]
+                            # loss_pers = (1 / batch_mult) * (pers_out_diff.abs() + 1).log().mean()
 
                             # Repair aging drift: reverse the differences that occurred after many execs
-                            with torch.no_grad():
-                                for _ in range(int(n_calls_save * epoch / n_epochs)):
-                                    _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
+                            # with torch.no_grad():
+                            #     for _ in range(int(n_calls_save * epoch / n_epochs)):
+                            #         _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
+                            # _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach().requires_grad_())
 
-                            _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach().requires_grad_())
-                            pers_target_out_embs = [out_embs[-1] for _ in range(pers_steps)]
-                            loss_pers += (1 / batch_mult) * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
+                            pers_target_out_embs = [out_embs[-1] for _ in range(n_calls_save)]
+                            loss_pers = (1 / batch_mult) * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
 
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                             loss_pers_sum += loss_pers.item()
 
-                            model_manager.set_n_calls('decoder', n_calls_save)
+                            # model_manager.set_n_calls('decoder', n_calls_save)
 
                         if regeneration:
                             n_calls_save = model_manager.get_n_calls('decoder')
 
-                            regen_steps = n_calls_save // 4
-                            model_manager.set_n_calls('decoder', regen_steps)
+                            # regen_steps = n_calls_save // 4
+                            # model_manager.set_n_calls('decoder', regen_steps)
 
                             corrupt_init, _ = rand_circle_masks(out_embs[-1], batch_split_size)
                             _, regen_out_embs, _ = decoder(lat_dec, corrupt_init)
 
-                            regen_target_out_embs = [out_embs[-1] for _ in range(regen_steps)]
+                            regen_target_out_embs = [out_embs[-1] for _ in range(n_calls_save)]
 
                             # Make all damaged and undamaged bits tend towards the true final state
                             loss_regen = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(regen_out_embs[1:]), torch.stack(regen_target_out_embs))
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                             loss_regen_sum += loss_regen.item()
 
-                            model_manager.set_n_calls('decoder', n_calls_save)
+                            # model_manager.set_n_calls('decoder', n_calls_save)
 
                 # Streaming Images
                 with torch.no_grad():
