@@ -52,7 +52,7 @@ class InjectedEncoder(nn.Module):
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups, self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_groups, self.n_filter * (2 if self.gated else 1), self.n_filter)
+        self.frac_conv = ResidualBlock(self.n_filter * self.frac_groups, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
 
         self.frac_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
@@ -180,7 +180,7 @@ class Decoder(nn.Module):
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups, self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_groups, self.n_filter * (2 if self.gated else 1), self.n_filter)
+        self.frac_conv = ResidualBlock(self.n_filter * self.frac_groups, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
 
         self.frac_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
