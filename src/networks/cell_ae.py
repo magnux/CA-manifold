@@ -94,7 +94,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, inj_lat)
+            out_new = self.frac_dyna_conv[0 if self.shared_params else c](out_new, inj_lat)
             out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
