@@ -138,7 +138,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         if persistence:
                             n_calls_save = model_manager.get_n_calls('decoder')
 
-                            pers_steps = 8
+                            pers_steps = n_calls_save // 4
                             model_manager.set_n_calls('decoder', pers_steps)
 
                             _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
@@ -165,7 +165,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         if regeneration:
                             n_calls_save = model_manager.get_n_calls('decoder')
 
-                            regen_steps = 8
+                            regen_steps = n_calls_save // 4
                             model_manager.set_n_calls('decoder', regen_steps)
 
                             corrupt_init, _ = rand_circle_masks(out_embs[-1], batch_split_size)
