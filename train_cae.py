@@ -154,7 +154,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                                     _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
                             _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach().requires_grad_())
-                            pers_target_out_embs = [out_embs[-1] + 0.1 * torch.randn_like(out_embs[-1]) for _ in range(pers_steps)]
+                            pers_target_out_embs = [out_embs[-1] for _ in range(pers_steps)]
                             loss_pers += (1 / batch_mult) * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
 
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
