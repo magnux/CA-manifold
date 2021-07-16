@@ -150,7 +150,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                             # Repair aging drift: reverse the differences that occurred after many execs
                             with torch.no_grad():
-                                for _ in range(int(64 * epoch / n_epochs)):
+                                for _ in range(int(n_calls_save * epoch / n_epochs)):
                                     _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
 
                             _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach().requires_grad_())
