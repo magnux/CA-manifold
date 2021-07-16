@@ -49,8 +49,7 @@ class InjectedEncoder(nn.Module):
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
         self.frac_factor = self.frac_sobel.c_factor
         self.frac_groups = self.frac_sobel.c_factor // 3
-        if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
+
         self.frac_dyna_conv0 = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups, self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
         self.frac_dyna_conv1 = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_groups, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
 
@@ -92,8 +91,10 @@ class InjectedEncoder(nn.Module):
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
-                out_new = self.frac_norm(out_new)
+                out_new = F.instance_norm(out_new)
             out_new = self.frac_dyna_conv0(out_new, inj_lat)
+            if not self.auto_reg:
+                out_new = F.instance_norm(out_new)
             out_new = self.frac_dyna_conv1(out_new, inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -177,8 +178,7 @@ class Decoder(nn.Module):
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
         self.frac_factor = self.frac_sobel.c_factor
         self.frac_groups = self.frac_sobel.c_factor // 3
-        if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
+
         self.frac_dyna_conv0 = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups, self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
         self.frac_dyna_conv1 = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_groups, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
 
@@ -243,8 +243,10 @@ class Decoder(nn.Module):
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
-                out_new = self.frac_norm(out_new)
+                out_new = F.instance_norm(out_new)
             out_new = self.frac_dyna_conv0(out_new, lat)
+            if not self.auto_reg:
+                out_new = F.instance_norm(out_new)
             out_new = self.frac_dyna_conv1(out_new, lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
