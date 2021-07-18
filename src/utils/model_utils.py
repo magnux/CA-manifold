@@ -67,7 +67,7 @@ def grad_noise_hook(g_factor):
 def grad_mult(network, g_factor):
     for p in network.parameters():
         if p.grad is not None:
-            p.grad.data.copy_(g_factor * p.grad)
+            p.grad.data.copy_(g_factor ** 2 * p.grad)
 
 
 def grad_mult_hook(g_factor):
