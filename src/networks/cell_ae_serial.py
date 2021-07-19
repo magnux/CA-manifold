@@ -40,7 +40,6 @@ class InjectedEncoder(nn.Module):
         self.auto_reg = auto_reg
         self.ce_in = ce_in
 
-        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2] if self.multi_cut else [self.n_filter]
 
@@ -87,7 +86,6 @@ class InjectedEncoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=x.device))
 
         out_embs = [out]
-        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for l in range(self.n_layers):
             for c in range(self.n_calls):
@@ -113,7 +111,7 @@ class InjectedEncoder(nn.Module):
                         out_new = out_new * self.skip_fire_mask.to(device=x.device).to(float_type)
                     else:
                         out_new = out_new * (1 - self.skip_fire_mask.to(device=x.device).to(float_type))
-                out = out + (leak_factor * out_new)
+                out = out_new
                 if self.causal:
                     out = out[:, :, 1:, 1:]
                 if self.auto_reg and out.requires_grad:
@@ -175,8 +173,6 @@ class Decoder(nn.Module):
         self.auto_reg = auto_reg
         self.ce_out = ce_out
         self.n_seed = n_seed
-
-        self.leak_factor = nn.Parameter(torch.ones([]) * 0.1)
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
@@ -247,7 +243,6 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
 
         out_embs = [out]
-        leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
         for l in range(self.n_layers):
             for c in range(self.n_calls):
@@ -274,7 +269,7 @@ class Decoder(nn.Module):
                     else:
                         out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
                 out_new = self.frac_noise[l](out_new)
-                out = out + (leak_factor * out_new)
+                out = out_new
                 if self.causal:
                     out = out[:, :, 1:, 1:]
                 if self.auto_reg and out.requires_grad:
