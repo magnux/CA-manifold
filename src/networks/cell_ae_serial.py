@@ -27,6 +27,7 @@ class InjectedEncoder(nn.Module):
         self.in_chan = channels
         self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
+        self.n_layers = int(np.ceil(np.log2(image_size)) - 2)
         self.n_calls = n_calls
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
@@ -45,23 +46,31 @@ class InjectedEncoder(nn.Module):
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
-        self.frac_factor = self.frac_sobel.c_factor
-        self.frac_groups = self.frac_sobel.c_factor // 3
-        if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
-
-        self.frac_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
+        frac_sobel = []
+        frac_norm = []
+        frac_dyna_conv = []
+        frac_lat = []
+        for l in range(self.n_layers):
+            print((2 ** (self.n_layers - l + 1)) + 1, 2 ** (self.n_layers - l))
+            frac_sobel.append(SinSobel(self.n_filter * (l + 1), (2 ** (self.n_layers - l + 1)) + 1, 2 ** (self.n_layers - l), left_sided=self.causal, rep_in=True))
+            frac_factor = frac_sobel.c_factor
+            frac_groups = frac_sobel.c_factor // 3
+            if not self.auto_reg:
+                frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
+            frac_dyna_conv.append(
+                DynaResidualBlock(self.lat_size, self.n_filter * (l + 1) * frac_factor, self.n_filter * (l + 2) * frac_groups * (2 if self.gated else 1),
+                                  self.n_filter * (l + 1) * frac_groups, groups=frac_groups, lat_factor=2)
+            )
+            frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
+        self.frac_sobel = nn.ModuleList(frac_sobel)
+        self.frac_norm = nn.ModuleList(frac_norm)
+        self.frac_dyna_conv = nn.ModuleList(frac_dyna_conv)
+        self.frac_lat = nn.ModuleList(frac_lat)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
+        self.out_conv = nn.Conv2d(self.n_filter * self.n_layers, sum(self.split_sizes), 1, 1, 0)
         self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
@@ -81,38 +90,39 @@ class InjectedEncoder(nn.Module):
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
-        for c in range(self.n_calls):
-            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
-            inj_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
-            if self.causal:
-                out = F.pad(out, [0, 1, 0, 1])
-            out_new = out
-            if self.perception_noise and self.training:
-                out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            out_new = self.frac_sobel(out_new)
-            if not self.auto_reg:
-                out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, inj_lat)
-            out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
-            if self.gated:
-                out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
-                out_new = out_new * torch.sigmoid(out_new_gate)
-            if self.fire_rate < 1.0:
-                out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=x.device) <= self.fire_rate).to(float_type)
-            if self.skip_fire:
-                if c % 2 == 0:
-                    out_new = out_new * self.skip_fire_mask.to(device=x.device).to(float_type)
-                else:
-                    out_new = out_new * (1 - self.skip_fire_mask.to(device=x.device).to(float_type))
-            out = out + (leak_factor * out_new)
-            if self.causal:
-                out = out[:, :, 1:, 1:]
-            if self.auto_reg and out.requires_grad:
-                with torch.no_grad():
-                    auto_reg_grad = (2e-3 / out.numel()) * out
-                auto_reg_grads.append(auto_reg_grad)
-                out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
-            out_embs.append(out)
+        for l in range(self.n_layers):
+            for c in range(self.n_calls):
+                lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+                inj_lat = inj_lat + 0.1 * self.frac_lat[l](lat_new)
+                if self.causal:
+                    out = F.pad(out, [0, 1, 0, 1])
+                out_new = out
+                if self.perception_noise and self.training:
+                    out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
+                out_new = self.frac_sobel[l](out_new)
+                if not self.auto_reg:
+                    out_new = self.frac_norm[l](out_new)
+                out_new = self.frac_dyna_conv[l](out_new, inj_lat)
+                out_new = out_new.reshape(batch_size, self.n_filter, self.frac_sobel[l].c_factor // 3, self.image_size, self.image_size).sum(dim=2)
+                if self.gated:
+                    out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
+                    out_new = out_new * torch.sigmoid(out_new_gate)
+                if self.fire_rate < 1.0:
+                    out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=x.device) <= self.fire_rate).to(float_type)
+                if self.skip_fire:
+                    if c % 2 == 0:
+                        out_new = out_new * self.skip_fire_mask.to(device=x.device).to(float_type)
+                    else:
+                        out_new = out_new * (1 - self.skip_fire_mask.to(device=x.device).to(float_type))
+                out = out + (leak_factor * out_new)
+                if self.causal:
+                    out = out[:, :, 1:, 1:]
+                if self.auto_reg and out.requires_grad:
+                    with torch.no_grad():
+                        auto_reg_grad = (2e-3 / out.numel()) * out
+                    auto_reg_grads.append(auto_reg_grad)
+                    out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
+                out_embs.append(out)
 
         out = self.out_conv(out)
         if self.multi_cut:
@@ -153,6 +163,7 @@ class Decoder(nn.Module):
         self.image_size = image_size
         self.n_filter = n_filter
         self.lat_size = lat_size
+        self.n_layers = int(np.ceil(np.log2(image_size)) - 2)
         self.n_calls = n_calls
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
@@ -172,20 +183,29 @@ class Decoder(nn.Module):
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
-        self.frac_factor = self.frac_sobel.c_factor
-        self.frac_groups = self.frac_sobel.c_factor // 3
-        if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
-
-        self.frac_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
-
-        self.frac_noise = NoiseInjection(n_filter)
+        frac_sobel = []
+        frac_norm = []
+        frac_dyna_conv = []
+        frac_lat = []
+        frac_noise = []
+        for l in range(self.n_layers):
+            print((2 ** (self.n_layers - l + 1)) + 1, 2 ** (self.n_layers - l))
+            frac_sobel.append(SinSobel(self.n_filter * (l + 1), (2 ** (self.n_layers - l + 1)) + 1, 2 ** (self.n_layers - l), left_sided=self.causal, rep_in=True))
+            frac_factor = frac_sobel.c_factor
+            frac_groups = frac_sobel.c_factor // 3
+            if not self.auto_reg:
+                frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
+            frac_dyna_conv.append(
+                DynaResidualBlock(self.lat_size, self.n_filter * (l + 1) * frac_factor, self.n_filter * (l + 2) * frac_groups * (2 if self.gated else 1),
+                                  self.n_filter * (l + 1) * frac_groups, groups=frac_groups, lat_factor=2)
+            )
+            frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
+            frac_noise.append(NoiseInjection(self.n_filter * (l + 2)))
+        self.frac_sobel = nn.ModuleList(frac_sobel)
+        self.frac_norm = nn.ModuleList(frac_norm)
+        self.frac_dyna_conv = nn.ModuleList(frac_dyna_conv)
+        self.frac_lat = nn.ModuleList(frac_lat)
+        self.frac_noise = nn.ModuleList(frac_noise)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -199,7 +219,7 @@ class Decoder(nn.Module):
             self.register_buffer('ce_pos', ce_pos)
         else:
             out_f = self.out_chan
-        self.out_conv = nn.Conv2d(self.n_filter, out_f, 1, 1, 0)
+        self.out_conv = nn.Conv2d(self.n_filter * self.n_layers, out_f, 1, 1, 0)
 
     def forward(self, lat, ca_init=None, seed_n=0):
         batch_size = lat.size(0)
@@ -231,39 +251,40 @@ class Decoder(nn.Module):
         out_embs = [out]
         leak_factor = torch.clamp(self.leak_factor, 1e-3, 1e3)
         auto_reg_grads = []
-        for c in range(self.n_calls):
-            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            lat = lat + 0.1 * self.frac_lat(lat_new)
-            if self.causal:
-                out = F.pad(out, [0, 1, 0, 1])
-            out_new = out
-            if self.perception_noise and self.training:
-                out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            out_new = self.frac_sobel(out_new)
-            if not self.auto_reg:
-                out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, lat)
-            out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
-            if self.gated:
-                out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
-                out_new = out_new * torch.sigmoid(out_new_gate)
-            if self.fire_rate < 1.0:
-                out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(float_type)
-            if self.skip_fire:
-                if c % 2 == 0:
-                    out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
-                else:
-                    out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
-            out_new = self.frac_noise(out_new)
-            out = out + (leak_factor * out_new)
-            if self.causal:
-                out = out[:, :, 1:, 1:]
-            if self.auto_reg and out.requires_grad:
-                with torch.no_grad():
-                    auto_reg_grad = (2e-3 / out.numel()) * out
-                auto_reg_grads.append(auto_reg_grad)
-                out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
-            out_embs.append(out)
+        for l in range(self.n_layers):
+            for c in range(self.n_calls):
+                lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
+                lat = lat + 0.1 * self.frac_lat[l](lat_new)
+                if self.causal:
+                    out = F.pad(out, [0, 1, 0, 1])
+                out_new = out
+                if self.perception_noise and self.training:
+                    out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
+                out_new = self.frac_sobel[l](out_new)
+                if not self.auto_reg:
+                    out_new = self.frac_norm[l](out_new)
+                out_new = self.frac_dyna_conv[l](out_new, lat)
+                out_new = out_new.reshape(batch_size, self.n_filter, self.frac_sobel[l].c_factor // 3, self.image_size, self.image_size).sum(dim=2)
+                if self.gated:
+                    out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
+                    out_new = out_new * torch.sigmoid(out_new_gate)
+                if self.fire_rate < 1.0:
+                    out_new = out_new * (torch.rand([batch_size, 1, out.size(2), out.size(3)], device=lat.device) <= self.fire_rate).to(float_type)
+                if self.skip_fire:
+                    if c % 2 == 0:
+                        out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
+                    else:
+                        out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
+                out_new = self.frac_noise[l](out_new)
+                out = out + (leak_factor * out_new)
+                if self.causal:
+                    out = out[:, :, 1:, 1:]
+                if self.auto_reg and out.requires_grad:
+                    with torch.no_grad():
+                        auto_reg_grad = (2e-3 / out.numel()) * out
+                    auto_reg_grads.append(auto_reg_grad)
+                    out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
+                out_embs.append(out)
 
         out = self.out_conv(out)
         if self.ce_out:
