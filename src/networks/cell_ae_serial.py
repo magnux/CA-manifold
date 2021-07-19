@@ -8,7 +8,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.dynalinearresidualblock import DynaLinearResidualBlock
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -172,8 +171,7 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, self.n_filter * 4)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size, 1))
-        self.seed_selector = DynaLinearResidualBlock(self.lat_size, self.n_filter * 4, 1)
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
         frac_sobel = []
         frac_norm = []
@@ -221,7 +219,6 @@ class Decoder(nn.Module):
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
             out = torch.cat([seed.to(float_type)] * batch_size, 0)
-            out = self.seed_selector(out, lat).squeeze_(4)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
