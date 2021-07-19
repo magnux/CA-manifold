@@ -6,9 +6,8 @@ import torch.utils.data.distributed
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
-from src.layers.gaussgrads import GaussGrads
+from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.dynalinearresidualblock import DynaLinearResidualBlock
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -46,14 +45,13 @@ class InjectedEncoder(nn.Module):
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
-        self.frac_gauss = GaussGrads(self.n_filter, [(2 ** i) + 1 for i in (1, int(np.log2(image_size)-2))],
-                                                    [2 ** (i - 1) for i in (1, int(np.log2(image_size)-2))], left_sided=self.causal, rep_in=True)
-        self.frac_factor = self.frac_gauss.c_factor
-        self.frac_groups = self.frac_gauss.c_factor // 5
+        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
+        self.frac_factor = self.frac_sobel.c_factor
+        self.frac_groups = self.frac_sobel.c_factor // 3
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups, self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_groups, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
+        self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
         self.frac_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
@@ -64,7 +62,7 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = LinearResidualBlock(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -91,11 +89,11 @@ class InjectedEncoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            out_new = self.frac_gauss(out_new)
+            out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, inj_lat)
-            out_new = self.frac_conv(out_new)
+            out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -172,17 +170,15 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, self.n_filter * 4)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size, 1))
-        self.seed_selector = DynaLinearResidualBlock(self.lat_size, self.n_filter * 4, 1)
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
-        self.frac_gauss = GaussGrads(self.n_filter, [(2 ** i) + 1 for i in (1, int(np.log2(image_size)-2))],
-                                                    [2 ** (i - 1) for i in (1, int(np.log2(image_size)-2))], left_sided=self.causal, rep_in=True)
-        self.frac_factor = self.frac_gauss.c_factor
-        self.frac_groups = self.frac_gauss.c_factor // 5
+        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
+        self.frac_factor = self.frac_sobel.c_factor
+        self.frac_groups = self.frac_sobel.c_factor // 3
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups, self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_groups, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
+        self.frac_dyna_conv = DynaResidualBlock(lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
 
         self.frac_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size),
@@ -218,7 +214,6 @@ class Decoder(nn.Module):
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
             out = torch.cat([seed.to(float_type)] * batch_size, 0)
-            out = self.seed_selector(out, lat).squeeze_(4)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
@@ -244,11 +239,11 @@ class Decoder(nn.Module):
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            out_new = self.frac_gauss(out_new)
+            out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
-            out_new = self.frac_conv(out_new)
+            out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
