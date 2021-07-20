@@ -216,8 +216,6 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
                     # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
-                    grad_noise(dis_encoder)
-                    grad_noise(discriminator)
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
@@ -244,6 +242,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                     # grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
+                    grad_noise(decoder)
+                    grad_noise(generator)
 
                 # Streaming Images
                 with torch.no_grad():

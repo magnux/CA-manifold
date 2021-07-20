@@ -42,7 +42,7 @@ def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
             p.grad.data.copy_(p.grad.data.max(norm))
 
 
-def grad_noise(network, g_factor=1e-2):
+def grad_noise(network, g_factor=1e-3):
     for p in network.parameters():
         if p.grad is not None:
             p.grad.data.copy_(p.grad + g_factor * p.grad.norm(2) * torch.rand_like(p.grad) * torch.randn_like(p.grad))
