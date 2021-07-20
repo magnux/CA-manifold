@@ -216,8 +216,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
                     # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
-                    grad_noise(dis_encoder)
-                    grad_noise(discriminator)
+                    grad_noise(dis_encoder, 0.5)
+                    grad_noise(discriminator, 0.5)
 
                 # Generator step
                 with model_manager.on_step(['decoder', 'generator']) as nets_to_train:
