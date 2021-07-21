@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, compute_pl_reg, update_g_factors
-from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_noise_hook, update_network_average
+from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_dither_hook, update_network_average
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext

@@ -52,23 +52,18 @@ def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
             p.grad.data.copy_(p.grad.data.max(norm))
 
 
-def grad_noise(network, g_factor=0.1):
+def grad_dither(network, g_factor=0.1):
     mean_p_grad = get_mean_grad_norm(network)
     for p in network.parameters():
         if p.grad is not None:
             p.grad.data.copy_(p.grad + g_factor * (mean_p_grad - p.grad.norm(2)).clamp(0, 1) * torch.rand_like(p.grad) * torch.randn_like(p.grad))
 
 
-def grad_noise_hook(g_factor):
-    def _grad_noise_hook(grad, g_factor=1.):
+def grad_dither_hook(g_factor):
+    def _grad_dither_hook(grad, g_factor=1.):
         with torch.no_grad():
-            noisy_grad = grad.clone()
-            # ridx = np.random.randint(0, grad.shape[1])
-            # sel_idxs = [i for i in range(ridx)] + [i for i in range(ridx + 1, grad.shape[1])]
-            # noisy_grad[:, ridx] = -(grad[:, sel_idxs] * noisy_grad[:, sel_idxs]).sum(1) / (grad[:, ridx] + 1e-4)
-            noisy_grad *= torch.rand_like(grad)
-            return g_factor * (g_factor * grad + (1 - g_factor) * noisy_grad)
-    return partial(_grad_noise_hook, g_factor=g_factor)
+            return grad + g_factor * torch.rand_like(grad) * torch.rand_like(grad)
+    return partial(_grad_dither_hook, g_factor=g_factor)
 
 
 def grad_mult(network, g_factor):
