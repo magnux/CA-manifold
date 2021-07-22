@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 from itertools import combinations
 
@@ -12,13 +13,13 @@ def lin_pos_encoding_1d(size):
     return torch.cat([pos_encoding_start, pos_encoding_end, pos_encoding_center], 1)
 
 
-def cos_pos_encoding_1d(size):
-    ## Note: freqs can be computed up to 'size', but only 'size // 2' are taken to reduce computation
-    freqs = list(range(1, size // 2))
+def cos_pos_encoding_1d(size, freq_div=2, sub_freq_max=4):
+    ## Note: freqs can be computed up to 'size', but only 'size / 2' are taken to reduce computation
+    freqs = list(range(1, int(size / freq_div)))
     spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
 
     ## Note: more sub freqs (low freqs, waves longer than size) can be computed, but only 2 are taken to reduce computation
-    sub_freqs = [1./ float(i) for i in range(2, 4)]
+    sub_freqs = [1./ float(i) for i in range(2, sub_freq_max)]
     sub_spaces = [np.linspace(i * freq * 2 * np.pi, (i + 1) * freq * 2 * np.pi, size) for freq in sub_freqs for i in range(int(1 / freq))]
     spaces = spaces + sub_spaces
 
@@ -74,3 +75,14 @@ class PosEncoding(nn.Module):
 
     def size(self):
         return int(self.pos_encoding.size(1))
+
+
+class CosFreqEncoding(nn.Module):
+    def __init__(self, lat_size):
+        super(CosFreqEncoding, self).__init__()
+        self.lat_size = lat_size
+        cos_frec_encoding = cos_pos_encoding_1d(lat_size, 3/4, (lat_size/4) + 2).reshape(1, self.lat_size, self.lat_size)
+        self.register_buffer('cos_frec_weight', cos_frec_encoding)
+
+    def forward(self, x):
+        return (x.unsqueeze(2) * self.cos_freq_weight).sum(dim=1)
