@@ -82,13 +82,13 @@ class CosFreqEncoding(nn.Module):
         super(CosFreqEncoding, self).__init__()
         self.lat_size = lat_size
         self.norm = norm
-        cos_frec_encoding = cos_pos_encoding_1d(lat_size, 1, 8).unsqueeze_(0)
-        self.register_buffer('cos_frec_weight', cos_frec_encoding)
-        self.to_freq_size = nn.Linear(self.lat_size, cos_frec_encoding.size(1), bias=None)
+        cos_frec_encoding = cos_pos_encoding_1d(self.lat_size, 1, 8).unsqueeze_(0)
+        self.register_buffer('cos_frec_encoding', cos_frec_encoding)
+        self.to_freq_size = nn.Linear(self.lat_size, cos_frec_encoding.size(1), bias=False)
 
     def forward(self, x):
         x_freqs = self.to_freq_size(x)
-        x_freqs = (x_freqs.unsqueeze(2) * self.cos_freq_weight).sum(dim=1)
+        x_freqs = (x_freqs.unsqueeze(2) * self.cos_frec_encoding).sum(dim=1)
         if self.norm:
             return x_freqs / x_freqs.max()
         else:
