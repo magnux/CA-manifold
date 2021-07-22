@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from src.layers.posencoding import CosFreqEncoding
 from src.layers.linearresidualblock import LinearResidualBlock
 
 
@@ -38,6 +39,7 @@ class DynaResidualBlock(nn.Module):
 
         self.dyna_k = nn.Sequential(
             nn.Linear(lat_size, self.lat_size * lat_factor),
+            CosFreqEncoding(self.lat_size * lat_factor),
             LinearResidualBlock(self.lat_size * lat_factor, self.lat_size * lat_factor),
             LinearResidualBlock(self.lat_size * lat_factor, k_total_size, self.lat_size * lat_factor * 2),
         )
