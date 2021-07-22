@@ -5,6 +5,7 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.dynalinear import DynaLinear
 from src.layers.irm import IRMLinear
+from src.layers.posencoding import CosFreqEncoding
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
@@ -62,6 +63,7 @@ class Generator(nn.Module):
 
         self.z_cond = DynaLinear(self.embed_size, self.z_dim, self.z_dim, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.lat_to_freq = CosFreqEncoding(self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -81,6 +83,7 @@ class Generator(nn.Module):
 
         z = self.z_cond(z, yembed)
         lat = lat + self.z_to_lat(z)
+        lat = self.lat_to_freq(lat)
 
         return lat
 
@@ -94,6 +97,7 @@ class LabsEncoder(nn.Module):
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
+        self.lat_to_freq = CosFreqEncoding(self.lat_size)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -106,6 +110,7 @@ class LabsEncoder(nn.Module):
 
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
+        lat = self.lat_to_freq(lat)
 
         return lat
 
@@ -131,12 +136,14 @@ class UnconditionalGenerator(nn.Module):
         self.n_calls = n_calls
 
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.lat_to_freq = CosFreqEncoding(self.lat_size)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
         lat = self.z_to_lat(z)
+        lat = self.lat_to_freq(lat)
 
         return lat
 
