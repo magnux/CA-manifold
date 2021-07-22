@@ -82,7 +82,7 @@ class CosFreqEncoding(nn.Module):
         super(CosFreqEncoding, self).__init__()
         self.lat_size = lat_size
         self.norm = norm
-        cos_frec_encoding = cos_pos_encoding_1d(self.lat_size, 1, 8).unsqueeze_(0)
+        cos_frec_encoding = cos_pos_encoding_1d(self.lat_size, 1, 8)
         self.register_buffer('cos_frec_encoding', cos_frec_encoding)
         self.to_freq_size = nn.Linear(self.lat_size, cos_frec_encoding.size(1), bias=False)
 
