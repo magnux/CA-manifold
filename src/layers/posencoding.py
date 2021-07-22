@@ -103,6 +103,6 @@ if __name__ == '__main__':
     print(cos_enc.cos_freq_encoding.shape)
 
     n_samples = 16
-    sample = cos_enc(torch.randn((n_samples, lat_size))).repeat(1, 1, lat_size // n_samples)
+    sample = cos_enc(torch.randn((n_samples, lat_size))).unsqueeze(2).repeat(1, 1, lat_size // n_samples)
     plt.imshow(sample.view(n_samples, lat_size, lat_size // n_samples).permute(1, 0, 2).reshape(lat_size, n_samples * (lat_size // n_samples)).detach().numpy())
     plt.show()
