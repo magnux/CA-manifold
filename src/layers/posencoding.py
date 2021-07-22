@@ -78,7 +78,7 @@ class PosEncoding(nn.Module):
 
 
 class CosFreqEncoding(nn.Module):
-    def __init__(self, lat_size, norm=True):
+    def __init__(self, lat_size, norm=False):
         super(CosFreqEncoding, self).__init__()
         self.lat_size = lat_size
         self.norm = norm
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     lat_size = 512
-    cos_enc = CosFreqEncoding(lat_size)
+    cos_enc = CosFreqEncoding(lat_size, True)
     print(cos_enc.cos_freq_encoding.shape)
 
     n_samples = 16
