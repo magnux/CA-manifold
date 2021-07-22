@@ -78,11 +78,16 @@ class PosEncoding(nn.Module):
 
 
 class CosFreqEncoding(nn.Module):
-    def __init__(self, lat_size):
+    def __init__(self, lat_size, norm=True):
         super(CosFreqEncoding, self).__init__()
         self.lat_size = lat_size
+        self.norm = norm
         cos_frec_encoding = cos_pos_encoding_1d(lat_size, 3/4, (lat_size/4) + 2).reshape(1, self.lat_size, self.lat_size)
         self.register_buffer('cos_frec_weight', cos_frec_encoding)
 
     def forward(self, x):
-        return (x.unsqueeze(2) * self.cos_freq_weight).sum(dim=1)
+        x_freqs = (x.unsqueeze(2) * self.cos_freq_weight).sum(dim=1)
+        if self.norm:
+            return x_freqs / x_freqs.max()
+        else:
+            return x_freqs
