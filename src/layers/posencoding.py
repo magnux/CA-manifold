@@ -19,7 +19,7 @@ def cos_pos_encoding_1d(size, freq_div=2, sub_freq_max=4):
     spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
 
     ## Note: more sub freqs (low freqs, waves longer than size) can be computed, but only 2 are taken to reduce computation
-    sub_freqs = [1./ float(i) for i in range(2, sub_freq_max)]
+    sub_freqs = [1./ float(i) for i in range(2, int(sub_freq_max))]
     sub_spaces = [np.linspace(i * freq * 2 * np.pi, (i + 1) * freq * 2 * np.pi, size) for freq in sub_freqs for i in range(int(1 / freq))]
     spaces = spaces + sub_spaces
 
