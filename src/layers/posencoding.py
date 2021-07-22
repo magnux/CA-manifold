@@ -88,7 +88,7 @@ class CosFreqEncoding(nn.Module):
 
     def forward(self, x):
         x_freqs = self.to_freq_size(x)
-        x_freqs = (x_freqs.unsqueeze(2) * self.cos_freq_encoding).sum(dim=1)
+        x_freqs = (x_freqs.unsqueeze(2) * self.cos_freq_encoding).mean(dim=1)
         if self.norm:
             return x_freqs / x_freqs.max()
         else:
