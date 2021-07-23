@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, groups=1, lat_factor=1, norm_weights=False, complexify=False):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, groups=1, lat_factor=1, norm_weights=False, complexify=False, complex_group_factor=1):
         super(DynaResidualBlock, self).__init__()
         assert not complexify or ((fin % 2 == 0) and (fout % 2 == 0)), 'complexify only works with an even number of channels'
 
@@ -54,10 +54,10 @@ class DynaResidualBlock(nn.Module):
         self.b_in, self.b_mid, self.b_out, self.b_short = 0, 0, 0, 0
 
         if self.complexify:
-            in_group_size = self.fin // self.groups
+            in_group_size = self.fin // (self.groups * complex_group_factor)
             self.complex_idx = torch.cat([torch.cat([torch.arange(in_group_size, in_group_size * 2), torch.arange(in_group_size)]) + (i * in_group_size) for i in range(0, self.groups, 2)])
 
-            out_group_size = self.fout // self.groups
+            out_group_size = self.fout // (self.groups * complex_group_factor)
             self.real_idx = torch.cat([torch.arange(out_group_size) + (i * out_group_size) for i in range(0, self.groups, 2)])
             self.imaginary_idx = self.real_idx + out_group_size
 
