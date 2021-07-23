@@ -325,3 +325,132 @@ class ComplexBatchNorm1d(_ComplexBatchNorm):
 
         del Crr, Cri, Cii, Rrr, Rii, Rri, det, s, t
         return input_r, input_i
+
+
+class _ComplexInstanceNorm(Module):
+
+    def __init__(self, num_features, eps=1e-5, momentum=0.1, affine=False, track_running_stats=False, groups=1):
+        super(_ComplexInstanceNorm, self).__init__()
+        self.num_features = num_features
+        self.eps = eps
+        self.momentum = momentum
+        self.affine = affine
+        self.track_running_stats = track_running_stats
+        if self.affine:
+            self.weight = Parameter(torch.Tensor(num_features, 3))
+            self.bias = Parameter(torch.Tensor(num_features, 2))
+        else:
+            self.register_parameter('weight', None)
+            self.register_parameter('bias', None)
+        if self.track_running_stats:
+            self.register_buffer('running_mean', torch.zeros(num_features, 2))
+            self.register_buffer('running_covar', torch.zeros(num_features, 3))
+            self.running_covar[:, 0] = 1.4142135623730951
+            self.running_covar[:, 1] = 1.4142135623730951
+            self.register_buffer('num_batches_tracked', torch.tensor(0, dtype=torch.long))
+        else:
+            self.register_parameter('running_mean', None)
+            self.register_parameter('running_covar', None)
+            self.register_parameter('num_batches_tracked', None)
+        self.reset_parameters()
+
+        out_group_size = num_features // groups
+        self.real_idx = torch.cat([torch.arange(out_group_size) + (i * out_group_size) for i in range(0, self.groups, 2)])
+        self.imaginary_idx = self.real_idx + out_group_size
+
+    def reset_running_stats(self):
+        if self.track_running_stats:
+            self.running_mean.zero_()
+            self.running_covar.zero_()
+            self.running_covar[:, 0] = 1.4142135623730951
+            self.running_covar[:, 1] = 1.4142135623730951
+            self.num_batches_tracked.zero_()
+
+    def reset_parameters(self):
+        self.reset_running_stats()
+        if self.affine:
+            init.constant_(self.weight[:, :2], 1.4142135623730951)
+            init.zeros_(self.weight[:, 2])
+            init.zeros_(self.bias)
+
+
+class ComplexInstanceNorm2d(_ComplexInstanceNorm):
+
+    def forward(self, input):
+        # assert (input_r.size() == input_i.size())
+
+        input_r = input[:, self.real_idx, ...]
+        input_i = input[:, self.imaginary_idx, ...]
+
+        assert (len(input_r.shape) == 4)
+        exponential_average_factor = 0.0
+
+        if self.training and self.track_running_stats:
+            if self.num_batches_tracked is not None:
+                self.num_batches_tracked += 1
+                if self.momentum is None:  # use cumulative moving average
+                    exponential_average_factor = 1.0 / float(self.num_batches_tracked)
+                else:  # use exponential moving average
+                    exponential_average_factor = self.momentum
+
+        if self.training or not self.track_running_stats:
+
+            # calculate mean of real and imaginary part
+            mean_r = input_r.mean([2, 3])
+            mean_i = input_i.mean([2, 3])
+
+            mean = torch.stack((mean_r, mean_i), dim=2)
+
+            input_r = input_r - mean_r[:, :, None, None]
+            input_i = input_i - mean_i[:, :, None, None]
+
+            # Elements of the covariance matrix (biased for train)
+            n = input_r.numel() / input_r.size(1)
+            Crr = 1. / n * input_r.pow(2).sum(dim=[2, 3]) + self.eps
+            Cii = 1. / n * input_i.pow(2).sum(dim=[2, 3]) + self.eps
+            Cri = (input_r.mul(input_i)).mean(dim=[2, 3])
+
+            if self.track_running_stats:
+                with torch.no_grad():
+                    self.running_mean = exponential_average_factor * mean.mean(0) \
+                                        + (1 - exponential_average_factor) * self.running_mean
+
+                    self.running_covar[:, 0] = exponential_average_factor * Crr.sum(0) * n / (n - 1) \
+                                               + (1 - exponential_average_factor) * self.running_covar[:, 0]
+
+                    self.running_covar[:, 1] = exponential_average_factor * Cii.sum(0) * n / (n - 1) \
+                                               + (1 - exponential_average_factor) * self.running_covar[:, 1]
+
+                    self.running_covar[:, 2] = exponential_average_factor * Cri.mean(0) * n / (n - 1) \
+                                               + (1 - exponential_average_factor) * self.running_covar[:, 2]
+
+        else:
+            mean = self.running_mean
+            Crr = self.running_covar[:, 0] + self.eps
+            Cii = self.running_covar[:, 1] + self.eps
+            Cri = self.running_covar[:, 2]  # +self.eps
+
+            input_r = input_r - mean[None, :, 0, None, None]
+            input_i = input_i - mean[None, :, 1, None, None]
+
+        # calculate the inverse square root the covariance matrix
+        det = Crr * Cii - Cri.pow(2)
+        s = torch.sqrt(det)
+        t = torch.sqrt(Cii + Crr + 2 * s)
+        inverse_st = 1.0 / (s * t)
+        Rrr = (Cii + s) * inverse_st
+        Rii = (Crr + s) * inverse_st
+        Rri = -Cri * inverse_st
+
+        input_r, input_i = Rrr[:, :, None, None] * input_r + Rri[:, :, None, None] * input_i, \
+                           Rii[:, :, None, None] * input_i + Rri[:, :, None, None] * input_r
+
+        if self.affine:
+            input_r, input_i = self.weight[None, :, 0, None, None] * input_r + self.weight[None, :, 2, None, None] * input_i + self.bias[None, :, 0, None, None], \
+                               self.weight[None, :, 2, None, None] * input_r + self.weight[None, :, 1, None, None] * input_i + self.bias[None, :, 1, None, None]
+
+        input[:, self.real_idx, ...] = input_r
+        input[:, self.imaginary_idx, ...] = input_i
+
+        return input
+

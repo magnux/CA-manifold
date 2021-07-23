@@ -8,6 +8,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
+from src.layers.complexlayers import ComplexInstanceNorm2d
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -53,7 +54,7 @@ class InjectedEncoder(nn.Module):
             frac_sobel.append(SinSobel(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), left_sided=self.causal, rep_in=True))
             frac_factor = frac_sobel[l].c_factor
             if not self.auto_reg:
-                frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
+                frac_norm.append(ComplexInstanceNorm2d(self.n_filter * frac_factor, groups=frac_factor // 3))
             frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2, complexify=True))
             frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
         self.frac_sobel = nn.ModuleList(frac_sobel)
@@ -182,7 +183,7 @@ class Decoder(nn.Module):
             frac_sobel.append(SinSobel(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), left_sided=self.causal, rep_in=True))
             frac_factor = frac_sobel[l].c_factor
             if not self.auto_reg:
-                frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
+                frac_norm.append(ComplexInstanceNorm2d(self.n_filter * frac_factor, groups=frac_factor // 3))
             frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2, complexify=True))
             frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
             frac_noise.append(NoiseInjection(self.n_filter))
