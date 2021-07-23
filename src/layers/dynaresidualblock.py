@@ -95,7 +95,7 @@ class DynaResidualBlock(nn.Module):
             
             self.prev_lat = lat
 
-        def _dyna_conv(x_new):
+        def _dyna_res_block(x_new):
             x_new_s = self.f_conv(x_new, self.k_short, stride=self.stride, padding=self.padding, groups=batch_size * self.groups) + self.b_short
             x_new = self.f_conv(x_new, self.k_in, stride=1, padding=self.padding, groups=batch_size * self.groups) + self.b_in
             x_new = F.relu(x_new, True)
@@ -112,8 +112,8 @@ class DynaResidualBlock(nn.Module):
             x_ir = x[:, self.complex_idx, ...]
             x_new_ir = x_ir.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
 
-            x_new_ri = _dyna_conv(x_new_ri)
-            x_new_ir = _dyna_conv(x_new_ir)
+            x_new_ri = _dyna_res_block(x_new_ri)
+            x_new_ir = _dyna_res_block(x_new_ir)
             x_new = torch.empty_like(x_new_ri)
 
             x_new_prr = x_new_ri[:, self.real_idx, ...]
@@ -127,6 +127,6 @@ class DynaResidualBlock(nn.Module):
             x_new[:, self.imaginary_idx, ...] = x_new_pir + x_new_pri
         else:
             x_new = x.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
-            x_new = _dyna_conv(x_new)
+            x_new = _dyna_res_block(x_new)
 
         return x_new
