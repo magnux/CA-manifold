@@ -107,8 +107,6 @@ class DynaResidualBlock(nn.Module):
             return x_new
 
         if self.complexify:
-            x_new = torch.empty_like(x)
-
             x_ri = x
             x_new_ri = x_ri.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
             x_ir = x[:, self.complex_idx, ...]
@@ -116,6 +114,7 @@ class DynaResidualBlock(nn.Module):
 
             x_new_ri = _dyna_conv(x_new_ri)
             x_new_ir = _dyna_conv(x_new_ir)
+            x_new = torch.empty_like(x_new_ri)
 
             x_new_prr = x_new_ri[:, self.real_idx, ...]
             x_new_pii = x_new_ri[:, self.imaginary_idx, ...]
