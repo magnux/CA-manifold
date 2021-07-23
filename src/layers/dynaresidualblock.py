@@ -54,10 +54,12 @@ class DynaResidualBlock(nn.Module):
         self.b_in, self.b_mid, self.b_out, self.b_short = 0, 0, 0, 0
 
         if self.complexify:
-            group_size = self.fin // self.groups
-            self.real_idx = torch.cat([torch.arange(group_size) + (i * group_size) for i in range(0, self.groups, 2)])
-            self.imaginary_idx = self.real_idx + group_size
-            self.complex_idx = torch.cat([torch.cat([torch.arange(group_size, group_size * 2), torch.arange(group_size)]) + (i * group_size) for i in range(0, self.groups, 2)])
+            in_group_size = self.fin // self.groups
+            self.complex_idx = torch.cat([torch.cat([torch.arange(in_group_size, in_group_size * 2), torch.arange(in_group_size)]) + (i * in_group_size) for i in range(0, self.groups, 2)])
+
+            out_group_size = self.fout // self.groups
+            self.real_idx = torch.cat([torch.arange(out_group_size) + (i * out_group_size) for i in range(0, self.groups, 2)])
+            self.imaginary_idx = self.real_idx + out_group_size
 
     def forward(self, x, lat):
         batch_size = x.size(0)
