@@ -355,7 +355,7 @@ class _ComplexInstanceNorm(Module):
         self.reset_parameters()
 
         out_group_size = num_features // groups
-        self.real_idx = torch.cat([torch.arange(out_group_size) + (i * out_group_size) for i in range(0, self.groups, 2)])
+        self.real_idx = torch.cat([torch.arange(out_group_size) + (i * out_group_size) for i in range(0, groups, 2)])
         self.imaginary_idx = self.real_idx + out_group_size
 
     def reset_running_stats(self):
