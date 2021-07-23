@@ -8,7 +8,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.complexlayers import ComplexInstanceNorm2d
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -47,18 +46,18 @@ class InjectedEncoder(nn.Module):
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
         frac_sobel = []
-        frac_norm = []
+        # frac_norm = []
         frac_dyna_conv = []
         frac_lat = []
         for l in range(self.n_layers):
             frac_sobel.append(SinSobel(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), left_sided=self.causal, rep_in=True))
             frac_factor = frac_sobel[l].c_factor
-            if not self.auto_reg:
-                frac_norm.append(ComplexInstanceNorm2d(self.n_filter * frac_factor, groups=frac_factor))
+            # if not self.auto_reg:
+            #     frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
             frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2, complexify=True, complex_group_factor=3))
             frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
         self.frac_sobel = nn.ModuleList(frac_sobel)
-        self.frac_norm = nn.ModuleList(frac_norm)
+        # self.frac_norm = nn.ModuleList(frac_norm)
         self.frac_dyna_conv = nn.ModuleList(frac_dyna_conv)
         self.frac_lat = nn.ModuleList(frac_lat)
 
@@ -94,8 +93,8 @@ class InjectedEncoder(nn.Module):
                 if self.perception_noise and self.training:
                     out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
                 out_new = self.frac_sobel[l](out_new)
-                if not self.auto_reg:
-                    out_new = self.frac_norm[l](out_new)
+                # if not self.auto_reg:
+                #     out_new = self.frac_norm[l](out_new)
                 out_new = self.frac_dyna_conv[l](out_new, inj_lat)
                 if self.gated:
                     out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -175,20 +174,20 @@ class Decoder(nn.Module):
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
         frac_sobel = []
-        frac_norm = []
+        # frac_norm = []
         frac_dyna_conv = []
         frac_lat = []
         frac_noise = []
         for l in range(self.n_layers):
             frac_sobel.append(SinSobel(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), left_sided=self.causal, rep_in=True))
             frac_factor = frac_sobel[l].c_factor
-            if not self.auto_reg:
-                frac_norm.append(ComplexInstanceNorm2d(self.n_filter * frac_factor, groups=frac_factor))
+            # if not self.auto_reg:
+            #     frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
             frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2, complexify=True, complex_group_factor=3))
             frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
             frac_noise.append(NoiseInjection(self.n_filter))
         self.frac_sobel = nn.ModuleList(frac_sobel)
-        self.frac_norm = nn.ModuleList(frac_norm)
+        # self.frac_norm = nn.ModuleList(frac_norm)
         self.frac_dyna_conv = nn.ModuleList(frac_dyna_conv)
         self.frac_lat = nn.ModuleList(frac_lat)
         self.frac_noise = nn.ModuleList(frac_noise)
@@ -246,8 +245,8 @@ class Decoder(nn.Module):
                 if self.perception_noise and self.training:
                     out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
                 out_new = self.frac_sobel[l](out_new)
-                if not self.auto_reg:
-                    out_new = self.frac_norm[l](out_new)
+                # if not self.auto_reg:
+                #     out_new = self.frac_norm[l](out_new)
                 out_new = self.frac_dyna_conv[l](out_new, lat)
                 if self.gated:
                     out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)

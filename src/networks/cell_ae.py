@@ -8,7 +8,6 @@ from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.sobel import SinSobel
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.complexlayers import ComplexInstanceNorm2d
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -49,8 +48,8 @@ class InjectedEncoder(nn.Module):
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
         self.frac_factor = self.frac_sobel.c_factor
         self.frac_groups = self.frac_sobel.c_factor // 3
-        if not self.auto_reg:
-            self.frac_norm = ComplexInstanceNorm2d(self.n_filter * self.frac_factor, groups=self.frac_factor)
+        # if not self.auto_reg:
+        #     self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2, complexify=True, complex_group_factor=3)
 
         self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
@@ -86,8 +85,8 @@ class InjectedEncoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            if not self.auto_reg:
-                out_new = self.frac_norm(out_new)
+            # if not self.auto_reg:
+            #     out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, inj_lat)
             out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
@@ -170,8 +169,8 @@ class Decoder(nn.Module):
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, rep_in=True)
         self.frac_factor = self.frac_sobel.c_factor
         self.frac_groups = self.frac_sobel.c_factor // 3
-        if not self.auto_reg:
-            self.frac_norm = ComplexInstanceNorm2d(self.n_filter * self.frac_factor, groups=self.frac_factor)
+        # if not self.auto_reg:
+        #     self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2, complexify=True, complex_group_factor=3)
 
         self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
@@ -230,8 +229,8 @@ class Decoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            if not self.auto_reg:
-                out_new = self.frac_norm(out_new)
+            # if not self.auto_reg:
+            #     out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, lat)
             out_new = out_new.reshape(batch_size, self.n_filter, self.frac_groups, self.image_size, self.image_size).sum(dim=2)
             if self.gated:
