@@ -54,7 +54,7 @@ class InjectedEncoder(nn.Module):
             frac_factor = frac_sobel[l].c_factor
             if not self.auto_reg:
                 frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
-            frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2))
+            frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2, complexify=True))
             frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
         self.frac_sobel = nn.ModuleList(frac_sobel)
         self.frac_norm = nn.ModuleList(frac_norm)
@@ -183,7 +183,7 @@ class Decoder(nn.Module):
             frac_factor = frac_sobel[l].c_factor
             if not self.auto_reg:
                 frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
-            frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2))
+            frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2, complexify=True))
             frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
             frac_noise.append(NoiseInjection(self.n_filter))
         self.frac_sobel = nn.ModuleList(frac_sobel)

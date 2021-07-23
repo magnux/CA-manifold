@@ -78,17 +78,32 @@ class PosEncoding(nn.Module):
 
 
 class CosFreqEncoding(nn.Module):
-    def __init__(self, lat_size, norm=False):
+    def __init__(self, lat_size, norm=False, complexify=False):
         super(CosFreqEncoding, self).__init__()
+        assert not complexify or (lat_size % 2 == 0), 'complexify requires an even lat_size'
         self.lat_size = lat_size
         self.norm = norm
-        cos_freq_encoding = cos_pos_encoding_1d(self.lat_size, 1, 8)
+        self.complexify = complexify
+
+        if self.complexify:
+            cos_freq_encoding = cos_pos_encoding_1d(self.lat_size // 2, 1, 8)
+            cos_freq_encoding = cos_freq_encoding.repeat(1, 2, 1)
+        else:
+            cos_freq_encoding = cos_pos_encoding_1d(self.lat_size, 1, 8)
+
         self.register_buffer('cos_freq_encoding', cos_freq_encoding)
         self.to_freq_size = nn.Linear(self.lat_size, cos_freq_encoding.size(1), bias=False)
 
     def forward(self, x):
         x_freqs = self.to_freq_size(x)
-        x_freqs = (x_freqs.unsqueeze(2) * self.cos_freq_encoding).mean(dim=1)
+        x_freqs = (x_freqs.unsqueeze(2) * self.cos_freq_encoding)
+        if self.complexify:
+            x_freqs_r, x_freqs_i = x_freqs.split(x_freqs.size(1) // 2, dim=1)
+            x_freqs_r = x_freqs_r.mean(1)
+            x_freqs_i = x_freqs_i.mean(1)
+            x_freqs = torch.cat([x_freqs_r, x_freqs_i], dim=1)
+        else:
+            x_freqs = x_freqs.mean(dim=1)
         if self.norm:
             return x_freqs / x_freqs.max()
         else:
@@ -99,7 +114,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     lat_size = 512
-    cos_enc = CosFreqEncoding(lat_size, True)
+    cos_enc = CosFreqEncoding(lat_size, True, True)
     print(cos_enc.cos_freq_encoding.shape)
 
     n_samples = 16

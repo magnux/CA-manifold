@@ -63,7 +63,7 @@ class Generator(nn.Module):
 
         self.z_cond = DynaLinear(self.embed_size, self.z_dim, self.z_dim, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
-        self.lat_to_freq = CosFreqEncoding(self.lat_size)
+        self.lat_to_freq = CosFreqEncoding(self.lat_size, complexify=True)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -97,7 +97,7 @@ class LabsEncoder(nn.Module):
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
-        self.lat_to_freq = CosFreqEncoding(self.lat_size)
+        self.lat_to_freq = CosFreqEncoding(self.lat_size, complexify=True)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -136,7 +136,7 @@ class UnconditionalGenerator(nn.Module):
         self.n_calls = n_calls
 
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
-        self.lat_to_freq = CosFreqEncoding(self.lat_size)
+        self.lat_to_freq = CosFreqEncoding(self.lat_size, complexify=True)
 
     def forward(self, z):
         if self.norm_z:
