@@ -354,7 +354,7 @@ class _ComplexInstanceNorm(Module):
             self.register_parameter('num_batches_tracked', None)
         self.reset_parameters()
 
-        out_group_size = num_features // groups
+        out_group_size = num_features // (groups * 2)
         self.real_idx = torch.cat([torch.arange(out_group_size) + (i * out_group_size) for i in range(0, groups, 2)])
         self.imaginary_idx = self.real_idx + out_group_size
 

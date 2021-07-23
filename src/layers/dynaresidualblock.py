@@ -54,10 +54,10 @@ class DynaResidualBlock(nn.Module):
         self.b_in, self.b_mid, self.b_out, self.b_short = 0, 0, 0, 0
 
         if self.complexify:
-            in_group_size = self.fin // ((self.groups // 2) * complex_group_factor)
+            in_group_size = self.fin // (self.groups * complex_group_factor)
             self.complex_idx = torch.cat([torch.cat([torch.arange(in_group_size, in_group_size * 2), torch.arange(in_group_size)]) + (i * in_group_size) for i in range(0, self.groups, 2)])
 
-            out_group_size = self.fout // ((self.groups // 2) * complex_group_factor)
+            out_group_size = self.fout // self.groups
             self.real_idx = torch.cat([torch.arange(out_group_size) + (i * out_group_size) for i in range(0, self.groups, 2)])
             self.imaginary_idx = self.real_idx + out_group_size
 
