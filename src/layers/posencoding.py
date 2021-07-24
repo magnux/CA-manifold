@@ -78,7 +78,7 @@ class PosEncoding(nn.Module):
 
 
 class CosFreqEncoding(nn.Module):
-    def __init__(self, lat_size, norm=False):
+    def __init__(self, lat_size, norm=True):
         super(CosFreqEncoding, self).__init__()
         self.lat_size = lat_size
         self.norm = norm
