@@ -61,8 +61,7 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         for c in range(self.n_calls):
-            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1)
-            inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
+            inj_lat = inj_lat + 0.1 * self.frac_lat[c](inj_lat)
             out_new = self.frac_conv(out)
             out_new = self.frac_sobel(out_new)
             out_new = out_new * torch.sigmoid(self.frac_dyna_conv(self.frac_pos.repeat(batch_size, 1, 1, 1), inj_lat))
@@ -158,8 +157,7 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         for c in range(self.n_calls):
-            lat_new = torch.cat([lat, out.mean((2, 3))], 1)
-            lat = lat + 0.1 * self.frac_lat[c](lat_new)
+            lat = lat + 0.1 * self.frac_lat[c](lat)
             out_new = self.frac_conv(out)
             out_new = self.frac_sobel(out_new)
             out_new = self.frac_noise[c](out_new)
