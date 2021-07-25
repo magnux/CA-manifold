@@ -38,7 +38,7 @@ class InjectedEncoder(nn.Module):
 
         self.frac_conv = ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], mode='split_out_x')
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], mode='split_out')
 
         self.register_buffer('frac_pos', cos_pos_encoding_nd(self.image_size, 2))
 
@@ -65,10 +65,11 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_conv(out)
             out_new = self.frac_sobel(out_new)
             out_shade = torch.sigmoid(self.frac_dyna_conv(self.frac_pos.repeat(batch_size, 1, 1, 1), inj_lat))
-            out_shade = out_shade.unsqueeze(4).repeat(1, 1, 1, 1, self.frac_sobel.c_factor)
+            out_shade = out_shade.repeat(1, self.frac_sobel.c_factor, 1, 1)
             out_new = out_new * out_shade
             out_new = self.frac_norm(out_new)
-            out_new = out_new.mean(4)
+            out_new = out_new.reshape(batch_size, self.frac_sobel.c_factor, self.n_filter, self.image_size, self.image_size)
+            out_new = out_new.mean(1)
             out = out + 0.1 * out_new
             out_embs.append(out)
 
@@ -121,7 +122,7 @@ class Decoder(nn.Module):
 
         self.frac_conv = ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], mode='split_out_x')
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], mode='split_out')
 
         self.register_buffer('frac_pos', cos_pos_encoding_nd(self.image_size, 2))
 
@@ -130,7 +131,7 @@ class Decoder(nn.Module):
 
         self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(self.n_calls)])
 
-        self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_calls)])
+        self.frac_noise = nn.ModuleList([NoiseInjection(self.n_filter) for _ in range(self.n_calls)])
 
         if self.log_mix_out:
             out_f = 10 * ((self.out_chan * 3) + 1)
@@ -165,10 +166,11 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             out_new = self.frac_noise[c](out_new)
             out_shade = torch.sigmoid(self.frac_dyna_conv(self.frac_pos.repeat(batch_size, 1, 1, 1), lat))
-            out_shade = out_shade.unsqueeze(4).repeat(1, 1, 1, 1, self.frac_sobel.c_factor)
+            out_shade = out_shade.repeat(1, self.frac_sobel.c_factor, 1, 1)
             out_new = out_new * out_shade
             out_new = self.frac_norm(out_new)
-            out_new = out_new.mean(4)
+            out_new = out_new.reshape(batch_size, self.frac_sobel.c_factor, self.n_filter, self.image_size, self.image_size)
+            out_new = out_new.mean(1)
             out = out + 0.1 * out_new
             out_embs.append(out)
 
