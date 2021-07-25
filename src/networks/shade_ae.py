@@ -41,7 +41,7 @@ class InjectedEncoder(nn.Module):
         self.frac_factor = self.frac_sobel.c_factor
         self.frac_groups = self.frac_sobel.c_factor // 3
 
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups, self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter, 1, 1, 0)
 
@@ -122,7 +122,7 @@ class Decoder(nn.Module):
         self.frac_factor = self.frac_sobel.c_factor
         self.frac_groups = self.frac_sobel.c_factor // 3
 
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups, self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter, 1, 1, 0)
 
