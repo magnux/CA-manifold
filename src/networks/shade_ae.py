@@ -70,7 +70,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_norm(out_new)
             out_new = out_new.reshape(batch_size, self.frac_sobel.c_factor, self.n_filter, self.image_size, self.image_size)
             out_new = out_new.mean(1)
-            out = out + 0.1 * out_new
+            out = out_new
             out_embs.append(out)
 
         out = self.frac_conv(out)
