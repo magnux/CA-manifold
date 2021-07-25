@@ -207,7 +207,7 @@ class Decoder(nn.Module):
             # else:
             #     seed = self.seed[seed_n:seed_n + 1, ...]
             out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.seed_selector(out).permute(0, 3, 1, 2)
+            out = self.seed_selector(out, lat).permute(0, 3, 1, 2)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
