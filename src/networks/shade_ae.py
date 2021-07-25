@@ -131,7 +131,7 @@ class Decoder(nn.Module):
 
         self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(self.n_calls)])
 
-        self.frac_noise = nn.ModuleList([NoiseInjection(self.n_filter) for _ in range(self.n_calls)])
+        # self.frac_noise = nn.ModuleList([NoiseInjection(self.n_filter) for _ in range(self.n_calls)])
 
         if self.log_mix_out:
             out_f = 10 * ((self.out_chan * 3) + 1)
@@ -165,7 +165,7 @@ class Decoder(nn.Module):
             out_new = self.frac_norm(out_new)
             out_new = out_new.reshape(batch_size, self.frac_sobel.c_factor, self.n_filter, self.image_size, self.image_size)
             out_new = out_new.mean(1)
-            out_new = self.frac_noise[c](out_new) * out_shade
+            # out_new = self.frac_noise[c](out_new) * out_shade
             out = out_new
             out_embs.append(out)
 
