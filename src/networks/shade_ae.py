@@ -45,7 +45,7 @@ class InjectedEncoder(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.frac_pos.size(1), self.n_filter, self.n_filter, lat_factor=2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter)
 
-        self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
+        self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(self.n_calls)])
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
         self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
@@ -61,7 +61,7 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         for c in range(self.n_calls):
-            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1)
             inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
             out_new = self.frac_conv(out)
             out_new = self.frac_sobel(out_new)
@@ -118,7 +118,7 @@ class Decoder(nn.Module):
         self.seed = nn.Parameter(torch.ones(1, self.n_filter).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, mode='rep_in')
+                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], mode='rep_in')
 
         self.frac_conv = ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0)
         self.register_buffer('frac_pos', cos_pos_encoding_nd(self.image_size, 2))
@@ -126,7 +126,7 @@ class Decoder(nn.Module):
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.frac_pos.size(1), self.n_filter, self.n_filter, lat_factor=2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter)
 
-        self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
+        self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(self.n_calls)])
 
         self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_calls)])
 
@@ -158,7 +158,7 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         for c in range(self.n_calls):
-            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
+            lat_new = torch.cat([lat, out.mean((2, 3))], 1)
             lat = lat + 0.1 * self.frac_lat[c](lat_new)
             out_new = self.frac_conv(out)
             out_new = self.frac_sobel(out_new)
