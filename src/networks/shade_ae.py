@@ -113,7 +113,7 @@ class Decoder(nn.Module):
         self.log_mix_out = log_mix_out
         self.ce_out = ce_out
 
-        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
+        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).reshape(1, self.n_filter, 1, 1))
 
         self.seed = nn.Parameter(torch.ones(1, self.n_filter).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
