@@ -36,10 +36,10 @@ class InjectedEncoder(nn.Module):
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
+        self.frac_conv = ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], mode='sum_out')
 
-        self.frac_conv = ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0)
         self.register_buffer('frac_pos', cos_pos_encoding_nd(self.image_size, 2))
 
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.frac_pos.size(1), self.n_filter, self.n_filter, lat_factor=2)
@@ -116,10 +116,10 @@ class Decoder(nn.Module):
 
         self.seed = nn.Parameter(torch.ones(1, self.n_filter).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
+        self.frac_conv = ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], mode='rep_in')
 
-        self.frac_conv = ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0)
         self.register_buffer('frac_pos', cos_pos_encoding_nd(self.image_size, 2))
 
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.frac_pos.size(1), self.n_filter, self.n_filter, lat_factor=2)

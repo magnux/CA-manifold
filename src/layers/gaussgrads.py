@@ -91,7 +91,7 @@ class GaussGrads(nn.Module):
                     g_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
             return torch.cat(g_out, dim=1)
         elif self.mode == 'sum_out':
-            g_out = x.clone
+            g_out = x.clone()
             for i, padding in enumerate(self.paddings):
                 for d in [1, 2]:
                     weight = getattr(self, 'weight%d%d' % (i, d))
