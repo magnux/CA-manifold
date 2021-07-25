@@ -155,10 +155,6 @@ class Decoder(nn.Module):
             proj = torch.cat([self.in_proj.to(float_type)] * batch_size, 0)
             out = ca_init + proj
 
-        if self.perception_noise and self.training:
-            noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
-            noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
-
         out_embs = [out]
         for c in range(self.n_calls):
             lat = lat + 0.1 * self.frac_lat[c](lat)
