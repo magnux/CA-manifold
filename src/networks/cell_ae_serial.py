@@ -50,7 +50,7 @@ class InjectedEncoder(nn.Module):
         frac_dyna_conv = []
         frac_lat = []
         for l in range(self.n_layers):
-            frac_sobel.append(SinSobel(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), left_sided=self.causal, rep_in=True))
+            frac_sobel.append(SinSobel(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), left_sided=self.causal, mode='rep_in'))
             frac_factor = frac_sobel[l].c_factor
             if not self.auto_reg:
                 frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
@@ -179,7 +179,7 @@ class Decoder(nn.Module):
         frac_lat = []
         frac_noise = []
         for l in range(self.n_layers):
-            frac_sobel.append(SinSobel(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), left_sided=self.causal, rep_in=True))
+            frac_sobel.append(SinSobel(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), left_sided=self.causal, mode='rep_in'))
             frac_factor = frac_sobel[l].c_factor
             if not self.auto_reg:
                 frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))

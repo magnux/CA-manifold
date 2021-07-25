@@ -35,7 +35,7 @@ def get_gauss_grads_kernel_nd(channels, kernel_size, dim, n_diff, left_sided=Fal
 
 
 class GaussGrads(nn.Module):
-    def __init__(self, channels, kernel_sizes, paddings, dim=2, left_sided=False, rep_in=False):
+    def __init__(self, channels, kernel_sizes, paddings, dim=2, left_sided=False, mode='split_out'):
         super(GaussGrads, self).__init__()
 
         if isinstance(kernel_sizes, int):
@@ -54,7 +54,7 @@ class GaussGrads(nn.Module):
         self.groups = channels
         self.paddings = paddings
         self.dim = dim
-        self.rep_in = rep_in
+        self.mode = mode
 
         if dim == 1:
             self.conv = F.conv1d
@@ -63,27 +63,40 @@ class GaussGrads(nn.Module):
         elif dim == 3:
             self.conv = F.conv3d
         else:
-            raise RuntimeError(
-                'Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim)
-            )
-        self.c_factor = len(kernel_sizes) * (dim * 2 + 1) if self.rep_in else (len(kernel_sizes) * dim * 2) + 1
+            raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
+
+        if self.mode == 'rep_in':
+            self.c_factor = len(kernel_sizes) * (dim * 2 + 1)
+        elif self.mode == 'split_out':
+            self.c_factor = (len(kernel_sizes) * dim * 2) + 1
+        elif self.mode == 'sum_out':
+            self.c_factor = 1
+        else:
+            raise RuntimeError('supported modes are rep_in, split_out and sum_out')
 
     def forward(self, x):
-        if self.rep_in:
-            s_out = []
+        if self.mode == 'rep_in':
+            g_out = []
             for i, padding in enumerate(self.paddings):
-                s_out.append(x)
+                g_out.append(x)
                 for d in [1, 2]:
                     weight = getattr(self, 'weight%d%d' % (i, d))
-                    s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
-            return torch.cat(s_out, dim=1)
-        else:
-            s_out = [x]
+                    g_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+            return torch.cat(g_out, dim=1)
+        elif self.mode == 'split_out':
+            g_out = [x]
             for i, padding in enumerate(self.paddings):
                 for d in [1, 2]:
                     weight = getattr(self, 'weight%d%d' % (i, d))
-                    s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
-            return torch.cat(s_out, dim=1)
+                    g_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+            return torch.cat(g_out, dim=1)
+        elif self.mode == 'sum_out':
+            g_out = x.clone
+            for i, padding in enumerate(self.paddings):
+                for d in [1, 2]:
+                    weight = getattr(self, 'weight%d%d' % (i, d))
+                    g_out = g_out + self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)
+            return g_out
 
 
 if __name__ == '__main__':

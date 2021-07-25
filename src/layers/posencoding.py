@@ -99,6 +99,12 @@ class CosFreqEncoding(nn.Module):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
+    img_size = 16
+    cos_pos = cos_pos_encoding_nd(img_size, 2)
+    for i in range(cos_pos.shape[1]):
+        plt.imshow(cos_pos[:, i, ...].reshape(img_size, img_size).detach().numpy())
+        plt.show()
+
     lat_size = 512
     cos_enc = CosFreqEncoding(lat_size, True)
     print(cos_enc.cos_freq_encoding.shape)

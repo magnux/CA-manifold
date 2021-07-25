@@ -16,7 +16,7 @@ class LatentCube(nn.Module):
         self.n_calls = n_calls
 
         self.frac_gauss = GaussGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(self.cube_size)-1), 1)],
-                                                    [2 ** (i - 1) for i in range(1, int(np.log2(self.cube_size) - 1), 1)], dim=3,  rep_in=True)
+                                                    [2 ** (i - 1) for i in range(1, int(np.log2(self.cube_size) - 1), 1)], dim=3,  mode='rep_in')
         self.frac_factor = self.frac_gauss.c_factor
         self.frac_groups = self.frac_gauss.c_factor // 5
         self.frac_norm = nn.InstanceNorm3d(self.n_filter * self.frac_factor)
