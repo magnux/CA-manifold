@@ -121,7 +121,12 @@ class SinSobel(nn.Module):
             s_out = [x]
             for i, padding in enumerate(self.paddings):
                 weight = getattr(self, 'weight%d' % i)
-                s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+                if self.mode == 'split_out' or self.mode == 'split_out_x':
+                    s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+                else:
+                    s_h, s_v = self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups).split(self.groups // 2, 1)
+                    s_out.append(s_h)
+                    s_out.append(s_v)
             return torch.cat(s_out, dim=-1 if self.mode == 'split_out_x' else 1)
 
 
