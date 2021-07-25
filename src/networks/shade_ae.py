@@ -69,7 +69,6 @@ class InjectedEncoder(nn.Module):
             out = out + 0.1 * out_new
             out_embs.append(out)
 
-        out = self.frac_conv(out)
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
@@ -163,7 +162,6 @@ class Decoder(nn.Module):
             out = out + 0.1 * out_new
             out_embs.append(out)
 
-        out = self.frac_conv(out)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
