@@ -160,13 +160,13 @@ class Decoder(nn.Module):
             lat = lat + 0.1 * self.frac_lat[c](lat)
             out_new = self.frac_conv(out)
             out_new = self.frac_sobel(out_new)
-            out_new = self.frac_noise[c](out_new)
             out_shade = torch.sigmoid(self.frac_dyna_conv(self.frac_pos.repeat(batch_size, 1, 1, 1), lat))
             out_shade = out_shade.repeat(1, self.frac_sobel.c_factor, 1, 1)
             out_new = out_new * out_shade
             out_new = self.frac_norm(out_new)
             out_new = out_new.reshape(batch_size, self.frac_sobel.c_factor, self.n_filter, self.image_size, self.image_size)
             out_new = out_new.mean(1)
+            out_new = self.frac_noise[c](out_new) * out_shade
             out = out + 0.1 * out_new
             out_embs.append(out)
 
