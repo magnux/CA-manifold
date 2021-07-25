@@ -67,12 +67,10 @@ class GaussGrads(nn.Module):
 
         if self.mode == 'rep_in':
             self.c_factor = len(kernel_sizes) * (dim * 2 + 1)
-        elif self.mode == 'split_out':
+        elif self.mode == 'split_out' or self.mode == 'split_out_x':
             self.c_factor = (len(kernel_sizes) * dim * 2) + 1
-        elif self.mode == 'sum_out':
-            self.c_factor = 1
         else:
-            raise RuntimeError('supported modes are rep_in, split_out and sum_out')
+            raise RuntimeError('supported modes are rep_in, split_out and split_out_x')
 
     def forward(self, x):
         if self.mode == 'rep_in':
@@ -89,14 +87,7 @@ class GaussGrads(nn.Module):
                 for d in [1, 2]:
                     weight = getattr(self, 'weight%d%d' % (i, d))
                     g_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
-            return torch.cat(g_out, dim=1)
-        elif self.mode == 'sum_out':
-            g_out = x.clone()
-            for i, padding in enumerate(self.paddings):
-                for d in [1, 2]:
-                    weight = getattr(self, 'weight%d%d' % (i, d))
-                    g_out = g_out + self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)
-            return g_out
+            return torch.cat(g_out, dim=-1 if self.mode == 'split_out_x' else 1)
 
 
 if __name__ == '__main__':

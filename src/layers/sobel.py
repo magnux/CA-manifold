@@ -105,12 +105,10 @@ class SinSobel(nn.Module):
 
         if self.mode == 'rep_in':
             self.c_factor = len(kernel_sizes) * (dim + 1)
-        elif self.mode == 'split_out':
+        elif self.mode == 'split_out' or self.mode == 'split_out_x':
             self.c_factor = (len(kernel_sizes) * dim) + 1
-        elif self.mode == 'sum_out':
-            self.c_factor = 1
         else:
-            raise RuntimeError('supported modes are rep_in, split_out and sum_out')
+            raise RuntimeError('supported modes are rep_in, split_out and split_out_x')
 
     def forward(self, x):
         if self.mode == 'rep_in':
@@ -119,18 +117,12 @@ class SinSobel(nn.Module):
                 weight = getattr(self, 'weight%d' % i)
                 s_out.extend([x, self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)])
             return torch.cat(s_out, dim=1)
-        elif self.mode == 'split_out':
+        elif self.mode == 'split_out' or self.mode == 'split_out_x':
             s_out = [x]
             for i, padding in enumerate(self.paddings):
                 weight = getattr(self, 'weight%d' % i)
                 s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
-            return torch.cat(s_out, dim=1)
-        elif self.mode == 'sum_out':
-            s_out = x.clone()
-            for i, padding in enumerate(self.paddings):
-                weight = getattr(self, 'weight%d' % i)
-                s_out = s_out + self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)
-            return s_out
+            return torch.cat(s_out, dim=-1 if self.mode == 'split_out_x' else 1)
 
 
 if __name__ == '__main__':
