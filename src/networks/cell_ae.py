@@ -206,9 +206,7 @@ class Decoder(nn.Module):
             #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             # else:
             #     seed = self.seed[seed_n:seed_n + 1, ...]
-            print(self.seed.shape)
             out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            print(out.shape)
             out = self.seed_selector(out, lat).permute(0, 3, 1, 2)
         else:
             if isinstance(seed_n, tuple):
