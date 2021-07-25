@@ -118,7 +118,7 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).reshape(1, self.n_filter, 1, 1))
 
-        self.seed = nn.Parameter(ca_seed(1, self.n_filter, self.image_size, 'cpu', all_channels=True))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
         self.frac_conv = ResidualBlock(self.n_filter, self.n_filter, self.n_filter * 4, 1, 1, 0)
         self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
@@ -166,7 +166,7 @@ class Decoder(nn.Module):
             out_new = out_new.reshape(batch_size, self.frac_sobel.c_factor, self.n_filter, self.image_size, self.image_size)
             out_new = out_new.mean(1)
             out_new = self.frac_noise[c](out_new) * out_shade
-            out = out + 0.1 * out_new
+            out = out_new
             out_embs.append(out)
 
         out = self.frac_conv(out)
