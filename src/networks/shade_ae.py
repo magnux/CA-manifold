@@ -43,7 +43,7 @@ class InjectedEncoder(nn.Module):
 
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_factor, self.n_filter * self.frac_factor, groups=self.frac_groups, lat_factor=2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter, 1, 1, 0)
+        self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter, None, 1, 1, 0)
 
         self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(self.n_calls)])
 
@@ -124,7 +124,7 @@ class Decoder(nn.Module):
 
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_factor, self.n_filter * self.frac_factor, groups=self.frac_groups, lat_factor=2)
         self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter, 1, 1, 0)
+        self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter, None, 1, 1, 0)
 
         self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size, self.lat_size) for _ in range(self.n_calls)])
 
