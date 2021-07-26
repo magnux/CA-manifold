@@ -52,7 +52,7 @@ class GaussGrads(nn.Module):
                 weight = get_gauss_grads_kernel_nd(channels, kernel_size, dim, d, left_sided)
                 if d == 1:
                     self.register_buffer('weight%d%d' % (i, d), weight / 2)
-                    inv_weight = weight.flip((i for i in range(2, dim + 2)))
+                    inv_weight = weight.flip(tuple(i for i in range(2, dim + 2)))
                     self.register_buffer('inv_weight%d%d' % (i, d), inv_weight / 2)
                 else:
                     self.register_buffer('weight%d%d' % (i, d), weight)
