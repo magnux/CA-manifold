@@ -3,11 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
-from src.layers.posencoding import cos_pos_encoding_nd
 from src.layers.dynalinear import DynaLinear
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
-from src.layers.sobel import SinSobel
+from src.layers.gaussgrads import GaussGrads
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
@@ -45,10 +44,10 @@ class InjectedEncoder(nn.Module):
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, mode='rep_in')
+        self.frac_sobel = GaussGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
+                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, mode='rep_in')
         self.frac_factor = self.frac_sobel.c_factor
-        self.frac_groups = self.frac_sobel.c_factor // 3
+        self.frac_groups = self.frac_sobel.c_factor // 7
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
@@ -59,7 +58,7 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = LinearResidualBlock(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -164,14 +163,12 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('seed', cos_pos_encoding_nd(self.image_size, 2).permute(0, 2, 3, 1))
-        self.seed_selector = DynaLinear(self.lat_size, self.seed.shape[-1], self.n_filter, bias=None)
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
-        self.frac_sobel = SinSobel(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                  [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, mode='rep_in')
+        self.frac_sobel = GaussGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
+                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, mode='rep_in')
         self.frac_factor = self.frac_sobel.c_factor
-        self.frac_groups = self.frac_sobel.c_factor // 3
+        self.frac_groups = self.frac_sobel.c_factor // 7
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
@@ -200,14 +197,13 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            # if isinstance(seed_n, tuple):
-            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            # elif isinstance(seed_n, list):
-            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            # else:
-            #     seed = self.seed[seed_n:seed_n + 1, ...]
+            if isinstance(seed_n, tuple):
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            elif isinstance(seed_n, list):
+                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            else:
+                seed = self.seed[seed_n:seed_n + 1, ...]
             out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.seed_selector(out, lat).permute(0, 3, 1, 2).contiguous()
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)

@@ -49,7 +49,13 @@ class GaussGrads(nn.Module):
 
         for i, kernel_size in enumerate(kernel_sizes):
             for d in [1, 2]:
-                self.register_buffer('weight%d%d' % (i, d), get_gauss_grads_kernel_nd(channels, kernel_size, dim, d, left_sided))
+                weight = get_gauss_grads_kernel_nd(channels, kernel_size, dim, d, left_sided)
+                if d == 1:
+                    self.register_buffer('weight%d%d' % (i, d), weight / 2)
+                    inv_weight = weight.flip((i for i in range(2, dim + 2)))
+                    self.register_buffer('inv_weight%d%d' % (i, d), inv_weight / 2)
+                else:
+                    self.register_buffer('weight%d%d' % (i, d), weight)
 
         self.groups = channels
         self.paddings = paddings
@@ -66,9 +72,9 @@ class GaussGrads(nn.Module):
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
         if self.mode == 'rep_in':
-            self.c_factor = len(kernel_sizes) * (dim * 2 + 1)
+            self.c_factor = len(kernel_sizes) * (dim * 3 + 1)
         elif self.mode == 'split_out':
-            self.c_factor = (len(kernel_sizes) * dim * 2) + 1
+            self.c_factor = (len(kernel_sizes) * dim * 3) + 1
         else:
             raise RuntimeError('supported modes are rep_in and split_out')
 
@@ -109,8 +115,8 @@ if __name__ == '__main__':
     # n_calls = 4
 
     canvas = torch.zeros([1, 1, c_size, c_size])
-    canvas[:, :, c_size // 2, c_size // 2] = 1.0
-    canvas[:, :, c_size // 2, c_size // 4] = 1.0
+    # canvas[:, :, c_size // 2, c_size // 2] = 1.0
+    # canvas[:, :, c_size // 2, c_size // 4] = 1.0
 
     plt.imshow(canvas.view(c_size, c_size))
     timer.start()
@@ -125,13 +131,19 @@ if __name__ == '__main__':
     kernels = []
     for i, kernel_size in enumerate(kernel_sizes):
         for d in [1, 2]:
-            kernels.append(get_gauss_grads_kernel_nd(1, kernel_size, 2, d))
-    kernel_sizes = np.repeat(kernel_sizes, 2)
+            kernel = get_gauss_grads_kernel_nd(1, kernel_size, 2, d)
+            if d == 1:
+                kernels.append(kernel / 2)
+                kernel_inv = kernel.flip(2, 3)
+                kernels.append(kernel_inv / 2)
+            else:
+                kernels.append(kernel)
+    kernel_sizes = np.repeat(kernel_sizes, 3)
     # paddings = [1, 15, 31]
     # paddings = [2 ** (i - 1) for i in range(1, 5)]
     # paddings = [i // 2 for i in range(2, 10, 2)]
     paddings = [2 ** (i - 1) for i in range(1, 7, 2)]
-    paddings = np.repeat(paddings, 2)
+    paddings = np.repeat(paddings, 3)
     # paddings = [1]
     # print(kernels[0].shape)
     for kernel in kernels:
@@ -140,13 +152,17 @@ if __name__ == '__main__':
             plt.show()
     print(kernel_sizes, paddings)
 
-    for _ in range(n_calls):
+    for i in range(n_calls):
+        canvas[:, :, c_size // 4, i] += 1
+        if i > 0:
+            canvas[:, :, c_size // 4, i-1] -= 1
         canvas_gauss = [canvas]
         for gauss_grad_f, pad_f in zip(kernels, paddings):
             canvas_gauss.append(F.conv2d(canvas, weight=gauss_grad_f, stride=1, padding=pad_f))
         canvas = torch.cat(canvas_gauss, dim=1)
         canvas = F.instance_norm(canvas)
         canvas = canvas.mean(dim=1, keepdim=True)
+        canvas[:, :, c_size // 2:(c_size // 2) + 10, c_size // 2:(c_size // 2) + 10] = 0.0
         plt.imshow(canvas.view(c_size, c_size))
         timer.start()
         plt.show()
