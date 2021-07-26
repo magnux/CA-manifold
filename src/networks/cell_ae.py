@@ -6,7 +6,7 @@ import torch.utils.data.distributed
 from src.layers.dynalinear import DynaLinear
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
-from src.layers.gaussgrads import GaussGrads
+from src.layers.circlegrads import CircleGrads
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
@@ -44,10 +44,10 @@ class InjectedEncoder(nn.Module):
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
-        self.frac_sobel = GaussGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, mode='rep_in')
+        self.frac_sobel = CircleGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
+                                                     [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], mode='rep_in')
         self.frac_factor = self.frac_sobel.c_factor
-        self.frac_groups = self.frac_sobel.c_factor // 7
+        self.frac_groups = self.frac_sobel.c_factor // 2
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
@@ -165,10 +165,10 @@ class Decoder(nn.Module):
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
 
-        self.frac_sobel = GaussGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], left_sided=self.causal, mode='rep_in')
+        self.frac_sobel = CircleGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
+                                                     [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], mode='rep_in')
         self.frac_factor = self.frac_sobel.c_factor
-        self.frac_groups = self.frac_sobel.c_factor // 7
+        self.frac_groups = self.frac_sobel.c_factor // 2
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups * (2 if self.gated else 1), self.n_filter * self.frac_groups, groups=self.frac_groups, lat_factor=2)
