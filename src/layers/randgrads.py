@@ -1,29 +1,19 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-import numpy as np
 
 
-def get_circle_grads_kernel_nd(channels, kernel_size, dim):
-    circle_grads = torch.zeros([kernel_size for _ in range(dim)])
-    for i in range(dim - 1):
-        x = torch.linspace(-1.0, 1.0, kernel_size).view(*([kernel_size if i == d else 1 for d in range(dim)]))
-        x = x.repeat(*([1 if i == d else kernel_size for d in range(dim)]))
-        for j in range(i + 1, dim):
-            y = torch.linspace(-1.0, 1.0, kernel_size).view(*([kernel_size if j == d else 1 for d in range(dim)]))
-            y = y.repeat(*([1 if j == d else kernel_size for d in range(dim)]))
-            circle_grads[(x * x + y * y > 0.9) * (x * x + y * y < 1.3)] = 1.
-            circle_grads[(x * x + y * y > 0.5) * (x * x + y * y < 0.9)] = -1.
+def get_rand_grads_kernel_nd(channels, kernel_size, dim):
+    rand_grads = torch.nn.init.orthogonal_(torch.empty([kernel_size for _ in range(dim)]))
+    rand_grads = rand_grads.to(dtype=torch.float32).unsqueeze(0).unsqueeze(1)
+    rand_grads_kernel = rand_grads.repeat(*([channels, 1] + [1 for _ in range(dim)]))
 
-    circle_grads = circle_grads.to(dtype=torch.float32).unsqueeze(0).unsqueeze(1)
-    circle_grads_kernel = circle_grads.repeat(*([channels, 1] + [1 for _ in range(dim)]))
-
-    return circle_grads_kernel
+    return rand_grads_kernel
 
 
-class CircleGrads(nn.Module):
+class RandGrads(nn.Module):
     def __init__(self, channels, kernel_sizes, paddings, dim=2, mode='split_out'):
-        super(CircleGrads, self).__init__()
+        super(RandGrads, self).__init__()
 
         if isinstance(kernel_sizes, int):
             assert isinstance(paddings, int), 'if kernel_sizes is in paddings should be int too'
@@ -35,7 +25,7 @@ class CircleGrads(nn.Module):
             assert len(kernel_sizes) == len(paddings), 'there should be equal number of kernel_sizes and paddings'
 
         for i, kernel_size in enumerate(kernel_sizes):
-            weight = get_circle_grads_kernel_nd(channels, kernel_size, dim)
+            weight = get_rand_grads_kernel_nd(channels, kernel_size, dim)
             self.register_buffer('weight%d' % i, weight)
 
         self.groups = channels
@@ -106,7 +96,7 @@ if __name__ == '__main__':
     # kernel_sizes = [3]
     kernels = []
     for i, kernel_size in enumerate(kernel_sizes):
-        kernel = get_circle_grads_kernel_nd(1, kernel_size, 2)
+        kernel = get_rand_grads_kernel_nd(1, kernel_size, 2)
         kernels.append(kernel)
     # paddings = [1, 15, 31]
     # paddings = [2 ** (i - 1) for i in range(1, 5)]
@@ -121,16 +111,16 @@ if __name__ == '__main__':
     print(kernel_sizes, paddings)
 
     for i in range(n_calls):
-        canvas[:, :, c_size // 4, i] -= 1
+        # canvas[:, :, c_size // 4, i] -= 1
         canvas[:, :, i, i] -= 1
-        if i == 0:
-            canvas[:, :, c_size * 3 // 4, c_size * 3 // 4] -= 1
-        else:
-            canvas[:, :, c_size * 3 // 4, c_size * 3 // 4] += 1
-        canvas_circle = [canvas]
-        for circle_grad_f, pad_f in zip(kernels, paddings):
-            canvas_circle.append(F.conv2d(canvas, weight=circle_grad_f, stride=1, padding=pad_f))
-        canvas = torch.cat(canvas_circle, dim=1)
+        # if i == 0:
+        #     canvas[:, :, c_size * 3 // 4, c_size * 3 // 4] -= 1
+        # else:
+        #     canvas[:, :, c_size * 3 // 4, c_size * 3 // 4] *= 1.1
+        canvas_rand = [canvas]
+        for rand_grad_f, pad_f in zip(kernels, paddings):
+            canvas_rand.append(F.conv2d(canvas, weight=rand_grad_f, stride=1, padding=pad_f))
+        canvas = torch.cat(canvas_rand, dim=1)
         canvas = F.instance_norm(canvas)
         canvas = canvas.mean(dim=1, keepdim=True)
         canvas[:, :, c_size // 2:(c_size // 2) + 10, c_size // 2:(c_size // 2) + 10] = 0.0
@@ -146,10 +136,10 @@ if __name__ == '__main__':
     def _canvas(idx):
         return canvas_l[idx]
 
-    imageio.mimsave('./circle_grad_waves.gif', [_canvas(i) for i in range(n_calls)], fps=5)
+    imageio.mimsave('./rand_grad_waves.gif', [_canvas(i) for i in range(n_calls)], fps=5)
 
-    circle_grad_waves_steps = torch.stack(canvas_l[1:], dim=0).view(n_calls, 1, c_size, c_size)
-    mi = circle_grad_waves_steps.min(dim=2, keepdim=True)[0].min(dim=3, keepdim=True)[0]
-    ma = circle_grad_waves_steps.max(dim=2, keepdim=True)[0].max(dim=3, keepdim=True)[0]
-    circle_grad_waves_steps = (circle_grad_waves_steps - mi) / (ma - mi)
-    torchvision.utils.save_image(circle_grad_waves_steps, './circle_grad_waves_steps.png', nrow=8)
+    rand_grad_waves_steps = torch.stack(canvas_l[1:], dim=0).view(n_calls, 1, c_size, c_size)
+    mi = rand_grad_waves_steps.min(dim=2, keepdim=True)[0].min(dim=3, keepdim=True)[0]
+    ma = rand_grad_waves_steps.max(dim=2, keepdim=True)[0].max(dim=3, keepdim=True)[0]
+    rand_grad_waves_steps = (rand_grad_waves_steps - mi) / (ma - mi)
+    torchvision.utils.save_image(rand_grad_waves_steps, './rand_grad_waves_steps.png', nrow=8)
