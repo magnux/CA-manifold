@@ -152,9 +152,11 @@ if __name__ == '__main__':
     print(kernel_sizes, paddings)
 
     for i in range(n_calls):
-        canvas[:, :, c_size // 4, i] += 1
-        if i > 0:
-            canvas[:, :, c_size // 4, i-1] -= 1
+        canvas[:, :, c_size // 4, i] -= 1
+        if i == 0:
+            canvas[:, :, c_size * 3 // 4, c_size * 3 // 4] = -1
+        else:
+            canvas[:, :, c_size * 3 // 4, c_size * 3 // 4] *= 1.1
         canvas_gauss = [canvas]
         for gauss_grad_f, pad_f in zip(kernels, paddings):
             canvas_gauss.append(F.conv2d(canvas, weight=gauss_grad_f, stride=1, padding=pad_f))
