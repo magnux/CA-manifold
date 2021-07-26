@@ -81,19 +81,18 @@ class GaussGrads(nn.Module):
     def forward(self, x):
         if self.mode == 'rep_in':
             g_out = []
-            for i, padding in enumerate(self.paddings):
-                g_out.append(x)
-                for d in [1, 2]:
-                    weight = getattr(self, 'weight%d%d' % (i, d))
-                    g_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
-            return torch.cat(g_out, dim=1)
         elif self.mode == 'split_out':
             g_out = [x]
-            for i, padding in enumerate(self.paddings):
-                for d in [1, 2]:
-                    weight = getattr(self, 'weight%d%d' % (i, d))
-                    g_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
-            return torch.cat(g_out, dim=1)
+        for i, padding in enumerate(self.paddings):
+            if self.mode == 'rep_in':
+                g_out.append(x)
+            for d in [1, 2]:
+                weight = getattr(self, 'weight%d%d' % (i, d))
+                g_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+                if d == 1:
+                    inv_weight = getattr(self, 'inv_weight%d%d' % (i, d))
+                    g_out.append(self.conv(x, weight=inv_weight, stride=1, padding=padding, groups=self.groups))
+        return torch.cat(g_out, dim=1)
 
 
 if __name__ == '__main__':

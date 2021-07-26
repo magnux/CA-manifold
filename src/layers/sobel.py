@@ -113,16 +113,14 @@ class SinSobel(nn.Module):
     def forward(self, x):
         if self.mode == 'rep_in':
             s_out = []
-            for i, padding in enumerate(self.paddings):
-                weight = getattr(self, 'weight%d' % i)
-                s_out.extend([x, self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)])
-            return torch.cat(s_out, dim=1)
         elif self.mode == 'split_out':
             s_out = [x]
-            for i, padding in enumerate(self.paddings):
-                weight = getattr(self, 'weight%d' % i)
-                s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
-            return torch.cat(s_out, dim=1)
+        for i, padding in enumerate(self.paddings):
+            if self.mode == 'rep_in':
+                s_out.append(x)
+            weight = getattr(self, 'weight%d' % i)
+            s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+        return torch.cat(s_out, dim=1)
 
 
 if __name__ == '__main__':
