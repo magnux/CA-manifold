@@ -205,7 +205,7 @@ class Decoder(nn.Module):
             #     seed = self.seed[seed_n:seed_n + 1, ...]
             # out = torch.cat([seed.to(float_type)] * batch_size, 0)
             out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.seed_selector(out, lat).permute(0, 3, 1, 2).contiguous()
+            out = self.seed_selector(out)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
