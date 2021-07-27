@@ -4,7 +4,7 @@ from torch.nn import functional as F
 
 
 def get_rand_grads_kernel_nd(channels, kernel_size, dim):
-    return torch.nn.init.orthogonal_(torch.empty([channels, 1]+[kernel_size for _ in range(dim)])) / torch.sqrt(channels)
+    return torch.nn.init.orthogonal_(torch.empty([channels, 1]+[kernel_size for _ in range(dim)])) / channels ** 0.5
 
 
 class RandGrads(nn.Module):
@@ -132,10 +132,10 @@ if __name__ == '__main__':
     def _canvas(idx):
         return canvas_l[idx]
 
-    imageio.mimsave('./rand_grad_waves.gif', [_canvas(i) for i in range(n_calls)], fps=5)
-
-    rand_grad_waves_steps = torch.stack(canvas_l[1:], dim=0).view(n_calls, 3, c_size, c_size)
-    mi = rand_grad_waves_steps.min(dim=2, keepdim=True)[0].min(dim=3, keepdim=True)[0]
-    ma = rand_grad_waves_steps.max(dim=2, keepdim=True)[0].max(dim=3, keepdim=True)[0]
-    rand_grad_waves_steps = (rand_grad_waves_steps - mi) / (ma - mi)
-    torchvision.utils.save_image(rand_grad_waves_steps, './rand_grad_waves_steps.png', nrow=8)
+    # imageio.mimsave('./rand_grad_waves.gif', [_canvas(i) for i in range(n_calls)], fps=5)
+    #
+    # rand_grad_waves_steps = torch.stack(canvas_l[1:], dim=0).view(n_calls, 3, c_size, c_size)
+    # mi = rand_grad_waves_steps.min(dim=2, keepdim=True)[0].min(dim=3, keepdim=True)[0]
+    # ma = rand_grad_waves_steps.max(dim=2, keepdim=True)[0].max(dim=3, keepdim=True)[0]
+    # rand_grad_waves_steps = (rand_grad_waves_steps - mi) / (ma - mi)
+    # torchvision.utils.save_image(rand_grad_waves_steps, './rand_grad_waves_steps.png', nrow=8)
