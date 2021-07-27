@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
+from src.layers.posencoding import sin_cos_pos_encoding_nd
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
@@ -171,7 +172,9 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
+        self.seed_selector = ResidualBlock(self.seed.shape[1], self.n_filter, None, 1, 1, 0, bias=None)
 
         frac_sobel = []
         frac_norm = []
@@ -212,13 +215,15 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if isinstance(seed_n, tuple):
-                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                seed = self.seed[seed_n:seed_n + 1, ...]
-            out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            # if isinstance(seed_n, tuple):
+            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     seed = self.seed[seed_n:seed_n + 1, ...]
+            # out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed_selector(out, lat).permute(0, 3, 1, 2).contiguous()
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)

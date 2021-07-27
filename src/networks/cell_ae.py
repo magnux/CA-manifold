@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.posencoding import sin_cos_pos_encoding_nd
-from src.layers.dynalinear import DynaLinear
+from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
 from src.layers.randgrads import RandGrads
@@ -163,8 +163,8 @@ class Decoder(nn.Module):
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
         # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2).permute(0, 2, 3, 1))
-        self.seed_selector = DynaLinear(self.lat_size, self.seed.shape[-1], self.n_filter, bias=None)
+        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
+        self.seed_selector = ResidualBlock(self.seed.shape[1], self.n_filter, None, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)])
@@ -203,6 +203,7 @@ class Decoder(nn.Module):
             #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             # else:
             #     seed = self.seed[seed_n:seed_n + 1, ...]
+            # out = torch.cat([seed.to(float_type)] * batch_size, 0)
             out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
             out = self.seed_selector(out, lat).permute(0, 3, 1, 2).contiguous()
         else:
