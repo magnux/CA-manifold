@@ -76,14 +76,14 @@ if __name__ == '__main__':
     n_calls = 64
     # n_calls = 4
 
-    canvas = torch.zeros([1, 1, c_size, c_size])
+    canvas = torch.zeros([1, 3, c_size, c_size])
     # canvas[:, :, c_size // 2, c_size // 2] = 1.0
     # canvas[:, :, c_size // 2, c_size // 4] = 1.0
 
-    plt.imshow(canvas.view(c_size, c_size))
+    plt.imshow(canvas.permute(0, 2, 3, 1).view(c_size, c_size, 3))
     timer.start()
     plt.show()
-    canvas_l = [canvas.view(c_size, c_size)]
+    canvas_l = [canvas.permute(0, 2, 3, 1).view(c_size, c_size, 3)]
 
     # kernel_sizes = [3, 31, 63]
     # kernel_sizes = [(2 ** i) + 1 for i in range(1, 5)]
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     # kernel_sizes = [3]
     kernels = []
     for i, kernel_size in enumerate(kernel_sizes):
-        kernel = get_rand_grads_kernel_nd(1, kernel_size, 2)
+        kernel = get_rand_grads_kernel_nd(3, kernel_size, 2)
         kernels.append(kernel)
     # paddings = [1, 15, 31]
     # paddings = [2 ** (i - 1) for i in range(1, 5)]
@@ -115,27 +115,27 @@ if __name__ == '__main__':
         #     canvas[:, :, c_size * 3 // 4, c_size * 3 // 4] *= 1.1
         canvas_rand = [canvas]
         for rand_grad_f, pad_f in zip(kernels, paddings):
-            canvas_rand.append(F.conv2d(canvas, weight=rand_grad_f, stride=1, padding=pad_f))
+            canvas_rand.append(F.conv2d(canvas, weight=rand_grad_f, stride=1, padding=pad_f, groups=3))
         canvas = torch.cat(canvas_rand, dim=1)
         canvas = F.instance_norm(canvas)
-        canvas = canvas.mean(dim=1, keepdim=True)
+        canvas = canvas.view(1, 4, 3, c_size, c_size).mean(dim=1)
         canvas[:, :, c_size // 2:(c_size // 2) + 10, c_size // 2:(c_size // 2) + 10] = 0.0
-        plt.imshow(canvas.view(c_size, c_size))
+        plt.imshow(canvas.permute(0, 2, 3, 1).view(c_size, c_size, 3))
         timer.start()
         plt.show()
-        canvas_l.append(canvas.view(c_size, c_size))
+        canvas_l.append(canvas.permute(0, 2, 3, 1).view(c_size, c_size, 3))
 
     timer.stop()
-    plt.imshow(canvas.view(c_size, c_size))
+    plt.imshow(canvas.permute(0, 2, 3, 1).view(c_size, c_size, 3))
     plt.show()
 
     def _canvas(idx):
         return canvas_l[idx]
 
-    # imageio.mimsave('./rand_grad_waves.gif', [_canvas(i) for i in range(n_calls)], fps=5)
-    #
-    # rand_grad_waves_steps = torch.stack(canvas_l[1:], dim=0).view(n_calls, 1, c_size, c_size)
-    # mi = rand_grad_waves_steps.min(dim=2, keepdim=True)[0].min(dim=3, keepdim=True)[0]
-    # ma = rand_grad_waves_steps.max(dim=2, keepdim=True)[0].max(dim=3, keepdim=True)[0]
-    # rand_grad_waves_steps = (rand_grad_waves_steps - mi) / (ma - mi)
-    # torchvision.utils.save_image(rand_grad_waves_steps, './rand_grad_waves_steps.png', nrow=8)
+    imageio.mimsave('./rand_grad_waves.gif', [_canvas(i) for i in range(n_calls)], fps=5)
+
+    rand_grad_waves_steps = torch.stack(canvas_l[1:], dim=0).view(n_calls, 3, c_size, c_size)
+    mi = rand_grad_waves_steps.min(dim=2, keepdim=True)[0].min(dim=3, keepdim=True)[0]
+    ma = rand_grad_waves_steps.max(dim=2, keepdim=True)[0].max(dim=3, keepdim=True)[0]
+    rand_grad_waves_steps = (rand_grad_waves_steps - mi) / (ma - mi)
+    torchvision.utils.save_image(rand_grad_waves_steps, './rand_grad_waves_steps.png', nrow=8)
