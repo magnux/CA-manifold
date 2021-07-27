@@ -173,7 +173,7 @@ class Decoder(nn.Module):
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
         # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
+        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size * 2, 2))
         self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
         self.lat_to_theta = nn.Sequential(
             LinearResidualBlock(self.lat_size, int(self.lat_size ** 0.5)),
@@ -234,6 +234,8 @@ class Decoder(nn.Module):
             theta = theta.view(-1, 2, 3)
             grid = F.affine_grid(theta, out.size())
             out = F.grid_sample(out, grid)
+            out = out[:, :, self.image_size//2:self.image_size + self.image_size//2,
+                            self.image_size//2:self.image_size + self.image_size//2]
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
