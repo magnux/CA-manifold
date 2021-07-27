@@ -4,7 +4,7 @@ from torch.nn import functional as F
 
 
 def get_rand_grads_kernel_nd(channels, kernel_size, dim):
-    return torch.nn.init.orthogonal_(torch.empty([channels, 1]+[kernel_size for _ in range(dim)])) * (10 / kernel_size ** 2)
+    return torch.nn.init.orthogonal_(torch.empty([channels, 1]+[kernel_size for _ in range(dim)])) * (10 / kernel_size ** dim)
 
 
 class RandGrads(nn.Module):
