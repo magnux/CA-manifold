@@ -232,8 +232,8 @@ class Decoder(nn.Module):
             out = self.seed_selector(out)
             theta = self.lat_to_theta(lat)
             theta = theta.view(-1, 2, 3)
-            grid = F.affine_grid(theta, out.size())
-            out = F.grid_sample(out, grid, align_corners=True)
+            grid = F.affine_grid(theta, out.size(), align_corners=False)
+            out = F.grid_sample(out, grid, align_corners=False)
             out = out[:, :, self.image_size//2:self.image_size + self.image_size//2,
                             self.image_size//2:self.image_size + self.image_size//2]
         else:
