@@ -181,7 +181,7 @@ class Decoder(nn.Module):
 
         self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
 
-        self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_calls)])
+        # self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_calls)])
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -256,7 +256,7 @@ class Decoder(nn.Module):
                     out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
-            out_new = self.frac_noise[c](out_new)
+            # out_new = self.frac_noise[c](out_new)
             out = out + 0.1 * out_new
             if self.causal:
                 out = out[:, :, 1:, 1:]

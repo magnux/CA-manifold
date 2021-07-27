@@ -186,7 +186,7 @@ class Decoder(nn.Module):
         frac_norm = []
         frac_dyna_conv = []
         frac_lat = []
-        frac_noise = []
+        # frac_noise = []
         for l in range(self.n_layers):
             frac_sobel.append(RandGrads(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1)))
             frac_factor = frac_sobel[l].c_factor
@@ -194,12 +194,12 @@ class Decoder(nn.Module):
                 frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
             frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2))
             frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
-            frac_noise.append(NoiseInjection(self.n_filter))
+            # frac_noise.append(NoiseInjection(self.n_filter))
         self.frac_sobel = nn.ModuleList(frac_sobel)
         self.frac_norm = nn.ModuleList(frac_norm)
         self.frac_dyna_conv = nn.ModuleList(frac_dyna_conv)
         self.frac_lat = nn.ModuleList(frac_lat)
-        self.frac_noise = nn.ModuleList(frac_noise)
+        # self.frac_noise = nn.ModuleList(frac_noise)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -275,7 +275,7 @@ class Decoder(nn.Module):
                         out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
                     else:
                         out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
-                out_new = self.frac_noise[l](out_new)
+                # out_new = self.frac_noise[l](out_new)
                 out = out + 0.1 * out_new
                 if self.causal:
                     out = out[:, :, 1:, 1:]
