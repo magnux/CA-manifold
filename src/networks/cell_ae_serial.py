@@ -174,7 +174,13 @@ class Decoder(nn.Module):
 
         # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
         self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
-        self.seed_selector = ResidualBlock(self.seed.shape[1], self.n_filter, None, 1, 1, 0, bias=None)
+        self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
+        self.lat_to_theta = nn.Sequential(
+            LinearResidualBlock(self.lat_size, int(self.lat_size ** 0.5)),
+            nn.Linear(int(self.lat_size ** 0.5), 6)
+        )
+        self.lat_to_theta[-1].weight.data.zero_()
+        self.lat_to_theta[-1].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
 
         frac_sobel = []
         frac_norm = []
@@ -224,6 +230,10 @@ class Decoder(nn.Module):
             # out = torch.cat([seed.to(float_type)] * batch_size, 0)
             out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
             out = self.seed_selector(out)
+            theta = self.lat_to_theta(lat)
+            theta = theta.view(-1, 2, 3)
+            grid = F.affine_grid(theta, out.size())
+            out = F.grid_sample(out, grid)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
