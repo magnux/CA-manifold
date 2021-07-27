@@ -64,10 +64,42 @@ def cos_pos_encoding_nd(size, dim):
     return pos_encoding
 
 
+def sin_cos_pos_encoding_1d(size, freq_div=1.):
+    freqs = list(range(1, int(size / freq_div)))
+    spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
+
+    sin = [np.sin(space) for space in spaces]
+    cos = [np.cos(space) for space in spaces]
+    return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size), dtype=torch.float32)
+
+
+def sin_cos_pos_encoding_nd(size, dim):
+    if isinstance(size, int):
+        size = (size,)
+        if dim > 0:
+            size = size * dim
+    # else :
+    # TODO: check size tuples are correct
+    if dim == 0:
+        pos_encoding = sin_cos_pos_encoding_1d(size[0]).view(1, -1)
+    elif dim == 1:
+        pos_encoding = sin_cos_pos_encoding_1d(size[0])
+    elif dim > 1:
+        pos_enc_l = []
+        for d in range(2, dim + 2):
+            pos_enc = sin_cos_pos_encoding_1d(size[d - 2])
+            pos_enc = pos_enc.view(*[size[dd - 2] if dd == d else (pos_enc.size(1) if dd == 1 else 1) for dd in range(dim + 2)])
+            pos_enc = pos_enc.repeat(*[size[dd - 2] if dd != d and dd > 1 else 1 for dd in range(dim + 2)])
+            pos_enc_l.append(pos_enc)
+        pos_encoding = torch.cat(pos_enc_l, 1)
+
+    return pos_encoding
+
+
 class PosEncoding(nn.Module):
     def __init__(self, size, dim=1):
         super(PosEncoding, self).__init__()
-        self.register_buffer('pos_encoding', cos_pos_encoding_nd(size, dim))
+        self.register_buffer('pos_encoding', sin_cos_pos_encoding_nd(size, dim))
 
     def forward(self, x):
         pos_encoding = torch.cat([self.pos_encoding] * x.size(0), 0)

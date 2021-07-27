@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
+from src.layers.posencoding import sin_cos_pos_encoding_nd
 from src.layers.dynalinear import DynaLinear
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
@@ -45,7 +46,7 @@ class InjectedEncoder(nn.Module):
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)])
+                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)])
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
@@ -161,10 +162,12 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2).permute(0, 2, 3, 1))
+        self.seed_selector = DynaLinear(self.lat_size, self.seed.shape[-1], self.n_filter, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)])
+                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)])
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
@@ -194,13 +197,14 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if isinstance(seed_n, tuple):
-                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                seed = self.seed[seed_n:seed_n + 1, ...]
-            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            # if isinstance(seed_n, tuple):
+            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     seed = self.seed[seed_n:seed_n + 1, ...]
+            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed_selector(out, lat).permute(0, 3, 1, 2).contiguous()
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
