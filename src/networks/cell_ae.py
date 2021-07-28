@@ -195,7 +195,9 @@ class Decoder(nn.Module):
             self.register_buffer('ce_pos', ce_pos)
         else:
             out_f = self.out_chan
-        self.out_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter, 2, 3, 1, 1, lat_factor=2)
+
+        self.out_norm = nn.InstanceNorm2d(self.n_filter)
+        self.out_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter, lat_factor=2)
         self.out_conv = nn.Conv2d(self.n_filter, out_f, 1, 1, 0)
 
     def forward(self, lat, ca_init=None, seed_n=0):
@@ -268,6 +270,7 @@ class Decoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
+        out = self.out_norm(out)
         out = self.out_dyna_conv(out, lat)
         out = self.out_conv(out)
         if self.ce_out:
