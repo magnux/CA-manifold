@@ -76,6 +76,7 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         auto_reg_grads = []
+        self.frac_sobel.reset_n_calls()
         for c in range(self.n_calls):
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
@@ -223,6 +224,7 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         auto_reg_grads = []
+        self.frac_sobel.reset_n_calls()
         for c in range(self.n_calls):
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
