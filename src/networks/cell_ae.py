@@ -79,8 +79,6 @@ class InjectedEncoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for c in range(self.n_calls):
-            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
-            inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -109,6 +107,8 @@ class InjectedEncoder(nn.Module):
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
+            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
 
         out = self.out_norm(out)
         out = self.out_dyna_conv(out, inj_lat)
@@ -242,8 +242,6 @@ class Decoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for c in range(self.n_calls):
-            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            lat = lat + 0.1 * self.frac_lat[c](lat_new)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -273,6 +271,8 @@ class Decoder(nn.Module):
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
+            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
+            lat = lat + 0.1 * self.frac_lat[c](lat_new)
 
         out = self.out_norm(out)
         out = self.out_dyna_conv(out, lat)
