@@ -57,10 +57,8 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_norm = nn.InstanceNorm2d(self.n_filter)
-        self.out_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter, lat_factor=2)
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = LinearResidualBlock(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -110,8 +108,6 @@ class InjectedEncoder(nn.Module):
             lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
             inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
 
-        out = self.out_norm(out)
-        out = self.out_dyna_conv(out, inj_lat)
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
@@ -166,15 +162,9 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size * 2, 2))
-        self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
-        self.lat_to_theta = nn.Sequential(
-            LinearResidualBlock(self.lat_size, int(self.lat_size ** 0.5)),
-            nn.Linear(int(self.lat_size ** 0.5), 6)
-        )
-        self.lat_to_theta[-1].weight.data.zero_()
-        self.lat_to_theta[-1].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        # self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size * 2, 2))
+        # self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)])
@@ -200,9 +190,6 @@ class Decoder(nn.Module):
         else:
             out_f = self.out_chan
 
-        self.out_norm = nn.InstanceNorm2d(self.n_filter)
-        self.out_pos_enc = PosEncoding(self.image_size, 2)
-        self.out_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter + self.out_pos_enc.size(), self.n_filter, self.n_filter, lat_factor=2)
         self.out_conv = nn.Conv2d(self.n_filter, out_f, 1, 1, 0)
 
     def forward(self, lat, ca_init=None, seed_n=0):
@@ -211,21 +198,15 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            # if isinstance(seed_n, tuple):
-            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            # elif isinstance(seed_n, list):
-            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            # else:
-            #     seed = self.seed[seed_n:seed_n + 1, ...]
-            # out = torch.cat([seed.to(float_type)] * batch_size, 0)
-            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.seed_selector(out)
-            theta = self.lat_to_theta(lat)
-            theta = theta.view(-1, 2, 3)
-            grid = F.affine_grid(theta, out.size(), align_corners=False)
-            out = F.grid_sample(out, grid, align_corners=False)
-            out = out[:, :, self.image_size//2:self.image_size + self.image_size//2,
-                            self.image_size//2:self.image_size + self.image_size//2]
+            if isinstance(seed_n, tuple):
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            elif isinstance(seed_n, list):
+                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            else:
+                seed = self.seed[seed_n:seed_n + 1, ...]
+            out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            # out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            # out = self.seed_selector(out)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
@@ -275,9 +256,6 @@ class Decoder(nn.Module):
             lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
             lat = lat + 0.1 * self.frac_lat[c](lat_new)
 
-        out = self.out_norm(out)
-        out = self.out_pos_enc(out)
-        out = self.out_dyna_conv(out, lat)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)

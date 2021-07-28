@@ -66,7 +66,7 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        self.out_to_lat = LinearResidualBlock(sum(self.conv_state_size), lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -172,15 +172,9 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size * 2, 2))
-        self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
-        self.lat_to_theta = nn.Sequential(
-            LinearResidualBlock(self.lat_size, int(self.lat_size ** 0.5)),
-            nn.Linear(int(self.lat_size ** 0.5), 6)
-        )
-        self.lat_to_theta[-1].weight.data.zero_()
-        self.lat_to_theta[-1].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        # self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size * 2, 2))
+        # self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         frac_sobel = []
         frac_norm = []
@@ -221,21 +215,15 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            # if isinstance(seed_n, tuple):
-            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            # elif isinstance(seed_n, list):
-            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            # else:
-            #     seed = self.seed[seed_n:seed_n + 1, ...]
-            # out = torch.cat([seed.to(float_type)] * batch_size, 0)
-            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.seed_selector(out)
-            theta = self.lat_to_theta(lat)
-            theta = theta.view(-1, 2, 3)
-            grid = F.affine_grid(theta, out.size(), align_corners=False)
-            out = F.grid_sample(out, grid, align_corners=False)
-            out = out[:, :, self.image_size//2:self.image_size + self.image_size//2,
-                            self.image_size//2:self.image_size + self.image_size//2]
+            if isinstance(seed_n, tuple):
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            elif isinstance(seed_n, list):
+                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            else:
+                seed = self.seed[seed_n:seed_n + 1, ...]
+            out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            # out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            # out = self.seed_selector(out)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)

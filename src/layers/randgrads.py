@@ -23,11 +23,13 @@ class RandGrads(nn.Module):
         for i, kernel_size in enumerate(kernel_sizes):
             weight = get_rand_grads_kernel_nd(channels, kernel_size, dim)
             self.register_buffer('weight%d' % i, weight)
+            self.register_parameter('weight%d_theta' % i, nn.Parameter(torch.zeros(channels)))
 
         self.groups = channels
         self.paddings = paddings
         self.dim = dim
         self.mode = mode
+        self.n_calls = 0
 
         if dim == 1:
             self.conv = F.conv1d
@@ -45,7 +47,22 @@ class RandGrads(nn.Module):
         else:
             raise RuntimeError('supported modes are rep_in and split_out')
 
+    def reset_n_calls(self):
+        self.n_calls = 0
+
+    def rotate_weight(self, weight, weight_theta):
+        s = torch.sin(weight_theta)
+        c = torch.cos(weight_theta)
+        theta_rot = torch.zeros(weight_theta.shape[0], 2, 3)
+        theta_rot[:, 0, 0] = c
+        theta_rot[:, 0, 1] = -s
+        theta_rot[:, 1, 0] = s
+        theta_rot[:, 1, 1] = c
+        grid = F.affine_grid(theta_rot, weight.size(), align_corners=False)
+        return F.grid_sample(weight, grid, align_corners=False)
+
     def forward(self, x):
+        self.n_calls += 1
         if self.mode == 'rep_in':
             g_out = []
         elif self.mode == 'split_out':
@@ -54,7 +71,9 @@ class RandGrads(nn.Module):
             if self.mode == 'rep_in':
                 g_out.append(x)
             weight = getattr(self, 'weight%d' % i)
-            g_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
+            weight_theta = getattr(self, 'weight%d_theta' % i) * self.n_calls
+            rot_weight = self.rotate_weight(weight, weight_theta)
+            g_out.append(self.conv(x, weight=rot_weight, stride=1, padding=padding, groups=self.groups))
         return torch.cat(g_out, dim=1)
 
 
