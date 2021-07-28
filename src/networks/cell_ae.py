@@ -268,7 +268,7 @@ class Decoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-        out = self.out_dyna_conv(out)
+        out = self.out_dyna_conv(out, lat)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
