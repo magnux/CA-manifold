@@ -172,8 +172,8 @@ class Decoder(nn.Module):
         self.lat_to_theta[-1].weight.data.zero_()
         self.lat_to_theta[-1].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
 
-        self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
-                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)])
+        self.frac_sobel = RandGrads(self.n_filter, np.repeat([(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)], 2),
+                                                   np.repeat([2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], 2))
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
