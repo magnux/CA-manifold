@@ -53,7 +53,7 @@ class RandGrads(nn.Module):
     def rotate_weight(self, weight, weight_theta):
         s = torch.sin(weight_theta)
         c = torch.cos(weight_theta)
-        theta_rot = torch.zeros(weight_theta.shape[0], 2, 3)
+        theta_rot = torch.zeros(weight_theta.shape[0], 2, 3, device=weight.device)
         theta_rot[:, 0, 0] = c
         theta_rot[:, 0, 1] = -s
         theta_rot[:, 1, 0] = s
