@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
-from src.layers.posencoding import sin_cos_pos_encoding_nd
+from src.layers.posencoding import sin_cos_pos_encoding_nd, PosEncoding
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
@@ -201,7 +201,8 @@ class Decoder(nn.Module):
             out_f = self.out_chan
 
         self.out_norm = nn.InstanceNorm2d(self.n_filter)
-        self.out_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter, lat_factor=2)
+        self.out_pos_enc = PosEncoding(self.image_size, 2)
+        self.out_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter + self.out_pos_enc.size(), self.n_filter, self.n_filter, lat_factor=2)
         self.out_conv = nn.Conv2d(self.n_filter, out_f, 1, 1, 0)
 
     def forward(self, lat, ca_init=None, seed_n=0):
@@ -275,6 +276,7 @@ class Decoder(nn.Module):
             lat = lat + 0.1 * self.frac_lat[c](lat_new)
 
         out = self.out_norm(out)
+        out = self.out_pos_enc(out)
         out = self.out_dyna_conv(out, lat)
         out = self.out_conv(out)
         if self.ce_out:
