@@ -172,8 +172,8 @@ class Decoder(nn.Module):
         self.lat_to_theta[-1].weight.data.zero_()
         self.lat_to_theta[-1].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
 
-        self.frac_sobel = RandGrads(self.n_filter, np.repeat([(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)], 3),
-                                                   np.repeat([2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], 3))
+        self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
+                                                   [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)])
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
@@ -195,6 +195,7 @@ class Decoder(nn.Module):
             self.register_buffer('ce_pos', ce_pos)
         else:
             out_f = self.out_chan
+        self.out_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filte, 2, 3, 1, 1, lat_factor=2)
         self.out_conv = nn.Conv2d(self.n_filter, out_f, 1, 1, 0)
 
     def forward(self, lat, ca_init=None, seed_n=0):
@@ -267,6 +268,7 @@ class Decoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
+        out = self.out_dyna_conv(out)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
