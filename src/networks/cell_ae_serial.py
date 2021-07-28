@@ -84,8 +84,8 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         auto_reg_grads = []
-        self.frac_sobel.reset_n_calls()
         for l in range(self.n_layers):
+            self.frac_sobel[l].reset_n_calls()
             for c in range(self.n_calls):
                 lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
                 inj_lat = inj_lat + 0.1 * self.frac_lat[l](lat_new)
@@ -241,8 +241,8 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         auto_reg_grads = []
-        self.frac_sobel.reset_n_calls()
         for l in range(self.n_layers):
+            self.frac_sobel[l].reset_n_calls()
             for c in range(self.n_calls):
                 lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
                 lat = lat + 0.1 * self.frac_lat[l](lat_new)
