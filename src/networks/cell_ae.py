@@ -223,6 +223,7 @@ class Decoder(nn.Module):
                                  out_hw.view(batch_size, 1, self.image_size, self.image_size).repeat(1, self.n_filter, 1, 1)], dim=1)
             else:
                 out = out.view(batch_size, self.split_sizes[0], 1, 1).repeat(1, 1, self.image_size, self.image_size)
+            out = self.in_conv(out)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
