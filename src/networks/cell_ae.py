@@ -57,7 +57,7 @@ class InjectedEncoder(nn.Module):
         self.register_buffer('out_pos_enc', sin_cos_pos_encoding_nd(self.image_size, 2))
         self.out_conv = nn.Conv2d(self.n_filter, self.out_pos_enc.shape[1], 1, 1, 0)
         self.out_to_lat = LinearResidualBlock(self.lat_size + self.out_pos_enc.shape[1], self.lat_size)
-        self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
+        self.lat_seed = LinearResidualBlock(self.lat_size, self.lat_size)
         self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None, seed_n=0):
@@ -69,13 +69,7 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
-        if isinstance(seed_n, tuple):
-            lat_seed = self.lat_seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-        elif isinstance(seed_n, list):
-            lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
-        else:
-            lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
-        lat = torch.cat([lat_seed.to(float_type)] * batch_size, 0)
+        lat = self.lat_seed(inj_lat)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
