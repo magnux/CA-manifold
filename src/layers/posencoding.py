@@ -110,7 +110,7 @@ class PosEncoding(nn.Module):
 
 
 class LatFreqEncoding(nn.Module):
-    def __init__(self, lat_size, norm=True):
+    def __init__(self, lat_size, norm=False):
         super(LatFreqEncoding, self).__init__()
         self.lat_size = lat_size
         self.norm = norm
