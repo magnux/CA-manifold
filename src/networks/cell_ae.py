@@ -109,7 +109,7 @@ class InjectedEncoder(nn.Module):
             inj_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
 
             freq = self.out_freq(out)
-            lat = lat + self.freq_to_lat(freq.mean(dim=(2, 3)), dim=1)
+            lat = lat + self.freq_to_lat(freq.mean(dim=(2, 3)))
 
         lat = self.lat_out(lat)
 
