@@ -109,13 +109,13 @@ class PosEncoding(nn.Module):
         return int(self.pos_encoding.size(1))
 
 
-class CosFreqEncoding(nn.Module):
+class LatFreqEncoding(nn.Module):
     def __init__(self, lat_size, norm=True):
-        super(CosFreqEncoding, self).__init__()
+        super(LatFreqEncoding, self).__init__()
         self.lat_size = lat_size
         self.norm = norm
-        cos_freq_encoding = cos_pos_encoding_1d(self.lat_size, 1, 8)
-        self.register_buffer('cos_freq_encoding', cos_freq_encoding)
+        cos_freq_encoding = sin_cos_pos_encoding_1d(self.lat_size, 1, 8)
+        self.register_buffer('sin_cos_pos_encoding_1d', cos_freq_encoding)
         self.to_freq_size = nn.Linear(self.lat_size, cos_freq_encoding.size(1), bias=False)
 
     def forward(self, x):
@@ -128,6 +128,29 @@ class CosFreqEncoding(nn.Module):
         return x_freqs
 
 
+class ConvFreqDecoder(nn.Module):
+    def __init__(self, size, dim=2):
+        super(ConvFreqDecoder, self).__init__()
+        self.register_buffer('freq_decoder', sin_cos_pos_encoding_nd(size, dim))
+
+        if dim == 1:
+            self.l_conv = nn.Conv1d
+        elif dim == 2:
+            self.l_conv = nn.Conv2d
+        elif dim == 3:
+            self.l_conv = nn.Conv3d
+        else:
+            raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
+
+        self.out_conv = self.l_conv(self.n_filter, self.freq_decoder.shape[1], 1, 1, 0)
+
+    def forward(self, x):
+        return self.out_conv(x) * self.freq_decoder
+
+    def size(self):
+        return int(self.pos_encoding.size(1))
+
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
@@ -138,7 +161,7 @@ if __name__ == '__main__':
         plt.show()
 
     lat_size = 512
-    cos_enc = CosFreqEncoding(lat_size, True)
+    cos_enc = LatFreqEncoding(lat_size, True)
     print(cos_enc.cos_freq_encoding.shape)
 
     n_samples = 16

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
-from src.layers.posencoding import sin_cos_pos_encoding_nd, PosEncoding
+from src.layers.posencoding import ConvFreqDecoder
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
@@ -54,9 +54,8 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.register_buffer('out_pos_enc', sin_cos_pos_encoding_nd(self.image_size, 2))
-        self.out_conv = nn.Conv2d(self.n_filter, self.out_pos_enc.shape[1], 1, 1, 0)
-        self.out_to_lat = LinearResidualBlock(self.lat_size + self.out_pos_enc.shape[1], self.lat_size)
+        self.out_freq = ConvFreqDecoder(self.image_size)
+        self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_pos_enc.shape[1], self.lat_size)
         self.lat_seed = LinearResidualBlock(self.lat_size, self.lat_size)
         self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
@@ -109,7 +108,7 @@ class InjectedEncoder(nn.Module):
             lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
             inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
 
-            out_to_lat = self.out_conv(out) * self.out_pos_enc
+            out_to_lat = self.out_freq(out)
             out_to_lat = out_to_lat.mean(dim=(2, 3))
             lat = lat + 0.1 * self.out_to_lat(torch.cat([lat, out_to_lat], dim=1))
 
