@@ -253,7 +253,9 @@ class Decoder(nn.Module):
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
-            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
+
+            lat_new = F.normalize(lat)
+            lat_new = torch.cat([lat_new, out.mean((2, 3))], 1) if self.env_feedback else lat_new
             lat = lat + 0.1 * self.frac_lat(lat_new)
 
         out = self.out_conv(out)
