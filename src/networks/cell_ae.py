@@ -105,13 +105,12 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            lat_new = F.normalize(inj_lat)
-            lat_new = torch.cat([lat_new, out.mean((2, 3))], 1) if self.env_feedback else lat_new
+            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
             inj_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
 
             freq = self.out_freq(out)
             freq = freq.mean(dim=(2, 3))
-            lat = lat + 0.1 * self.freq_to_lat(torch.cat([F.normalize(lat), freq], dim=1))
+            lat = lat + 0.1 * self.freq_to_lat(torch.cat([lat, freq], dim=1))
 
         lat = self.lat_out(lat)
 
@@ -247,8 +246,7 @@ class Decoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            lat_new = F.normalize(lat)
-            lat_new = torch.cat([lat_new, out.mean((2, 3))], 1) if self.env_feedback else lat_new
+            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
             lat = lat + 0.1 * self.frac_lat(lat_new)
 
         out = self.out_conv(out)
