@@ -59,7 +59,7 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_pos_enc = PosEncoding(self.image_size, 2)
-        self.out_conv = ResidualBlock(self.n_filter + self.out_pos_enc.size(), sum(self.split_sizes), 1, 1, 0)
+        self.out_conv = ResidualBlock(self.n_filter + self.out_pos_enc.size(), sum(self.split_sizes), None, 1, 1, 0)
         self.out_to_lat = LinearResidualBlock(self.lat_size + sum(self.conv_state_size), self.lat_size)
         self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
