@@ -20,7 +20,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, n_seed=1, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, n_seed=1, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -36,13 +36,9 @@ class InjectedEncoder(nn.Module):
         self.causal = causal
         self.gated = gated
         self.env_feedback = env_feedback
-        self.multi_cut = multi_cut
         self.auto_reg = auto_reg
         self.ce_in = ce_in
         self.n_seed = n_seed
-
-        self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
-        self.conv_state_size = [self.n_filter, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2] if self.multi_cut else [self.n_filter]
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
@@ -58,9 +54,9 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_pos_enc = PosEncoding(self.image_size, 2)
-        self.out_conv = ResidualBlock(self.n_filter + self.out_pos_enc.size(), sum(self.split_sizes), None, 1, 1, 0)
-        self.out_to_lat = LinearResidualBlock(self.lat_size + sum(self.conv_state_size), self.lat_size)
+        self.register_buffer('out_pos_enc', sin_cos_pos_encoding_nd(self.image_size, 2))
+        self.out_conv = nn.Conv2d(self.n_filter, self.out_pos_enc.shape[1], 1, 1, 0)
+        self.out_to_lat = LinearResidualBlock(self.lat_size + self.seed.shape[1], self.lat_size)
         self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
@@ -119,16 +115,8 @@ class InjectedEncoder(nn.Module):
             lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
             inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
 
-            out_to_lat = self.out_pos_enc(out)
-            out_to_lat = self.out_conv(out_to_lat)
-            if self.multi_cut:
-                conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out_to_lat, self.split_sizes, dim=1)
-                conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
-                                        conv_state_fh.mean(dim=3).view(batch_size, -1),
-                                        conv_state_fw.mean(dim=2).view(batch_size, -1),
-                                        conv_state_hw.view(batch_size, -1)], dim=1)
-            else:
-                conv_state = out.mean(dim=(2, 3))
+            out_to_lat = self.out_conv(out) * self.out_pos_enc
+            out_to_lat = out_to_lat.mean(dim=(2, 3))
             lat = lat + 0.1 * self.out_to_lat(torch.cat([lat, conv_state], dim=1))
 
         lat = self.lat_out(lat)
@@ -176,9 +164,9 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
-        self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        # self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
+        # self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
@@ -212,15 +200,15 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            # if isinstance(seed_n, tuple):
-            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            # elif isinstance(seed_n, list):
-            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            # else:
-            #     seed = self.seed[seed_n:seed_n + 1, ...]
-            # out = torch.cat([seed.to(float_type)] * batch_size, 0)
-            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.seed_selector(out)
+            if isinstance(seed_n, tuple):
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            elif isinstance(seed_n, list):
+                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            else:
+                seed = self.seed[seed_n:seed_n + 1, ...]
+            out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            # out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            # out = self.seed_selector(out)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
