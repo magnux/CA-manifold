@@ -74,7 +74,7 @@ class InjectedEncoder(nn.Module):
             lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
         else:
             lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
-        lat = torch.cat([lat_seed.to(float_type)] * batch_size, 0)
+        lat = F.normalize(torch.cat([lat_seed.to(float_type)] * batch_size, 0))
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
