@@ -56,7 +56,6 @@ class InjectedEncoder(nn.Module):
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
         self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size)
-        self.lat_seed = LinearResidualBlock(self.lat_size, self.lat_size)
         self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None, seed_n=0):
@@ -68,7 +67,7 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
-        lat = self.lat_seed(inj_lat)
+        lat = inj_lat
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
