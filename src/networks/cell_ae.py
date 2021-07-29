@@ -111,7 +111,9 @@ class InjectedEncoder(nn.Module):
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
-            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+
+            lat_new = F.normalize(inj_lat)
+            lat_new = torch.cat([lat_new, out.mean((2, 3))], 1) if self.env_feedback else lat_new
             inj_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
 
             freq = self.out_freq(out)
