@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+import numpy as np
 
 
 def get_rand_grads_kernel_nd(channels, kernel_size, dim):
@@ -23,7 +24,7 @@ class RandGrads(nn.Module):
         for i, kernel_size in enumerate(kernel_sizes):
             weight = get_rand_grads_kernel_nd(channels, kernel_size, dim)
             self.register_buffer('weight%d' % i, weight)
-            self.register_parameter('weight%d_theta' % i, nn.Parameter(torch.zeros(channels)))
+            self.register_buffer('weight%d_theta' % i, torch.randn(channels) * np.pi)
 
         self.groups = channels
         self.paddings = paddings
