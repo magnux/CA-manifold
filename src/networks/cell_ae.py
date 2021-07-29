@@ -220,7 +220,7 @@ class Decoder(nn.Module):
                 out = torch.cat([out_f.view(batch_size, self.split_sizes[0], 1, 1).repeat(1, 1, self.image_size, self.image_size),
                                  out_fh.view(batch_size, self.split_sizes[1], self.image_size, 1).repeat(1, 1, 1, self.image_size),
                                  out_fw.view(batch_size, self.split_sizes[2], 1, self.image_size).repeat(1, 1, self.image_size, 1),
-                                 out_hw.view(batch_size, self.split_sizes[3], 1, 1).repeat(1, self.n_filter, 1, 1)], dim=1)
+                                 out_hw.view(batch_size, self.split_sizes[3], self.image_size, self.image_size).repeat(1, self.n_filter, 1, 1)], dim=1)
             else:
                 out = out.view(batch_size, self.split_sizes[0], 1, 1).repeat(1, 1, self.image_size, self.image_size)
         else:
