@@ -116,7 +116,7 @@ class InjectedEncoder(nn.Module):
 
             freq = self.out_freq(out)
             freq = freq.mean(dim=(2, 3))
-            lat = lat + 0.1 * self.freq_to_lat(torch.cat([lat, freq], dim=1))
+            lat = lat + 0.1 * self.freq_to_lat(torch.cat([F.normalize(lat), freq], dim=1))
 
         lat = self.lat_out(lat)
 
