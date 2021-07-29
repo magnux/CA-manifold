@@ -217,10 +217,10 @@ class Decoder(nn.Module):
             out = self.lat_to_in(lat)
             if self.multi_cut:
                 out_f, out_fh, out_fw, out_hw = torch.split(out, self.conv_state_size, dim=1)
-                out = torch.cat([out_f.view(batch_size, self.split_sizes[0], 1, 1).repeat(1, 1, self.image_size, self.image_size),
-                                 out_fh.view(batch_size, self.split_sizes[1], self.image_size, 1).repeat(1, 1, 1, self.image_size),
-                                 out_fw.view(batch_size, self.split_sizes[2], 1, self.image_size).repeat(1, 1, self.image_size, 1),
-                                 out_hw.view(batch_size, self.split_sizes[3], self.image_size, self.image_size).repeat(1, self.n_filter, 1, 1)], dim=1)
+                out = torch.cat([out_f.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size),
+                                 out_fh.view(batch_size, self.n_filter, self.image_size, 1).repeat(1, 1, 1, self.image_size),
+                                 out_fw.view(batch_size, self.n_filter, 1, self.image_size).repeat(1, 1, self.image_size, 1),
+                                 out_hw.view(batch_size, self.n_filter, self.image_size, self.image_size).repeat(1, self.n_filter, 1, 1)], dim=1)
             else:
                 out = out.view(batch_size, self.split_sizes[0], 1, 1).repeat(1, 1, self.image_size, self.image_size)
         else:
