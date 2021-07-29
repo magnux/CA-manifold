@@ -166,9 +166,9 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
-        self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        # self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
+        # self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
@@ -195,7 +195,8 @@ class Decoder(nn.Module):
             out_f = self.out_chan
 
         self.out_norm = nn.InstanceNorm2d(self.n_filter)
-        self.out_conv = ResidualBlock(self.n_filter, out_f, None, 1, 1, 0)
+        self.out_pos_enc = PosEncoding(self.image_size, 2)
+        self.out_conv = ResidualBlock(self.n_filter + self.out_pos_enc.size(), out_f, None, 1, 1, 0)
 
     def forward(self, lat, ca_init=None, seed_n=0):
         batch_size = lat.size(0)
@@ -203,15 +204,15 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            # if isinstance(seed_n, tuple):
-            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            # elif isinstance(seed_n, list):
-            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            # else:
-            #     seed = self.seed[seed_n:seed_n + 1, ...]
-            # out = torch.cat([seed.to(float_type)] * batch_size, 0)
-            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.seed_selector(out)
+            if isinstance(seed_n, tuple):
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            elif isinstance(seed_n, list):
+                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            else:
+                seed = self.seed[seed_n:seed_n + 1, ...]
+            out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            # out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            # out = self.seed_selector(out)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
@@ -262,6 +263,7 @@ class Decoder(nn.Module):
             lat = lat + 0.1 * self.frac_lat[c](lat_new)
 
         out = self.out_norm(out)
+        out = self.out_pos_enc(out)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
