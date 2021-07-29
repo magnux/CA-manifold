@@ -49,12 +49,13 @@ class InjectedEncoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
 
-        self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
+        self.frac_lat = LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
+        self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size)
         self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
@@ -67,7 +68,13 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
-        lat = inj_lat
+        if isinstance(seed_n, tuple):
+            lat_seed = self.lat_seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+        elif isinstance(seed_n, list):
+            lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
+        else:
+            lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
+        lat = torch.cat([lat_seed.to(float_type)] * batch_size, 0)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -105,7 +112,7 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
             lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
-            inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
+            inj_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
 
             freq = self.out_freq(out)
             freq = freq.mean(dim=(2, 3))
@@ -167,9 +174,7 @@ class Decoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
 
-        self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
-
-        # self.frac_noise = nn.ModuleList([NoiseInjection(n_filter) for _ in range(self.n_calls)])
+        self.frac_lat = LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -237,7 +242,6 @@ class Decoder(nn.Module):
                     out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
-            # out_new = self.frac_noise[c](out_new)
             out = out + 0.1 * out_new
             if self.causal:
                 out = out[:, :, 1:, 1:]
@@ -248,7 +252,7 @@ class Decoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
             lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            lat = lat + 0.1 * self.frac_lat[c](lat_new)
+            lat = lat + 0.1 * self.frac_lat(lat_new)
 
         out = self.out_conv(out)
         if self.ce_out:
