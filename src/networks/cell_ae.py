@@ -56,11 +56,7 @@ class InjectedEncoder(nn.Module):
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
         self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size)
-        self.lat_out = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
-        )
+        self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
