@@ -58,8 +58,7 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_norm = nn.InstanceNorm2d(self.n_filter)
-        self.out_pos_enc = PosEncoding(self.image_size, 2)
-        self.out_conv = ResidualBlock(self.n_filter + self.out_pos_enc.size(), sum(self.split_sizes), None, 1, 1, 0)
+        self.out_conv = ResidualBlock(self.n_filter, sum(self.split_sizes), None, 1, 1, 0)
         self.out_to_lat = nn.Linear(sum(self.conv_state_size), lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
@@ -111,7 +110,6 @@ class InjectedEncoder(nn.Module):
             inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
 
         out = self.out_norm(out)
-        out = self.out_pos_enc(out)
         out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
@@ -195,8 +193,7 @@ class Decoder(nn.Module):
             out_f = self.out_chan
 
         self.out_norm = nn.InstanceNorm2d(self.n_filter)
-        self.out_pos_enc = PosEncoding(self.image_size, 2)
-        self.out_conv = ResidualBlock(self.n_filter + self.out_pos_enc.size(), out_f, None, 1, 1, 0)
+        self.out_conv = ResidualBlock(self.n_filter, out_f, None, 1, 1, 0)
 
     def forward(self, lat, ca_init=None, seed_n=0):
         batch_size = lat.size(0)
@@ -263,7 +260,6 @@ class Decoder(nn.Module):
             lat = lat + 0.1 * self.frac_lat[c](lat_new)
 
         out = self.out_norm(out)
-        out = self.out_pos_enc(out)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
