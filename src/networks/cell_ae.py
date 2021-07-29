@@ -56,7 +56,7 @@ class InjectedEncoder(nn.Module):
 
         self.register_buffer('out_pos_enc', sin_cos_pos_encoding_nd(self.image_size, 2))
         self.out_conv = nn.Conv2d(self.n_filter, self.out_pos_enc.shape[1], 1, 1, 0)
-        self.out_to_lat = LinearResidualBlock(self.lat_size + self.seed.shape[1], self.lat_size)
+        self.out_to_lat = LinearResidualBlock(self.lat_size + self.out_pos_enc.shape[1], self.lat_size)
         self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
@@ -117,7 +117,7 @@ class InjectedEncoder(nn.Module):
 
             out_to_lat = self.out_conv(out) * self.out_pos_enc
             out_to_lat = out_to_lat.mean(dim=(2, 3))
-            lat = lat + 0.1 * self.out_to_lat(torch.cat([lat, conv_state], dim=1))
+            lat = lat + 0.1 * self.out_to_lat(torch.cat([lat, out_to_lat], dim=1))
 
         lat = self.lat_out(lat)
 
