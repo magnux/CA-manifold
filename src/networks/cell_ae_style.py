@@ -47,13 +47,16 @@ class InjectedEncoder(nn.Module):
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
+        self.frac_mod_conv = ModConv(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_factor, 1, demod=False)
         self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1))
+
+        self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
-        self.frac_lat = LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size)
+        self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size)
         self.lat_seed = LinearResidualBlock(self.lat_size, self.lat_size)
         self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
@@ -83,6 +86,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
+            out_new = self.frac_mod_conv(out_new, inj_lat)
             out_new = self.frac_conv(out_new)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -103,10 +107,12 @@ class InjectedEncoder(nn.Module):
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
+            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            inj_lat = inj_lat + 0.1 * self.frac_lat[c](lat_new)
 
             freq = self.out_freq(out)
             freq = freq.mean(dim=(2, 3))
-            lat = lat + 0.1 * self.frac_lat(torch.cat([lat, freq], dim=1))
+            lat = lat + 0.1 * self.freq_to_lat(torch.cat([lat, freq], dim=1))
 
         lat = self.lat_out(lat)
 
