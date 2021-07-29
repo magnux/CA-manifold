@@ -114,13 +114,13 @@ class LatFreqEncoding(nn.Module):
         super(LatFreqEncoding, self).__init__()
         self.lat_size = lat_size
         self.norm = norm
-        cos_freq_encoding = sin_cos_pos_encoding_1d(self.lat_size, 1)
-        self.register_buffer('sin_cos_pos_encoding_1d', cos_freq_encoding)
-        self.to_freq_size = nn.Linear(self.lat_size, cos_freq_encoding.size(1), bias=False)
+        sin_cos_freq_encoding = sin_cos_pos_encoding_1d(self.lat_size, 1)
+        self.register_buffer('sin_cos_freq_encoding', sin_cos_freq_encoding)
+        self.to_freq_size = nn.Linear(self.lat_size, sin_cos_freq_encoding.size(1), bias=False)
 
     def forward(self, x):
         x_freqs = self.to_freq_size(x)
-        x_freqs = (x_freqs.unsqueeze(2) * self.cos_freq_encoding).mean(dim=1)
+        x_freqs = (x_freqs.unsqueeze(2) * self.sin_cos_freq_encoding).mean(dim=1)
 
         if self.norm:
             x_freqs = F.normalize(x_freqs)
@@ -148,7 +148,7 @@ class ConvFreqDecoder(nn.Module):
         return self.out_conv(x) * self.freq_decoder
 
     def size(self):
-        return int(self.pos_encoding.size(1))
+        return int(self.freq_decoder.size(1))
 
 
 if __name__ == '__main__':
