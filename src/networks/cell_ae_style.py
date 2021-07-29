@@ -45,8 +45,8 @@ class InjectedEncoder(nn.Module):
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
         self.frac_factor = self.frac_sobel.c_factor
-        # if not self.auto_reg:
-        #     self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
+        if not self.auto_reg:
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1))
 
         if self.skip_fire:
@@ -81,8 +81,8 @@ class InjectedEncoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            # if not self.auto_reg:
-            #     out_new = self.frac_norm(out_new)
+            if not self.auto_reg:
+                out_new = self.frac_norm(out_new)
             out_new = self.frac_conv(out_new)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -160,9 +160,9 @@ class Decoder(nn.Module):
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
         self.frac_factor = self.frac_sobel.c_factor
-        # if not self.auto_reg:
-        #     self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_mod_conv = ModConv(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_factor, 1)
+        if not self.auto_reg:
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
+        self.frac_mod_conv = ModConv(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_factor, 1, demod=False)
         self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1))
 
         self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
@@ -180,7 +180,6 @@ class Decoder(nn.Module):
         else:
             out_f = self.out_chan
 
-        self.out_norm = nn.InstanceNorm2d(self.n_filter)
         self.out_conv = nn.Conv2d(self.n_filter, out_f, 1, 1, 0)
 
     def forward(self, lat, ca_init=None, seed_n=0):
@@ -221,8 +220,8 @@ class Decoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            # if not self.auto_reg:
-            #     out_new = self.frac_norm(out_new)
+            if not self.auto_reg:
+                out_new = self.frac_norm(out_new)
             out_new = self.frac_mod_conv(out_new, lat)
             out_new = self.frac_conv(out_new)
             if self.gated:
@@ -248,7 +247,6 @@ class Decoder(nn.Module):
             lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
             lat = lat + 0.1 * self.frac_lat[c](lat_new)
 
-        out = self.out_norm(out)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
