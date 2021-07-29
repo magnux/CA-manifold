@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.layers.posencoding import LatFreqEncoding
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.dynalinear import DynaLinear
@@ -59,9 +58,10 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.yembed_irm = IRMLinear(self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
-        self.z_freq = LatFreqEncoding(self.z_dim)
+        self.z_irm = IRMLinear(self.z_dim)
         self.z_cond = DynaLinear(self.embed_size, self.z_dim, self.z_dim, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
@@ -79,9 +79,10 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
+        yembed = self.yembed_irm(yembed)
         lat = self.yembed_to_lat(yembed)
 
-        z = self.z_freq(z)
+        z = self.z_irm(z)
         z = self.z_cond(z, yembed)
         lat = lat + self.z_to_lat(z)
 
@@ -96,6 +97,7 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.yembed_irm = IRMLinear(self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
@@ -108,6 +110,7 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.labs_to_yembed(yembed)
+        yembed = self.yembed_irm(yembed)
         lat = self.yembed_to_lat(yembed)
 
         return lat
@@ -133,14 +136,14 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
         self.n_calls = n_calls
 
-        self.z_freq = LatFreqEncoding(self.z_dim)
+        self.z_irm = IRMLinear(self.z_dim)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        z = self.z_freq(z)
+        z = self.z_irm(z)
         lat = self.z_to_lat(z)
 
         return lat
