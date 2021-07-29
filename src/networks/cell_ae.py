@@ -20,7 +20,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, n_seed=1, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -39,6 +39,7 @@ class InjectedEncoder(nn.Module):
         self.multi_cut = multi_cut
         self.auto_reg = auto_reg
         self.ce_in = ce_in
+        self.n_seed = n_seed
 
         self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2] if self.multi_cut else [self.n_filter]
@@ -151,7 +152,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, auto_reg=False, ce_out=False, n_seed=1, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, ce_out=False, n_seed=1, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
