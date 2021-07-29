@@ -51,7 +51,7 @@ class InjectedEncoder(nn.Module):
         frac_dyna_conv = []
         frac_lat = []
         for l in range(self.n_layers):
-            frac_sobel.append(RandGrads(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1)))
+            frac_sobel.append(RandGrads(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), n_calls=n_calls))
             frac_factor = frac_sobel[l].c_factor
             if not self.auto_reg:
                 frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
@@ -85,7 +85,6 @@ class InjectedEncoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for l in range(self.n_layers):
-            self.frac_sobel[l].reset_n_calls()
             for c in range(self.n_calls):
                 lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
                 inj_lat = inj_lat + 0.1 * self.frac_lat[l](lat_new)
@@ -183,7 +182,7 @@ class Decoder(nn.Module):
         frac_lat = []
         # frac_noise = []
         for l in range(self.n_layers):
-            frac_sobel.append(RandGrads(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1)))
+            frac_sobel.append(RandGrads(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), n_calls=n_calls))
             frac_factor = frac_sobel[l].c_factor
             if not self.auto_reg:
                 frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
@@ -242,7 +241,6 @@ class Decoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for l in range(self.n_layers):
-            self.frac_sobel[l].reset_n_calls()
             for c in range(self.n_calls):
                 lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
                 lat = lat + 0.1 * self.frac_lat[l](lat_new)

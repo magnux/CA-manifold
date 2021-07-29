@@ -9,7 +9,7 @@ def get_rand_grads_kernel_nd(channels, kernel_size, dim):
 
 
 class RandGrads(nn.Module):
-    def __init__(self, channels, kernel_sizes, paddings, dim=2, mode='split_out'):
+    def __init__(self, channels, kernel_sizes, paddings, dim=2, n_calls=1, mode='split_out'):
         super(RandGrads, self).__init__()
 
         if isinstance(kernel_sizes, int):
@@ -24,13 +24,14 @@ class RandGrads(nn.Module):
         for i, kernel_size in enumerate(kernel_sizes):
             weight = get_rand_grads_kernel_nd(channels, kernel_size, dim)
             self.register_buffer('weight%d' % i, weight)
-            self.register_buffer('weight%d_theta' % i, torch.randn(channels) * np.pi)
+            self.register_buffer('weight%d_theta' % i, torch.randn(channels) * (1/n_calls) * np.pi)
 
         self.groups = channels
         self.paddings = paddings
         self.dim = dim
         self.mode = mode
-        self.n_calls = 0
+        self.n_calls = n_calls
+        self.call_c = 0
 
         if dim == 1:
             self.conv = F.conv1d
@@ -48,9 +49,6 @@ class RandGrads(nn.Module):
         else:
             raise RuntimeError('supported modes are rep_in and split_out')
 
-    def reset_n_calls(self):
-        self.n_calls = 0
-
     def rotate_weight(self, weight, weight_theta):
         s = torch.sin(weight_theta)
         c = torch.cos(weight_theta)
@@ -63,7 +61,7 @@ class RandGrads(nn.Module):
         return F.grid_sample(weight, grid, align_corners=False)
 
     def forward(self, x):
-        self.n_calls += 1
+        self.call_c += 1
         if self.mode == 'rep_in':
             g_out = []
         elif self.mode == 'split_out':
@@ -72,7 +70,7 @@ class RandGrads(nn.Module):
             if self.mode == 'rep_in':
                 g_out.append(x)
             weight = getattr(self, 'weight%d' % i)
-            weight_theta = getattr(self, 'weight%d_theta' % i) * self.n_calls
+            weight_theta = getattr(self, 'weight%d_theta' % i) * (self.call_c % self.n_calls)
             rot_weight = self.rotate_weight(weight, weight_theta)
             g_out.append(self.conv(x, weight=rot_weight, stride=1, padding=padding, groups=self.groups))
         return torch.cat(g_out, dim=1)
@@ -110,21 +108,23 @@ if __name__ == '__main__':
     # kernel_sizes = [i + 1 for i in range(2, 10, 2)]
     kernel_sizes = [(2 ** i) + 1 for i in range(1, 7, 2)]
     # kernel_sizes = [3]
-    kernels = []
-    for i, kernel_size in enumerate(kernel_sizes):
-        kernel = get_rand_grads_kernel_nd(3, kernel_size, 2)
-        kernels.append(kernel)
-    # paddings = [1, 15, 31]
-    # paddings = [2 ** (i - 1) for i in range(1, 5)]
-    # paddings = [i // 2 for i in range(2, 10, 2)]
+    # kernels = []
+    # for i, kernel_size in enumerate(kernel_sizes):
+    #     kernel = get_rand_grads_kernel_nd(3, kernel_size, 2)
+    #     kernels.append(kernel)
+    # # paddings = [1, 15, 31]
+    # # paddings = [2 ** (i - 1) for i in range(1, 5)]
+    # # paddings = [i // 2 for i in range(2, 10, 2)]
     paddings = [2 ** (i - 1) for i in range(1, 7, 2)]
-    # paddings = [1]
-    # print(kernels[0].shape)
-    for kernel in kernels:
-        for i in range(kernel.shape[0]):
-            plt.imshow(kernel[i, 0, ...].t())
-            plt.show()
-    print(kernel_sizes, paddings)
+    # # paddings = [1]
+    # # print(kernels[0].shape)
+    # for kernel in kernels:
+    #     for i in range(kernel.shape[0]):
+    #         plt.imshow(kernel[i, 0, ...].t())
+    #         plt.show()
+    # print(kernel_sizes, paddings)
+
+    rand_grads = RandGrads(3, kernel_sizes, paddings, n_calls=n_calls)
 
     for i in range(n_calls):
         # canvas[:, :, c_size // 4, i] -= 1
@@ -133,10 +133,11 @@ if __name__ == '__main__':
         #     canvas[:, :, c_size * 3 // 4, c_size * 3 // 4] -= 1
         # else:
         #     canvas[:, :, c_size * 3 // 4, c_size * 3 // 4] *= 1.1
-        canvas_rand = [canvas]
-        for rand_grad_f, pad_f in zip(kernels, paddings):
-            canvas_rand.append(F.conv2d(canvas, weight=rand_grad_f, stride=1, padding=pad_f, groups=3))
-        canvas = torch.cat(canvas_rand, dim=1)
+        # canvas_rand = [canvas]
+        # for rand_grad_f, pad_f in zip(kernels, paddings):
+        #     canvas_rand.append(F.conv2d(canvas, weight=rand_grad_f, stride=1, padding=pad_f, groups=3))
+        # canvas = torch.cat(canvas_rand, dim=1)
+        canvas = rand_grads(canvas)
         canvas = F.instance_norm(canvas)
         canvas = canvas.view(1, 4, 3, c_size, c_size).mean(dim=1)
         canvas[:, :, c_size // 2:(c_size // 2) + 10, c_size // 2:(c_size // 2) + 10] = 0.0
