@@ -131,7 +131,8 @@ class LatFreqEncoding(nn.Module):
 class ConvFreqDecoder(nn.Module):
     def __init__(self, n_filter, size, dim=2):
         super(ConvFreqDecoder, self).__init__()
-        self.register_buffer('freq_decoder', sin_cos_pos_encoding_nd(size, dim))
+        freq_decoder = sin_cos_pos_encoding_nd(size, dim)
+        self.register_buffer('freq_decoder', freq_decoder / freq_decoder.size(1))
 
         if dim == 1:
             self.l_conv = nn.Conv1d

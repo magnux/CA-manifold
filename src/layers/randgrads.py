@@ -5,7 +5,7 @@ import numpy as np
 
 
 def get_rand_grads_kernel_nd(channels, kernel_size, dim):
-    return torch.nn.init.orthogonal_(torch.empty([channels, 1]+[kernel_size for _ in range(dim)])) * (10 / kernel_size ** dim)
+    return torch.nn.init.orthogonal_(torch.empty([channels, 1]+[kernel_size for _ in range(dim)]))
 
 
 class RandGrads(nn.Module):
@@ -23,7 +23,7 @@ class RandGrads(nn.Module):
 
         for i, kernel_size in enumerate(kernel_sizes):
             weight = get_rand_grads_kernel_nd(channels, kernel_size, dim)
-            self.register_buffer('weight%d' % i, weight)
+            self.register_buffer('weight%d' % i, weight * (10 / kernel_size ** dim))
             self.register_buffer('weight%d_theta' % i, torch.randn(channels) * (1/n_calls) * np.pi)
 
         self.groups = channels
