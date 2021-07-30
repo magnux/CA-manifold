@@ -59,7 +59,7 @@ class InjectedEncoder(nn.Module):
         self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size)
         self.lat_out = LinearResidualBlock(self.lat_size, lat_size if not z_out else z_dim)
 
-    def forward(self, x, inj_lat=None, seed_n=0):
+    def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
         batch_size = x.size(0)
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
