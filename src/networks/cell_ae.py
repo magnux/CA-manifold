@@ -58,7 +58,7 @@ class InjectedEncoder(nn.Module):
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
         self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size)
-        self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        self.lat_out = LinearResidualBlock(self.lat_size, lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None, seed_n=0):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -83,6 +83,7 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         auto_reg_grads = []
+        dyna_lat = inj_lat
         for c in range(self.n_calls):
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
@@ -92,7 +93,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, inj_lat)
+            out_new = self.frac_dyna_conv(out_new, dyna_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -113,17 +114,14 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
-            inj_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
+            lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
+            dyna_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
 
             freq = self.out_freq(out)
             freq = freq.mean(dim=(2, 3))
             lat = lat + 0.1 * self.freq_to_lat(torch.cat([lat, freq], dim=1))
 
-        if self.z_out:
-            lat = F.normalize(lat)
-
-        lat = self.lat_out(lat)
+        lat = self.lat_out(torch.cat([inj_lat, lat], dim=1))
 
         return lat, out_embs, None
 
