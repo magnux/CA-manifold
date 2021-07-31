@@ -57,7 +57,7 @@ class InjectedEncoder(nn.Module):
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
         self.register_buffer('calls_freq', sin_cos_pos_encoding_1d(self.n_calls))
-        self.freq_to_lat = LinearResidualBlock(self.out_freq.size() + self.calls_freq.shape[1], self.lat_size)
+        self.freq_to_lat = LinearResidualBlock(self.out_freq.size() + self.calls_freq.shape[1], lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -68,7 +68,7 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
-        lat = torch.zeros((batch_size, self.lat_size), device=x.device)
+        lat = 0.
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
