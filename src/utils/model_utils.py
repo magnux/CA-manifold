@@ -46,7 +46,7 @@ def get_grads_stats(network):
     stats_dict = OrderedDict()
     for name, p in network.named_parameters():
         if p.grad is not None:
-            stats_dict[name] = [p.grad.norm(2), p.grad.abs().max(), p.grad.std()]
+            stats_dict[name] = (p.grad.norm(2).item(), p.grad.abs().max().item(), p.grad.std().item())
     return stats_dict
 
 
