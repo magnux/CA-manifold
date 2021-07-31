@@ -4,6 +4,7 @@ import numpy as np
 from src.metrics.inception_score import inception_score
 from src.metrics.fid_score import calculate_fid_given_images
 from functools import partial
+from collections import OrderedDict
 
 
 def count_parameters(network):
@@ -39,6 +40,14 @@ def get_mean_grad_norm(network):
             grad_norm += p.grad.norm(2)
             n_grads += 1
     return grad_norm / n_grads
+
+
+def get_grads_stats(network):
+    stats_dict = OrderedDict
+    for p in network.parameters():
+        if p.grad is not None:
+            stats_dict[p.name] = [p.grad.norm(2), p.grad.abs().max(), p.grad.std()]
+    return stats_dict
 
 
 def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
