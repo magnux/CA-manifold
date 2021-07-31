@@ -108,7 +108,7 @@ class InjectedEncoder(nn.Module):
             out_embs.append(out)
 
             lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
-            dyna_lat = self.frac_lat(lat_new)
+            dyna_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
 
             freq = self.out_freq(out).mean(dim=(2, 3))
             lat = self.freq_to_lat(torch.cat([lat, freq], dim=1))
@@ -248,7 +248,7 @@ class Decoder(nn.Module):
             out_embs.append(out)
 
             lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            lat = self.frac_lat(lat_new)
+            lat = lat + 0.1 * self.frac_lat(lat_new)
 
         out = self.out_conv(out)
         if self.ce_out:
