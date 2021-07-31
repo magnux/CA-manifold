@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, groups=1, lat_factor=1, norm_weights=False):
+    def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, groups=1, lat_factor=1):
         super(DynaResidualBlock, self).__init__()
 
         self.lat_size = lat_size if lat_size > 3 else 512
@@ -28,10 +28,10 @@ class DynaResidualBlock(nn.Module):
         self.k_out_size = self.fout * (self.fhidden // groups) * (kernel_size ** dim)
         self.k_short_size = self.fout * (self.fin // groups) * (kernel_size ** dim)
         
-        self.b_in_size = self.fhidden if not norm_weights else 0
-        self.b_mid_size = self.fhidden if not norm_weights else 0
-        self.b_out_size = self.fout if not norm_weights else 0
-        self.b_short_size = self.fout if not norm_weights else 0
+        self.b_in_size = self.fhidden
+        self.b_mid_size = self.fhidden
+        self.b_out_size = self.fout
+        self.b_short_size = self.fout
 
         k_total_size = (self.k_in_size + self.k_mid_size + self.k_out_size + self.k_short_size +
                         self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size)
@@ -49,7 +49,6 @@ class DynaResidualBlock(nn.Module):
         self.stride = stride
         self.padding = padding
         self.groups = groups
-        self.norm_weights = norm_weights
 
     def forward(self, x, lat):
         batch_size = x.size(0)
@@ -66,22 +65,15 @@ class DynaResidualBlock(nn.Module):
             self.k_out = k_out.view([batch_size, self.fout, self.fhidden // self.groups] + self.kernel_size)
             self.k_short = k_short.view([batch_size, self.fout, self.fin // self.groups] + self.kernel_size)
 
-            if self.norm_weights:
-                self.k_in = self.k_in * torch.rsqrt((self.k_in ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
-                self.k_mid = self.k_mid * torch.rsqrt((self.k_mid ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
-                self.k_out = self.k_out * torch.rsqrt((self.k_out ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
-                self.k_short = self.k_short * torch.rsqrt((self.k_short ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
-
             self.k_in = self.k_in.reshape([batch_size * self.fhidden, self.fin // self.groups] + self.kernel_size)
             self.k_mid = self.k_mid.reshape([batch_size * self.fhidden, self.fhidden // self.groups] + self.kernel_size)
             self.k_out = self.k_out.reshape([batch_size * self.fout, self.fhidden // self.groups] + self.kernel_size)
             self.k_short = self.k_short.reshape([batch_size * self.fout, self.fin // self.groups] + self.kernel_size)
 
-            if not self.norm_weights:
-                self.b_in = b_in.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
-                self.b_mid = b_mid.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
-                self.b_out = b_out.view([batch_size, self.fout]).reshape([1, batch_size * self.fout] + [1 for _ in range(self.dim)])
-                self.b_short = b_short.view([batch_size, self.fout]).reshape([1, batch_size * self.fout] + [1 for _ in range(self.dim)])
+            self.b_in = b_in.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
+            self.b_mid = b_mid.view([batch_size, self.fhidden]).reshape([1, batch_size * self.fhidden] + [1 for _ in range(self.dim)])
+            self.b_out = b_out.view([batch_size, self.fout]).reshape([1, batch_size * self.fout] + [1 for _ in range(self.dim)])
+            self.b_short = b_short.view([batch_size, self.fout]).reshape([1, batch_size * self.fout] + [1 for _ in range(self.dim)])
             
             self.prev_lat = lat
 
