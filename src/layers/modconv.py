@@ -49,7 +49,7 @@ class ModConv(nn.Module):
             styles = self.lat_to_styles(lat)
 
             mod_weight = self.weight * (1 / np.sqrt(self.fin * self.kernel ** 2) / self.weight.norm(float('inf'), dim=[i for i in range(1, self.dim + 2)], keepdim=True)) # max_Ikk
-            styles = styles / lat.norm(float('inf'), dim=1, keepdim=True)  # max_I
+            styles = styles / styles.norm(float('inf'), dim=1, keepdim=True)  # max_I
 
             mod_weight = mod_weight.unsqueeze(0)
             mod_weight = mod_weight * styles.reshape([batch_size, 1, self.fin] + [1 for _ in range(self.dim)])
