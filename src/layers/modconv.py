@@ -2,11 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from src.layers.equallinear import EqualLinear
-import numpy as np
 
 
 class ModConv(nn.Module):
-    def __init__(self, lat_size, fin, fout, kernel, stride=1, dilation=1, dim=2, n_layers_style=4, **kwargs):
+    def __init__(self, lat_size, fin, fout, kernel, demod=True, stride=1, dilation=1, dim=2, n_layers_style=4, **kwargs):
         super().__init__()
         
         if dim == 1:
@@ -21,18 +20,19 @@ class ModConv(nn.Module):
 
         self.fin = fin
         self.fout = fout
+        self.demod = demod
         self.kernel = kernel
         self.stride = stride
         self.dilation = dilation
         weight = torch.randn([fout, fin] + [kernel for _ in range(dim)])
         nn.init.kaiming_normal_(weight, a=0, mode='fan_in', nonlinearity='leaky_relu')
-        self.weight = nn.Parameter(weight)
+        self.weight = nn.Parameter(weight.unsqueeze(0))
 
-        lat_to_styles = []
+        lat_to_fin = []
         for _ in range(n_layers_style):
-            lat_to_styles.extend([EqualLinear(lat_size, lat_size), nn.LeakyReLU(0.2, True)])
-        lat_to_styles.append(nn.Linear(lat_size, fin))
-        self.lat_to_styles = nn.Sequential(*lat_to_styles)
+            lat_to_fin.extend([EqualLinear(lat_size, lat_size), nn.LeakyReLU(0.2, True)])
+        lat_to_fin.append(nn.Linear(lat_size, fin))
+        self.lat_to_fin = nn.Sequential(*lat_to_fin)
         self.prev_lat = None
         self.mod_weight = None
 
@@ -45,17 +45,12 @@ class ModConv(nn.Module):
         padding = self._get_same_padding(in_size, self.kernel, self.dilation, self.stride)
 
         if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
-            self.prev_lat = lat
-            styles = self.lat_to_styles(lat)
+            y = self.lat_to_fin(lat).reshape([batch_size, 1, self.fin] + [1 for _ in range(self.dim)])
+            mod_weight = self.weight * y
 
-            mod_weight = self.weight * (1 / np.sqrt(self.fin * self.kernel ** 2) / self.weight.norm(float('inf'), dim=[i for i in range(1, self.dim + 2)], keepdim=True)) # max_Ikk
-            styles = styles / styles.norm(float('inf'), dim=1, keepdim=True)  # max_I
-
-            mod_weight = mod_weight.unsqueeze(0)
-            mod_weight = mod_weight * styles.reshape([batch_size, 1, self.fin] + [1 for _ in range(self.dim)])
-
-            dcoefs = (mod_weight.square().sum(dim=[i for i in range(2, self.dim + 3)]) + 1e-8).rsqrt() # [NO]
-            mod_weight = mod_weight * dcoefs.reshape(batch_size, -1, 1, 1, 1) # [NOIkk]
+            if self.demod:
+                d = torch.rsqrt((mod_weight ** 2).sum(dim=[i for i in range(2, self.dim + 3)], keepdim=True) + 1e-8)
+                mod_weight = mod_weight * d
 
             _, _, *ws = mod_weight.shape
             mod_weight = mod_weight.reshape([batch_size * self.fout, self.fin] + [self.kernel for _ in range(self.dim)])
