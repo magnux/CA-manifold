@@ -349,7 +349,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     # grad_mult(encoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
-                    pprint.pprint(get_grads_stats(encoder))
+                    # pprint.pprint(get_grads_stats(encoder))
 
                 # Streaming Images
                 with torch.no_grad():

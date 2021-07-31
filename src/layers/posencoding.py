@@ -133,7 +133,6 @@ class ConvFreqDecoder(nn.Module):
         super(ConvFreqDecoder, self).__init__()
         freq_decoder = sin_cos_pos_encoding_nd(size, dim)
         self.register_buffer('freq_decoder', freq_decoder)
-        self.norm_factor = nn.Parameter(torch.ones([]) / (freq_decoder.size(1)))
 
         if dim == 1:
             self.l_conv = nn.Conv1d
@@ -147,7 +146,7 @@ class ConvFreqDecoder(nn.Module):
         self.out_conv = self.l_conv(n_filter, self.freq_decoder.shape[1], 1, 1, 0)
 
     def forward(self, x):
-        return self.out_conv(x) * self.freq_decoder * self.norm_factor
+        return self.out_conv(x) * self.freq_decoder
 
     def size(self):
         return int(self.freq_decoder.size(1))
