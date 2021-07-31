@@ -111,7 +111,7 @@ class InjectedEncoder(nn.Module):
             lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
             dyna_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
 
-            freq = torch.cat([self.out_freq(out).mean(dim=(2, 3)), self.calls_freq[:, :, c].repeat(batch_size, 1, 1)], 1)
+            freq = torch.cat([self.out_freq(out).mean(dim=(2, 3)), self.calls_freq[:, :, c].repeat(batch_size, 1)], 1)
             lat = lat + 0.1 * self.freq_to_lat(freq)
 
         lat = self.lat_out(lat)
