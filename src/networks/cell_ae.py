@@ -97,7 +97,7 @@ class InjectedEncoder(nn.Module):
                     out_new = out_new * self.skip_fire_mask.to(device=x.device).to(float_type)
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=x.device).to(float_type))
-            out = out + 0.1 * out_new
+            out = out_new
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
@@ -108,7 +108,7 @@ class InjectedEncoder(nn.Module):
             out_embs.append(out)
 
             lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
-            dyna_lat = inj_lat + 0.1 * self.frac_lat(lat_new)
+            dyna_lat = self.frac_lat(lat_new)
 
             freq = torch.cat([self.out_freq(out).mean(dim=(2, 3)), self.calls_freq[:, :, c].repeat(batch_size, 1)], 1)
             lat = lat + self.freq_to_lat(freq)
@@ -235,7 +235,7 @@ class Decoder(nn.Module):
                     out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
-            out = out + 0.1 * out_new
+            out = out_new
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
@@ -246,7 +246,7 @@ class Decoder(nn.Module):
             out_embs.append(out)
 
             lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            lat = lat + 0.1 * self.frac_lat(lat_new)
+            lat = self.frac_lat(lat_new)
 
         out = self.out_conv(out)
         if self.ce_out:

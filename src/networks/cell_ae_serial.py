@@ -87,7 +87,7 @@ class InjectedEncoder(nn.Module):
         for l in range(self.n_layers):
             for c in range(self.n_calls):
                 lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
-                inj_lat = inj_lat + 0.1 * self.frac_lat[l](lat_new)
+                inj_lat = self.frac_lat[l](lat_new)
                 if self.causal:
                     out = F.pad(out, [0, 1, 0, 1])
                 out_new = out
@@ -107,7 +107,7 @@ class InjectedEncoder(nn.Module):
                         out_new = out_new * self.skip_fire_mask.to(device=x.device).to(float_type)
                     else:
                         out_new = out_new * (1 - self.skip_fire_mask.to(device=x.device).to(float_type))
-                out = out + 0.1 * out_new
+                out = out_new
                 if self.causal:
                     out = out[:, :, 1:, 1:]
                 if self.auto_reg and out.requires_grad:
@@ -243,7 +243,7 @@ class Decoder(nn.Module):
         for l in range(self.n_layers):
             for c in range(self.n_calls):
                 lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-                lat = lat + 0.1 * self.frac_lat[l](lat_new)
+                lat = self.frac_lat[l](lat_new)
                 if self.causal:
                     out = F.pad(out, [0, 1, 0, 1])
                 out_new = out
@@ -264,7 +264,7 @@ class Decoder(nn.Module):
                     else:
                         out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
                 # out_new = self.frac_noise[l](out_new)
-                out = out + 0.1 * out_new
+                out = out_new
                 if self.causal:
                     out = out[:, :, 1:, 1:]
                 if self.auto_reg and out.requires_grad:
