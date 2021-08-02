@@ -253,7 +253,7 @@ class Decoder(nn.Module):
 
         out = out.view(batch_size, self.n_filter, -1)
         out = F.normalize(out, float('inf'), dim=2)
-        out = out.view(batch_size, self.n_filters, self.image_size, self.image_size)
+        out = out.view(batch_size, self.n_filter, self.image_size, self.image_size)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
