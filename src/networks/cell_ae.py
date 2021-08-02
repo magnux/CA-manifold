@@ -86,7 +86,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             # if not self.auto_reg:
             #     out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, dyna_lat)
+            out_new = self.frac_dyna_conv(out_new, F.normalize(dyna_lat, float('inf'), dim=1))
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -224,7 +224,7 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             # if not self.auto_reg:
             #     out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, lat)
+            out_new = self.frac_dyna_conv(out_new, F.normalize(lat, float('inf'), dim=1))
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
