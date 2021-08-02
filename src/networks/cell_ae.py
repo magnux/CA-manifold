@@ -249,7 +249,7 @@ class Decoder(nn.Module):
             lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
             lat = self.frac_lat(lat_new)
 
-        out = out.view(batch_size, self.n_filters, -1)
+        out = out.view(batch_size, self.n_filter, -1)
         out = F.normalize(out, float('inf'), dim=2)
         out = out.view(batch_size, self.n_filters, self.image_size, self.image_size)
         out = self.out_conv(out)
