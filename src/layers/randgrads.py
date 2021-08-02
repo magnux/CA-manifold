@@ -155,7 +155,7 @@ if __name__ == '__main__':
     # plt.show()
 
     def _canvas(idx):
-        return canvas_l[idx].clamp(0, 1)
+        return canvas_l[idx].clamp(0, 1).detach()
 
     imageio.mimsave('./rand_grad_waves.gif', [_canvas(i) for i in range(c_size)], fps=5)
 
