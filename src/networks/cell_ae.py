@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
-from src.layers.posencoding import ConvFreqDecoder, sin_cos_pos_encoding_1d
+from src.layers.posencoding import ConvFreqDecoder, sin_cos_pos_encoding_1d, sin_cos_pos_encoding_nd
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
