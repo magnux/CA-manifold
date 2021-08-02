@@ -114,7 +114,7 @@ class InjectedEncoder(nn.Module):
             freq = torch.cat([lat, self.out_freq(out).mean(dim=(2, 3)), self.calls_freq[:, :, c].repeat(batch_size, 1)], 1)
             lat = self.freq_to_lat(freq)
 
-        lat = self.lat_out(F.normalize(lat, float('inf'), dim=1))
+        lat = self.lat_out(lat)
 
         return lat, out_embs, None
 
@@ -251,9 +251,6 @@ class Decoder(nn.Module):
             lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
             lat = self.frac_lat(lat_new)
 
-        out = out.view(batch_size, self.n_filter, -1)
-        out = F.normalize(out, float('inf'), dim=2)
-        out = out.view(batch_size, self.n_filter, self.image_size, self.image_size)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
