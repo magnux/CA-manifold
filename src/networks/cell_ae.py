@@ -57,7 +57,7 @@ class InjectedEncoder(nn.Module):
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
         self.register_buffer('calls_freq', sin_cos_pos_encoding_1d(self.n_calls))
-        self.freq_to_lat = LinearResidualBlock(self.out_freq.size() + self.calls_freq.shape[1], lat_size if not z_out else z_dim)
+        self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size() + self.calls_freq.shape[1], lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -86,7 +86,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             # if not self.auto_reg:
             #     out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, F.normalize(dyna_lat, float('inf'), dim=1))
+            out_new = self.frac_dyna_conv(out_new, dyna_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -110,8 +110,8 @@ class InjectedEncoder(nn.Module):
             lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
             dyna_lat = self.frac_lat(lat_new)
 
-            freq = torch.cat([self.out_freq(out).mean(dim=(2, 3)), self.calls_freq[:, :, c].repeat(batch_size, 1)], 1)
-            lat = lat + F.normalize(self.freq_to_lat(freq), float('inf'), dim=1)
+            freq = torch.cat([lat, self.out_freq(out).mean(dim=(2, 3)), self.calls_freq[:, :, c].repeat(batch_size, 1)], 1)
+            lat = self.freq_to_lat(freq)
 
         return lat, out_embs, None
 
@@ -224,7 +224,7 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             # if not self.auto_reg:
             #     out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, F.normalize(lat, float('inf'), dim=1))
+            out_new = self.frac_dyna_conv(out_new, lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -248,6 +248,9 @@ class Decoder(nn.Module):
             lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
             lat = self.frac_lat(lat_new)
 
+        out = out.view(batch_size, self.n_filters, -1)
+        out = F.normalize(out, float('inf'), dim=2)
+        out = out.view(batch_size, self.n_filters, self.image_size, self.image_size)
         out = self.out_conv(out)
         if self.ce_out:
             out = out.view(batch_size, 256, self.out_chan, self.image_size, self.image_size)
