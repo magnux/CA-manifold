@@ -68,7 +68,7 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
-        lat = 0.
+        lat = torch.zeros_like(inj_lat)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
