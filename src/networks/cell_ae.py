@@ -57,7 +57,8 @@ class InjectedEncoder(nn.Module):
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
         self.register_buffer('calls_freq', sin_cos_pos_encoding_1d(self.n_calls))
-        self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size() + self.calls_freq.shape[1], lat_size if not z_out else z_dim)
+        self.freq_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size() + self.calls_freq.shape[1], self.lat_size)
+        self.lat_out = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -68,7 +69,7 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
-        lat = torch.zeros_like(inj_lat)
+        lat = torch.zeros((batch_size, self.lat_size), device=x.device)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -110,9 +111,10 @@ class InjectedEncoder(nn.Module):
             lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
             dyna_lat = self.frac_lat(lat_new)
 
-            freq = F.normalize(self.out_freq(out).mean(dim=(2, 3)), float('inf'), dim=1)
-            freq = torch.cat([lat, freq, self.calls_freq[:, :, c].repeat(batch_size, 1)], 1)
+            freq = torch.cat([lat, self.out_freq(out).mean(dim=(2, 3)), self.calls_freq[:, :, c].repeat(batch_size, 1)], 1)
             lat = self.freq_to_lat(freq)
+
+        lat = self.lat_out(F.normalize(lat, float('inf'), dim=1))
 
         return lat, out_embs, None
 
