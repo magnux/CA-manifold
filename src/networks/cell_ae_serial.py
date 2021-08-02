@@ -47,18 +47,18 @@ class InjectedEncoder(nn.Module):
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
         frac_sobel = []
-        # frac_norm = []
+        frac_norm = []
         frac_dyna_conv = []
         frac_lat = []
         for l in range(self.n_layers):
             frac_sobel.append(RandGrads(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), n_calls=n_calls))
             frac_factor = frac_sobel[l].c_factor
-            # if not self.auto_reg:
-            #     frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
+            if not self.auto_reg:
+                frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
             frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2))
             frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
         self.frac_sobel = nn.ModuleList(frac_sobel)
-        # self.frac_norm = nn.ModuleList(frac_norm)
+        self.frac_norm = nn.ModuleList(frac_norm)
         self.frac_dyna_conv = nn.ModuleList(frac_dyna_conv)
         self.frac_lat = nn.ModuleList(frac_lat)
 
@@ -94,8 +94,8 @@ class InjectedEncoder(nn.Module):
                 if self.perception_noise and self.training:
                     out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
                 out_new = self.frac_sobel[l](out_new)
-                # if not self.auto_reg:
-                #     out_new = self.frac_norm[l](out_new)
+                if not self.auto_reg:
+                    out_new = self.frac_norm[l](out_new)
                 out_new = self.frac_dyna_conv[l](out_new, inj_lat)
                 if self.gated:
                     out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -177,20 +177,20 @@ class Decoder(nn.Module):
         # self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         frac_sobel = []
-        # frac_norm = []
+        frac_norm = []
         frac_dyna_conv = []
         frac_lat = []
         # frac_noise = []
         for l in range(self.n_layers):
             frac_sobel.append(RandGrads(self.n_filter, (2 ** (self.n_layers - l)) + 1, 2 ** (self.n_layers - l - 1), n_calls=n_calls))
             frac_factor = frac_sobel[l].c_factor
-            # if not self.auto_reg:
-            #     frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
+            if not self.auto_reg:
+                frac_norm.append(nn.InstanceNorm2d(self.n_filter * frac_factor))
             frac_dyna_conv.append(DynaResidualBlock(self.lat_size, self.n_filter * frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2))
             frac_lat.append(LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size))
             # frac_noise.append(NoiseInjection(self.n_filter))
         self.frac_sobel = nn.ModuleList(frac_sobel)
-        # self.frac_norm = nn.ModuleList(frac_norm)
+        self.frac_norm = nn.ModuleList(frac_norm)
         self.frac_dyna_conv = nn.ModuleList(frac_dyna_conv)
         self.frac_lat = nn.ModuleList(frac_lat)
         # self.frac_noise = nn.ModuleList(frac_noise)
@@ -250,8 +250,8 @@ class Decoder(nn.Module):
                 if self.perception_noise and self.training:
                     out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
                 out_new = self.frac_sobel[l](out_new)
-                # if not self.auto_reg:
-                #     out_new = self.frac_norm[l](out_new)
+                if not self.auto_reg:
+                    out_new = self.frac_norm[l](out_new)
                 out_new = self.frac_dyna_conv[l](out_new, lat)
                 if self.gated:
                     out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
