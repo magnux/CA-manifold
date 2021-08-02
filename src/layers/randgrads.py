@@ -24,8 +24,8 @@ class RandGrads(nn.Module):
         for i, kernel_size in enumerate(kernel_sizes):
             weight = get_rand_grads_kernel_nd(channels, kernel_size, dim)
             if learnable:
-                self.register_parameter('weight%d' % i, weight * (10 / kernel_size ** dim))
-                self.register_parameter('weight%d_theta' % i, torch.randn(channels) * (1/n_calls) * np.pi)
+                self.register_parameter('weight%d' % i, nn.Parameter(weight * (10 / kernel_size ** dim)))
+                self.register_parameter('weight%d_theta' % i, nn.Parameter(torch.randn(channels) * (1/n_calls) * np.pi))
             else:
                 self.register_buffer('weight%d' % i, weight * (10 / kernel_size ** dim))
                 self.register_buffer('weight%d_theta' % i, torch.randn(channels) * (1/n_calls) * np.pi)
