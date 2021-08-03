@@ -56,12 +56,11 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
-        self.freq_to_lat = ResidualBlock(self.out_freq.size(), self.lat_size, None, 1, 1, 0)
-        self.lat_out = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
+        self.freq_to_lat = nn.Sequential(
+            ResidualBlock(self.out_freq.size(), self.lat_size, None, 1, 1, 0),
+            ResidualBlock(self.lat_size, self.lat_size, None, 1, 1, 0)
         )
+        self.lat_out = nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -115,7 +114,7 @@ class InjectedEncoder(nn.Module):
             dyna_lat = self.frac_lat(lat_new)
 
             freq = self.out_freq(out)
-            lat = self.freq_to_lat(freq).mean(dim=(2, 3))
+            lat = (1 / self.lat_size ** 0.5) * self.freq_to_lat(freq).mean(dim=(2, 3))
 
         lat = self.lat_out(lat)
 
