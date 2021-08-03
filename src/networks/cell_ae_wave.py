@@ -56,7 +56,7 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
-        self.conv_freq = ResidualBlock(self.out_freq.size(), self.lat_size, None, 1, 1, 0)
+        self.freq_to_lat = ResidualBlock(self.out_freq.size(), self.lat_size, None, 1, 1, 0)
         self.out_to_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
