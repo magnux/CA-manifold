@@ -48,7 +48,7 @@ class InjectedEncoder(nn.Module):
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_conv = nn.Conv2d(self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), 1, 1, 0)
+        self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), None, 1, 1, 0)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
