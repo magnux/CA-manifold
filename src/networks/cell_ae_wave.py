@@ -48,17 +48,16 @@ class InjectedEncoder(nn.Module):
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), None, 1, 1, 0)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
+
+        self.frac_lat = LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
-        self.freq_to_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
-        self.lat_out = nn.Sequential(
+        self.conv_freq = ResidualBlock(self.out_freq.size(), self.lat_size, None, 1, 1, 0)
+        self.out_to_lat = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
@@ -73,7 +72,7 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
-        lat = inj_lat
+        lat = torch.zeros_like(inj_lat)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -91,7 +90,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_conv(out_new)
+            out_new = self.frac_dyna_conv(out_new, dyna_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -112,8 +111,11 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            freq = torch.cat([lat, self.out_freq(out).mean(dim=(2, 3))], 1)
-            lat = self.freq_to_lat(freq)
+            lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
+            dyna_lat = self.frac_lat(lat_new)
+
+            freq = self.out_freq(out)
+            lat = self.freq_to_lat(freq).mean(dim=(2, 3))
 
         lat = self.lat_out(lat)
 
