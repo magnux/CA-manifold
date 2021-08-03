@@ -87,7 +87,7 @@ class InjectedEncoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            out_new = self.frac_conv(out_new, dyna_lat)
+            out_new = self.frac_conv(out_new)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -107,9 +107,6 @@ class InjectedEncoder(nn.Module):
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
-
-            lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
-            dyna_lat = self.frac_lat(lat_new)
 
             freq = torch.cat([lat, self.out_freq(out).mean(dim=(2, 3))], 1)
             lat = self.freq_to_lat(freq)
