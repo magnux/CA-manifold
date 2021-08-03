@@ -62,7 +62,7 @@ class InjectedEncoder(nn.Module):
             nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim),
         )
 
-    def forward(self, x, inj_lat=None, seed_n=0):
+    def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
         batch_size = x.size(0)
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
@@ -71,13 +71,6 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
-        if isinstance(seed_n, tuple):
-            lat_seed = self.lat_seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-        elif isinstance(seed_n, list):
-            lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
-        else:
-            lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
-        lat = torch.cat([lat_seed.to(float_type)] * batch_size, 0)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -120,7 +113,7 @@ class InjectedEncoder(nn.Module):
             dyna_lat = self.frac_lat(lat_new)
 
         freq = self.out_freq(out).mean(dim=(2, 3))
-        lat = self.out_to_lat(lat)
+        lat = self.out_to_lat(freq)
 
         return lat, out_embs, None
 
