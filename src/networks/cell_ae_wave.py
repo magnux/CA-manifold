@@ -57,7 +57,7 @@ class InjectedEncoder(nn.Module):
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
         self.freq_to_lat = ResidualBlock(self.out_freq.size(), self.lat_size, None, 1, 1, 0)
-        self.out_to_lat = nn.Sequential(
+        self.lat_out = nn.Sequential(
             LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
