@@ -26,7 +26,7 @@ class InjectedEncoder(nn.Module):
         self.n_labels = n_labels
         self.image_size = image_size
         self.in_chan = channels
-        self.n_filter = n_filter * 2
+        self.n_filter = n_filter
         self.lat_size = lat_size if lat_size > 3 else 512
         self.n_calls = n_calls
         self.perception_noise = perception_noise
