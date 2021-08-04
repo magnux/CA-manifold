@@ -56,11 +56,8 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         # self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
-        self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size + self.n_filter, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim),
-        )
+        self.out_to_lat = LinearResidualBlock(self.lat_size + self.n_filter, self.lat_size)
+        self.lat_to_lat = nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -79,9 +76,10 @@ class InjectedEncoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         dyna_lat = inj_lat
+        out_lat = inj_lat
         for c in range(self.n_calls):
-            lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
-            dyna_lat = self.frac_lat(lat_new)
+            dyna_lat = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
+            dyna_lat = self.frac_lat(dyna_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -111,10 +109,12 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-        freq = out.mean(dim=(2, 3))
-        lat = self.out_to_lat(torch.cat([inj_lat, freq], dim=1))
+            out_lat = torch.cat([out_lat, out.mean(dim=(2, 3))], dim=1)
+            out_lat = self.out_to_lat(out_lat)
 
-        return lat, out_embs, None
+        out_lat = self.lat_to_lat(out_lat)
+
+        return out_lat, out_embs, None
 
 
 class LabsInjectedEncoder(InjectedEncoder):
@@ -217,8 +217,8 @@ class Decoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for c in range(self.n_calls):
-            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            lat = self.frac_lat(lat_new)
+            lat = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
+            lat = self.frac_lat(lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
