@@ -48,20 +48,15 @@ class InjectedEncoder(nn.Module):
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        # self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
-        self.frac_conv = ResidualBlock(self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, 1, 1, 0)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
 
-        # self.frac_lat = LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size)
+        self.frac_lat = LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
-        self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size)
-        )
-        self.lat_to_lat = nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
+        self.out_to_lat = nn.Linear(self.out_freq.size(), self.lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -79,11 +74,9 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         auto_reg_grads = []
-        # dyna_lat = inj_lat
-        out_lat = inj_lat
         for c in range(self.n_calls):
-            # dyna_lat = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
-            # dyna_lat = self.frac_lat(dyna_lat)
+            inj_lat = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            inj_lat = self.frac_lat(inj_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -92,8 +85,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            # out_new = self.frac_dyna_conv(out_new, dyna_lat)
-            out_new = self.frac_conv(out_new)
+            out_new = self.frac_dyna_conv(out_new, inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -114,12 +106,9 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            out_lat = torch.cat([out_lat, self.out_freq(out).mean(dim=(2, 3))], dim=1)
-            out_lat = self.out_to_lat(out_lat)
+        lat = self.out_to_lat(self.out_freq(out).mean(dim=(2, 3)))
 
-        out_lat = self.lat_to_lat(out_lat)
-
-        return out_lat, out_embs, None
+        return lat, out_embs, None
 
 
 class LabsInjectedEncoder(InjectedEncoder):
