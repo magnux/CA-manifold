@@ -93,7 +93,7 @@ class InjectedEncoder(nn.Module):
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             # out_new = self.frac_dyna_conv(out_new, dyna_lat)
-            out_new = self.frac_conv(out_new, dyna_lat)
+            out_new = self.frac_conv(out_new)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
