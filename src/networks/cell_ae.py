@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
-from src.layers.posencoding import ConvFreqDecoder, sin_cos_pos_encoding_nd
+from src.layers.posencoding import sin_cos_pos_encoding_nd
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
@@ -20,7 +20,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, n_seed=1, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -36,10 +36,12 @@ class InjectedEncoder(nn.Module):
         self.causal = causal
         self.gated = gated
         self.env_feedback = env_feedback
-        self.z_out = z_out
+        self.multi_cut = multi_cut
         self.auto_reg = auto_reg
         self.ce_in = ce_in
-        self.n_seed = n_seed
+
+        self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1] if self.multi_cut else [self.n_filter]
+        self.conv_state_size = [self.n_filter, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2] if self.multi_cut else [self.n_filter]
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
@@ -55,8 +57,11 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
-        self.out_to_lat = nn.Linear(self.out_freq.size(), self.lat_size if not z_out else z_dim)
+        self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
+        self.out_to_lat = nn.Sequential(
+            nn.Linear(sum(self.conv_state_size), self.lat_size * 4),
+            nn.Linear(self.lat_size * 4, lat_size if not z_out else z_dim)
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -106,7 +111,16 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-        lat = self.out_to_lat(self.out_freq(out).mean(dim=(2, 3)))
+        out = self.out_conv(out)
+        if self.multi_cut:
+            conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
+            conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
+                                    conv_state_fh.mean(dim=3).view(batch_size, -1),
+                                    conv_state_fw.mean(dim=2).view(batch_size, -1),
+                                    conv_state_hw.view(batch_size, -1)], dim=1)
+        else:
+            conv_state = out.mean(dim=(2, 3))
+        lat = self.out_to_lat(conv_state)
 
         return lat, out_embs, None
 
