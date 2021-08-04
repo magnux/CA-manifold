@@ -57,7 +57,7 @@ class InjectedEncoder(nn.Module):
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
         self.out_to_lat = nn.Sequential(
-            LinearResidualBlock(self.out_freq.size(), self.lat_size),
+            LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size),
             LinearResidualBlock(self.lat_size, self.lat_size),
             nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim),
         )
@@ -80,6 +80,8 @@ class InjectedEncoder(nn.Module):
         auto_reg_grads = []
         dyna_lat = inj_lat
         for c in range(self.n_calls):
+            lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
+            dyna_lat = self.frac_lat(lat_new)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -109,11 +111,8 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            lat_new = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
-            dyna_lat = self.frac_lat(lat_new)
-
         freq = self.out_freq(out).mean(dim=(2, 3))
-        lat = self.out_to_lat(freq)
+        lat = self.out_to_lat(torch.cat([inj_lat, freq], dim=1))
 
         return lat, out_embs, None
 
@@ -218,6 +217,8 @@ class Decoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for c in range(self.n_calls):
+            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
+            lat = self.frac_lat(lat_new)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -246,9 +247,6 @@ class Decoder(nn.Module):
                 auto_reg_grads.append(auto_reg_grad)
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
-
-            lat_new = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            lat = self.frac_lat(lat_new)
 
         out = self.out_conv(out)
         if self.ce_out:
