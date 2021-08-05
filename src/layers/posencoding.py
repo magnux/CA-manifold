@@ -149,7 +149,7 @@ class ConvFreqEncoding(nn.Module):
 
     def forward(self, x, c=0):
         freq = (x.unsqueeze(2) * self.sin_cos_freq_encoding).mean(dim=1)
-        freq = torch.cat([freq, self.calls_freq[:, :, c].repeat(x.shape[0], 1, x.shape[2], x.shape[3])], 1)
+        freq = torch.cat([freq, self.calls_freq[:, :, c].view(1, -1, 1, 1).repeat(x.shape[0], 1, x.shape[2], x.shape[3])], 1)
         return self.out_conv(freq)
 
     def size(self):
