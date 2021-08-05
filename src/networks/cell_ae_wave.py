@@ -20,7 +20,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, n_seed=1, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -38,6 +38,7 @@ class InjectedEncoder(nn.Module):
         self.env_feedback = env_feedback
         self.auto_reg = auto_reg
         self.ce_in = ce_in
+        self.n_seed = n_seed
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
@@ -54,10 +55,11 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_freq = ConvFreqDecoder(self.n_filter, self.image_size)
+        self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.out_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size)
         self.lat_to_lat = LinearResidualBlock(self.lat_size, self.lat_size if not z_out else z_dim)
 
-    def forward(self, x, inj_lat=None):
+    def forward(self, x, inj_lat=None, seed_n=0):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
         batch_size = x.size(0)
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
@@ -66,6 +68,13 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
+        if isinstance(seed_n, tuple):
+            lat_seed = self.lat_seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+        elif isinstance(seed_n, list):
+            lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
+        else:
+            lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
+        out_lat = torch.cat([lat_seed.to(float_type)] * batch_size, 0)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -73,11 +82,9 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         auto_reg_grads = []
-        dyna_lat = inj_lat
-        out_lat = inj_lat
         for c in range(self.n_calls):
-            dyna_lat = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
-            dyna_lat = self.frac_lat(dyna_lat)
+            inj_lat = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            inj_lat = self.frac_lat(inj_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -86,7 +93,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, dyna_lat)
+            out_new = self.frac_dyna_conv(out_new, inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
