@@ -110,7 +110,7 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            out_lat = out_lat + self.out_freq(out).mean(dim=(2, 3), c)
+            out_lat = out_lat + self.out_freq(out, c).mean(dim=(2, 3))
 
         lat = self.out_to_lat(out_lat)
 
