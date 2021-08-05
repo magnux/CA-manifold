@@ -68,7 +68,7 @@ class InjectedEncoder(nn.Module):
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
         self.out_to_lat = nn.Sequential(
             nn.Linear(sum(self.conv_state_size), self.lat_size * 4, bias=False),
-            nn.Linear(self.lat_size * 4, lat_size if not z_out else z_dim, bias=False)
+            LinearResidualBlock(self.lat_size * 4, lat_size if not z_out else z_dim, bias=False)
         )
         torch.nn.init.orthogonal_(self.out_to_lat[0].weight)
 
