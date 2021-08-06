@@ -129,12 +129,10 @@ class LatFreqEncoding(nn.Module):
 
 
 class ConvFreqEncoding(nn.Module):
-    def __init__(self, n_filter, size, dim=2, n_calls=1):
+    def __init__(self, n_filter, size, dim=2):
         super(ConvFreqEncoding, self).__init__()
-        sin_cos_freq_encoding = sin_cos_pos_encoding_nd(size, dim).unsqueeze(1)
+        sin_cos_freq_encoding = sin_cos_pos_encoding_nd(size, dim)
         self.register_buffer('sin_cos_freq_encoding', sin_cos_freq_encoding)
-
-        self.register_buffer('calls_freq', sin_cos_pos_encoding_1d(n_calls))
 
         if dim == 1:
             self.l_conv = nn.Conv1d
@@ -145,15 +143,13 @@ class ConvFreqEncoding(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.out_conv = self.l_conv(self.sin_cos_freq_encoding.shape[2] + self.calls_freq.shape[1], n_filter, 1, 1, 0)
+        self.out_conv = self.l_conv(n_filter, self.sin_cos_freq_encoding.shape[1], 1, 1, 0)
 
-    def forward(self, x, c=0):
-        freq = (x.unsqueeze(2) * self.sin_cos_freq_encoding).mean(dim=1)
-        freq = torch.cat([freq, self.calls_freq[:, :, c].view(1, -1, 1, 1).repeat(x.shape[0], 1, x.shape[2], x.shape[3])], 1)
-        return self.out_conv(freq)
+    def forward(self, x):
+        return self.out_conv(x) * self.sin_cos_freq_encoding
 
     def size(self):
-        return int(self.sin_cos_freq_encoding.size(2))
+        return int(self.sin_cos_freq_encoding.size(1))
 
 
 if __name__ == '__main__':

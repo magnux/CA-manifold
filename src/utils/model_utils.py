@@ -46,8 +46,12 @@ def get_grads_stats(network):
     stats_dict = OrderedDict()
     for name, p in network.named_parameters():
         if p.grad is not None:
-            stats_dict[name] = (p.grad.norm(2).item(), p.grad.abs().max().item(), p.grad.std().item())
+            stats_dict[name] = get_tensor_stats(p.grad)
     return stats_dict
+
+
+def get_tensor_stats(tensor):
+    return tensor.norm(2).item(), tensor.abs().max().item(), tensor.std().item()
 
 
 def clip_grad_ind_norm(network, max_norm=1., norm_type=torch._six.inf):
