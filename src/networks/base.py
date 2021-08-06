@@ -60,6 +60,7 @@ class Generator(nn.Module):
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
+        self.z_irm = IRMLinear(self.z_dim)
         self.z_cond = DynaLinear(self.embed_size, self.z_dim, self.z_dim, bias=False)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
@@ -79,6 +80,7 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
 
+        z = self.z_irm(z)
         z = self.z_cond(z, yembed)
         lat = lat + self.z_to_lat(z)
 
@@ -130,12 +132,14 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
         self.n_calls = n_calls
 
+        self.z_irm = IRMLinear(self.z_dim)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
+        z = self.z_irm(z)
         lat = self.z_to_lat(z)
 
         return lat
