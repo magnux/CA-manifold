@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
+from src.layers.expscale import ExpScale
 from src.layers.posencoding import ConvFreqEncoding, sin_cos_pos_encoding_nd
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
@@ -56,7 +57,10 @@ class InjectedEncoder(nn.Module):
 
         self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size)
         self.out_to_lat = LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size)
-        self.lat_to_lat = LinearResidualBlock(self.lat_size, self.lat_size if not z_out else z_dim)
+        self.lat_to_lat = nn.Sequential(
+            LinearResidualBlock(self.lat_size, self.lat_size if not z_out else z_dim),
+            ExpScale(self.lat_size if not z_out else z_dim)
+        )
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
