@@ -58,6 +58,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.yembed_irm = IRMLinear(self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
         self.z_irm = IRMLinear(self.z_dim)
@@ -78,6 +79,7 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
+        yembed = self.yembed_irm(yembed)
         lat = self.yembed_to_lat(yembed)
 
         z = self.z_irm(z)
@@ -95,6 +97,7 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.yembed_irm = IRMLinear(self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
@@ -107,6 +110,7 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.labs_to_yembed(yembed)
+        yembed = self.yembed_irm(yembed)
         lat = self.yembed_to_lat(yembed)
 
         return lat
