@@ -5,7 +5,6 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.expscale import ExpScale
 from src.layers.posencoding import ConvFreqEncoding, sin_cos_pos_encoding_nd
-from src.layers.irm import IRMLinear
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
@@ -59,7 +58,6 @@ class InjectedEncoder(nn.Module):
         self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size)
         self.out_to_lat = nn.Sequential(
             nn.Linear(self.lat_size + self.out_freq.size(), self.lat_size * 2),
-            IRMLinear(self.lat_size * 2),
             LinearResidualBlock(self.lat_size * 2, self.lat_size)
         )
         self.lat_to_lat = nn.Sequential(
