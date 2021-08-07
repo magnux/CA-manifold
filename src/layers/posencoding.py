@@ -143,7 +143,8 @@ class ConvFreqEncoding(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.out_conv = self.l_conv(n_filter, self.sin_cos_freq_encoding.shape[1], 1, 1, 0)
+        self.out_conv = self.l_conv(n_filter, self.sin_cos_freq_encoding.shape[1], 1, 1, 0, bias=False)
+        nn.init.xavier_normal_(self.out_conv.weight, 10.)
 
     def forward(self, x):
         return self.out_conv(x) * self.sin_cos_freq_encoding
