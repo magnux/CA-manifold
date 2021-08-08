@@ -60,7 +60,7 @@ class InjectedEncoder(nn.Module):
         nn.init.xavier_normal_(self.out_conv.weight, 10.)
         self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.out_to_lat = nn.Sequential(
-            nn.Linear(self.lat_size + self.out_freq.size(), self.lat_size * 2),
+            nn.Linear(self.lat_size + self.n_filter, self.lat_size * 2),
             LinearResidualBlock(self.lat_size * 2, self.lat_size)
         )
         self.lat_to_lat = nn.Sequential(
