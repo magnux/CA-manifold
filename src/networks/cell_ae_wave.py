@@ -55,13 +55,14 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        seed = torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size))
-        self.seed = nn.Parameter(seed / seed.norm(dim=(2, 3), keepdim=True))
-        self.out_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0, bias=False)
-        nn.init.xavier_normal_(self.out_conv.weight, 10.)
+        # seed = torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size))
+        # self.seed = nn.Parameter(seed / seed.norm(dim=(2, 3), keepdim=True))
+        # self.out_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0, bias=False)
+        # nn.init.xavier_normal_(self.out_conv.weight, 10.)
+        self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size)
         self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.out_to_lat = nn.Sequential(
-            nn.Linear(self.lat_size + self.n_filter, self.lat_size * 2),
+            nn.Linear(self.lat_size + self.out_freq.size(), self.lat_size * 2),
             LinearResidualBlock(self.lat_size * 2, self.lat_size)
         )
         self.lat_to_lat = nn.Sequential(
@@ -127,7 +128,7 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            out_lat_new = torch.cat([out_lat, (self.out_conv(out) * seed).mean(dim=(2, 3))], dim=1)
+            out_lat_new = torch.cat([out_lat, self.out_freq(out).mean(dim=(2, 3))], dim=1)
             out_lat = self.out_to_lat(out_lat_new)
 
         lat = self.lat_to_lat(out_lat)
@@ -176,9 +177,9 @@ class Decoder(nn.Module):
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
         seed = torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size))
-        self.seed = nn.Parameter(seed / seed.norm(dim=(2, 3), keepdim=True))
-        # self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
-        # self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
+        # self.seed = nn.Parameter(seed / seed.norm(dim=(2, 3), keepdim=True))
+        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
+        self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
@@ -210,15 +211,15 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if isinstance(seed_n, tuple):
-                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                seed = self.seed[seed_n:seed_n + 1, ...]
-            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            # out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            # out = self.seed_selector(out)
+            # if isinstance(seed_n, tuple):
+            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     seed = self.seed[seed_n:seed_n + 1, ...]
+            # out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed_selector(out)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
