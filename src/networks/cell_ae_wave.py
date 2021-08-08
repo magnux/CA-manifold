@@ -55,7 +55,9 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size)
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        self.out_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0, bias=False)
+        nn.init.xavier_normal_(self.out_conv.weight, 10.)
         self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.out_to_lat = nn.Sequential(
             nn.Linear(self.lat_size + self.out_freq.size(), self.lat_size * 2),
@@ -76,12 +78,15 @@ class InjectedEncoder(nn.Module):
 
         out = self.in_conv(x)
         if isinstance(seed_n, tuple):
+            seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
             lat_seed = self.lat_seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
         elif isinstance(seed_n, list):
+            seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
         else:
+            seed = self.seed[seed_n:seed_n + 1, ...]
             lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
-        out_lat = torch.cat([lat_seed.to(float_type)] * batch_size, 0)
+        out_lat = lat_seed.to(float_type).repeat(batch_size, 1)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -121,7 +126,7 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            out_lat_new = torch.cat([out_lat, self.out_freq(out).mean(dim=(2, 3))], dim=1)
+            out_lat_new = torch.cat([out_lat, (self.out_conv(out) * seed).mean(dim=(2, 3))], dim=1)
             out_lat = self.out_to_lat(out_lat_new)
 
         lat = self.lat_to_lat(out_lat)
@@ -209,7 +214,7 @@ class Decoder(nn.Module):
                 seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
-            out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
             # out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
             # out = self.seed_selector(out)
         else:

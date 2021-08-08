@@ -235,7 +235,7 @@ class Decoder(nn.Module):
                 seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
-            out = torch.cat([seed.to(float_type)] * batch_size, 0)
+            out = seed.to(float_type).repeat(batch_size, 1, 1, 1, 1)
         else:
             if self.redec_ap:
                 ca_init = self.in_ap(ca_init)

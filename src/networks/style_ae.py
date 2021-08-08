@@ -193,7 +193,7 @@ class Decoder(nn.Module):
                 seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
-            out_emb = torch.cat([seed.to(float_type)] * batch_size, 0)
+            out_emb = seed.to(float_type).repeat(batch_size, 1, 1, 1)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
