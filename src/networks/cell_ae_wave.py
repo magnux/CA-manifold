@@ -55,8 +55,10 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        seed = torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size))
+        self.seed = nn.Parameter(seed / seed.norm(dim=(2, 3), keepdim=True))
         self.out_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0, bias=False)
+        nn.init.xavier_normal_(self.out_conv.weight, 10.)
         self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.out_to_lat = nn.Sequential(
             nn.Linear(self.lat_size + self.n_filter, self.lat_size * 2),
@@ -173,7 +175,8 @@ class Decoder(nn.Module):
 
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        seed = torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size))
+        self.seed = nn.Parameter(seed / seed.norm(dim=(2, 3), keepdim=True))
         # self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
         # self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
