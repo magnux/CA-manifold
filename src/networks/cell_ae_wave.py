@@ -56,6 +56,7 @@ class InjectedEncoder(nn.Module):
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
         self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size)
+        self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.out_to_lat = nn.Sequential(
             nn.Linear(self.lat_size + self.out_freq.size(), self.lat_size * 2),
             LinearResidualBlock(self.lat_size * 2, self.lat_size)
@@ -65,7 +66,7 @@ class InjectedEncoder(nn.Module):
             ExpScale(self.lat_size if not z_out else z_dim)
         )
 
-    def forward(self, x, inj_lat=None):
+    def forward(self, x, inj_lat=None, seed_n=0):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
         batch_size = x.size(0)
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
@@ -74,6 +75,13 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
+        if isinstance(seed_n, tuple):
+            lat_seed = self.lat_seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+        elif isinstance(seed_n, list):
+            lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
+        else:
+            lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
+        out_lat = torch.cat([lat_seed.to(float_type)] * batch_size, 0)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -81,7 +89,6 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         auto_reg_grads = []
-        out_lat = 0
         for c in range(self.n_calls):
             inj_lat_new = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
             inj_lat = self.frac_lat(inj_lat_new)
@@ -114,8 +121,8 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            out_lat_new = torch.cat([inj_lat, self.out_freq(out).mean(dim=(2, 3))], dim=1)
-            out_lat = out_lat + self.out_to_lat(out_lat_new)
+            out_lat_new = torch.cat([out_lat, self.out_freq(out).mean(dim=(2, 3))], dim=1)
+            out_lat = self.out_to_lat(out_lat_new)
 
         lat = self.lat_to_lat(out_lat)
 
