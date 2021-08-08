@@ -58,7 +58,7 @@ class InjectedEncoder(nn.Module):
         seed = torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size))
         self.seed = nn.Parameter(seed / seed.norm(dim=(2, 3), keepdim=True))
         self.out_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0, bias=False)
-        nn.init.xavier_normal_(self.out_conv.weight, 10.)
+        nn.init.normal_(self.out_conv.weight)
         self.lat_seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.lat_size)))
         self.out_to_lat = nn.Sequential(
             nn.Linear(self.lat_size + self.n_filter, self.lat_size * 2),
