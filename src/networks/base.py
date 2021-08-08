@@ -58,6 +58,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        nn.init.orthogonal_(self.labs_to_yembed.weight)
         # self.yembed_irm = IRMLinear(self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
@@ -97,6 +98,7 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        nn.init.orthogonal_(self.labs_to_yembed.weight)
         # self.yembed_irm = IRMLinear(self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
