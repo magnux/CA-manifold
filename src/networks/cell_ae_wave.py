@@ -80,13 +80,13 @@ class InjectedEncoder(nn.Module):
 
         out = self.in_conv(x)
         if isinstance(seed_n, tuple):
-            seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
             lat_seed = self.lat_seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
         elif isinstance(seed_n, list):
-            seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            # seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
         else:
-            seed = self.seed[seed_n:seed_n + 1, ...]
+            # seed = self.seed[seed_n:seed_n + 1, ...]
             lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
         out_lat = lat_seed.to(float_type).repeat(batch_size, 1)
 
