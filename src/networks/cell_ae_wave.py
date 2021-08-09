@@ -78,13 +78,13 @@ class InjectedEncoder(nn.Module):
 
         out = self.in_conv(x)
         if isinstance(seed_n, tuple):
-            seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
             lat_seed = self.lat_seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
         elif isinstance(seed_n, list):
-            seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            # seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
         else:
-            seed = self.seed[seed_n:seed_n + 1, ...]
+            # seed = self.seed[seed_n:seed_n + 1, ...]
             lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
         out_lat = lat_seed.to(float_type).repeat(batch_size, 1)
 
@@ -126,7 +126,7 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            out_lat_new = torch.cat([out_lat, (self.out_conv(out) * seed).mean(dim=(2, 3))], dim=1)
+            out_lat_new = torch.cat([out_lat, self.out_freq(out).mean(dim=(2, 3))], dim=1)
             out_lat = self.out_to_lat(out_lat_new)
 
         lat = self.lat_to_lat(out_lat)
