@@ -125,7 +125,7 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            out_lat_new = torch.cat([out_lat, (self.out_conv(out) * F.instance_norm(seed)).mean(dim=(2, 3))], dim=1)
+            out_lat_new = torch.cat([out_lat, (self.out_conv(out) * seed).mean(dim=(2, 3))], dim=1)
             out_lat = self.out_to_lat(out_lat_new)
 
         lat = self.lat_to_lat(out_lat)
@@ -213,7 +213,7 @@ class Decoder(nn.Module):
                 seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
-            out = F.instance_norm(seed).to(float_type).repeat(batch_size, 1, 1, 1)
+            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
             # out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
             # out = self.seed_selector(out)
         else:
