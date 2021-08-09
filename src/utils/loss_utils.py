@@ -42,12 +42,9 @@ def compute_gan_loss(d_out, target, gan_type='dyna_gan'):
 
 def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     batch_size = d_in.size(0)
-    # grad_d_in = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
-    #                                 create_graph=True, retain_graph=True, only_inputs=True)[0]
-    # assert(grad_d_in.size() == d_in.size())
-
-    grad_d_in = torch.autograd.backward(d_out.sum(), create_graph=True, retain_graph=True)
-    print(grad_d_in)
+    grad_d_in = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
+                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
+    assert(grad_d_in.size() == d_in.size())
 
     if norm_type == 1:
         grad_d_in = grad_d_in.abs()
