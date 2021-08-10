@@ -130,7 +130,7 @@ class InjectedEncoder(nn.Module):
             out_embs.append(out)
 
             out_lat_new = torch.cat([self.call_freq[:, :, c].repeat(batch_size, 1), self.out_freq(out).mean(dim=(2, 3))], dim=1)
-            out_lat = out_lat + 0.1 * self.out_to_lat(out_lat_new)
+            out_lat = out_lat + (self.out_to_lat(out_lat_new) / self.n_calls)
 
         lat = self.lat_to_lat(out_lat)
 
