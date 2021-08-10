@@ -64,9 +64,17 @@ def cos_pos_encoding_nd(size, dim):
     return pos_encoding
 
 
-def sin_cos_pos_encoding_1d(size, freq_div=1.):
-    freqs = list(range(1, int(size / freq_div)))
-    spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
+# def sin_cos_pos_encoding_1d(size, freq_div=1.):
+#     freqs = list(range(1, int(size / freq_div)))
+#     spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
+#
+#     sin = [np.sin(space) for space in spaces]
+#     cos = [np.cos(space) for space in spaces]
+#     return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size), dtype=torch.float32)
+
+def sin_cos_pos_encoding_1d(size, pos_scale=6):
+    scales = [(2 ** i) / (2 ** pos_scale) for i in range(pos_scale + 1)]
+    spaces = [scale * np.linspace(0, 2 * np.pi, size) for scale in scales]
 
     sin = [np.sin(space) for space in spaces]
     cos = [np.cos(space) for space in spaces]
