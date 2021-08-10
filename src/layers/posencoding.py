@@ -139,7 +139,7 @@ class LatFreqEncoding(nn.Module):
 class ConvFreqEncoding(nn.Module):
     def __init__(self, n_filter, size, dim=2):
         super(ConvFreqEncoding, self).__init__()
-        sin_cos_freq_encoding = sin_cos_pos_encoding_nd(size, dim)
+        sin_cos_freq_encoding = sin_cos_pos_encoding_nd(size, dim).unsqueeze(1)
         self.register_buffer('sin_cos_freq_encoding', sin_cos_freq_encoding)
 
         if dim == 1:
@@ -151,11 +151,12 @@ class ConvFreqEncoding(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.out_conv = self.l_conv(self.sin_cos_freq_encoding.shape[1], n_filter, 1, 1, 0, bias=False)
-        nn.init.normal_(self.out_conv.weight)
+        self.out_filters = self.sin_cos_freq_encoding.shape[1] * n_filter
 
     def forward(self, x):
-        return x * self.out_conv(self.sin_cos_freq_encoding)
+        out_shape = x.shape
+        out_shape[1] = self.out_filters
+        return (x.unsqueeze(2) * self.sin_cos_freq_encoding).reshape(out_shape)
 
 
 if __name__ == '__main__':
