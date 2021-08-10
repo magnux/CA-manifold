@@ -48,8 +48,8 @@ class InjectedEncoder(nn.Module):
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
         self.frac_factor = self.frac_sobel.c_factor
-        # if not self.auto_reg:
-        #     self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
+        if not self.auto_reg:
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
 
         self.frac_lat = LinearResidualBlock(self.lat_size + self.call_freq.shape[1] + (self.n_filter if self.env_feedback else 0), self.lat_size)
@@ -106,8 +106,8 @@ class InjectedEncoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            # if not self.auto_reg:
-            #     out_new = self.frac_norm(out_new)
+            if not self.auto_reg:
+                out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, dyna_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
@@ -186,8 +186,8 @@ class Decoder(nn.Module):
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
         self.frac_factor = self.frac_sobel.c_factor
-        # if not self.auto_reg:
-        #     self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
+        if not self.auto_reg:
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
 
         self.frac_lat = LinearResidualBlock(self.lat_size + self.call_freq.shape[1] + (self.n_filter if self.env_feedback else 0), self.lat_size)
@@ -248,8 +248,8 @@ class Decoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
-            # if not self.auto_reg:
-            #     out_new = self.frac_norm(out_new)
+            if not self.auto_reg:
+                out_new = self.frac_norm(out_new)
             out_new = self.frac_dyna_conv(out_new, dyna_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
