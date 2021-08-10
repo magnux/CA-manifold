@@ -72,7 +72,7 @@ def cos_pos_encoding_nd(size, dim):
 #     cos = [np.cos(space) for space in spaces]
 #     return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size), dtype=torch.float32)
 
-def sin_cos_pos_encoding_1d(size, pos_scale=6):
+def sin_cos_pos_encoding_1d(size, pos_scale=10):
     scales = [(2 ** i) / (2 ** pos_scale) for i in range(pos_scale + 1)]
     spaces = [scale * np.linspace(0, 2 * np.pi, size) for scale in scales]
 
@@ -139,7 +139,7 @@ class LatFreqEncoding(nn.Module):
 class ConvFreqEncoding(nn.Module):
     def __init__(self, n_filter, size, dim=2):
         super(ConvFreqEncoding, self).__init__()
-        sin_cos_freq_encoding = sin_cos_pos_encoding_nd(size, dim).unsqueeze(1)
+        sin_cos_freq_encoding = sin_cos_pos_encoding_nd(size, dim)
         self.register_buffer('sin_cos_freq_encoding', sin_cos_freq_encoding)
 
         if dim == 1:
@@ -151,12 +151,14 @@ class ConvFreqEncoding(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.out_filters = self.sin_cos_freq_encoding.shape[2] * n_filter
+        self.out_conv = self.l_conv(n_filter, self.sin_cos_freq_encoding.shape[1], 1, 1, 0, bias=False)
+        nn.init.normal_(self.out_conv.weight)
 
     def forward(self, x):
-        out_shape = [i for i in x.shape]
-        out_shape[1] = self.out_filters
-        return (x.unsqueeze(2) * self.sin_cos_freq_encoding).reshape(out_shape)
+        return self.out_conv(x) * self.sin_cos_freq_encoding
+
+    def size(self):
+        return int(self.sin_cos_freq_encoding.size(1))
 
 
 if __name__ == '__main__':
