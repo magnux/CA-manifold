@@ -64,15 +64,16 @@ def cos_pos_encoding_nd(size, dim):
     return pos_encoding
 
 
-# def sin_cos_pos_encoding_1d(size, freq_div=1.):
-#     freqs = list(range(1, int(size / freq_div)))
-#     spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
-#
-#     sin = [np.sin(space) for space in spaces]
-#     cos = [np.cos(space) for space in spaces]
-#     return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size) / len(spaces), dtype=torch.float32)
+def sin_cos_pos_encoding_1d(size, freq_div=1.):
+    freqs = list(range(1, int(size / freq_div)))
+    spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
 
-def sin_cos_pos_encoding_1d(size, pos_scale=8):
+    sin = [np.sin(space) for space in spaces]
+    cos = [np.cos(space) for space in spaces]
+    return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size) / len(spaces), dtype=torch.float32)
+
+
+def sin_cos_pos_encoding_1d_2(size, pos_scale=8):
     scales = [(2 ** i) / (2 ** pos_scale) for i in range(pos_scale + 1)]
     spaces = [scale * np.linspace(0, 2 * np.pi, size) for scale in scales]
 
@@ -81,21 +82,26 @@ def sin_cos_pos_encoding_1d(size, pos_scale=8):
     return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size), dtype=torch.float32)
 
 
-def sin_cos_pos_encoding_nd(size, dim):
+def sin_cos_pos_encoding_nd(size, dim, version=1):
     if isinstance(size, int):
         size = (size,)
         if dim > 0:
             size = size * dim
+    if version == 1:
+        encoding_fun = sin_cos_pos_encoding_1d
+    elif version == 2:
+        encoding_fun = sin_cos_pos_encoding_1d_2
+
     # else :
     # TODO: check size tuples are correct
     if dim == 0:
-        pos_encoding = sin_cos_pos_encoding_1d(size[0]).view(1, -1)
+        pos_encoding = encoding_fun(size[0]).view(1, -1)
     elif dim == 1:
-        pos_encoding = sin_cos_pos_encoding_1d(size[0])
+        pos_encoding = encoding_fun(size[0])
     elif dim > 1:
         pos_enc_l = []
         for d in range(2, dim + 2):
-            pos_enc = sin_cos_pos_encoding_1d(size[d - 2])
+            pos_enc = encoding_fun(size[d - 2])
             pos_enc = pos_enc.view(*[size[dd - 2] if dd == d else (pos_enc.size(1) if dd == 1 else 1) for dd in range(dim + 2)])
             pos_enc = pos_enc.repeat(*[size[dd - 2] if dd != d and dd > 1 else 1 for dd in range(dim + 2)])
             pos_enc_l.append(pos_enc)
@@ -151,11 +157,14 @@ class ConvFreqEncoding(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.out_conv = self.l_conv(self.sin_cos_freq_encoding.shape[1], n_filter, 1, 1, 0, bias=False)
+        self.out_conv = self.l_conv(n_filter, self.sin_cos_freq_encoding.shape[1], 1, 1, 0, bias=False)
         nn.init.normal_(self.out_conv.weight)
 
     def forward(self, x):
-        return x * self.out_conv(self.sin_cos_freq_encoding)
+        return self.out_conv(x) * self.sin_cos_freq_encoding
+
+    def size(self):
+        return int(self.sin_cos_freq_encoding.size(1))
 
 
 if __name__ == '__main__':

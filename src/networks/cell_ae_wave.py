@@ -62,7 +62,7 @@ class InjectedEncoder(nn.Module):
         self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size)
         # self.lat_seed = nn.Parameter(nn.init.normal_(torch.empty(self.n_seed, self.lat_size)))
         self.out_to_lat = nn.Sequential(
-            nn.Linear(self.call_freq.shape[1] + self.n_filter, self.lat_size * 2),
+            nn.Linear(self.call_freq.shape[1] + self.out_freq.size(), self.lat_size * 2),
             LinearResidualBlock(self.lat_size * 2, self.lat_size)
         )
         self.lat_to_lat = nn.Sequential(
@@ -180,7 +180,7 @@ class Decoder(nn.Module):
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
         # self.seed = nn.Parameter(nn.init.normal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size)))
-        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2))
+        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2, version=2))
         self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
