@@ -151,10 +151,10 @@ class ConvFreqEncoding(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.out_filters = self.sin_cos_freq_encoding.shape[1] * n_filter
+        self.out_filters = self.sin_cos_freq_encoding.shape[2] * n_filter
 
     def forward(self, x):
-        out_shape = x.shape
+        out_shape = [i for i in x.shape]
         out_shape[1] = self.out_filters
         return (x.unsqueeze(2) * self.sin_cos_freq_encoding).reshape(out_shape)
 
