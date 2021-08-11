@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.expscale import ExpScale
-from src.layers.posencoding import ConvFreqEncoding, sin_cos_pos_encoding_nd
+from src.layers.posencoding import PosEncoding, sin_cos_pos_encoding_nd
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
@@ -55,14 +55,12 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        # self.seed = nn.Parameter(nn.init.normal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size)))
-        # self.out_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0, bias=False)
-        self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size)
-        # self.lat_seed = nn.Parameter(nn.init.normal_(torch.empty(self.n_seed, self.lat_size)))
-        self.out_to_lat = nn.Sequential(
-            nn.Linear(self.out_freq.size(), self.lat_size * 2),
-            LinearResidualBlock(self.lat_size * 2, self.lat_size if not z_out else z_dim)
+        self.out_pos = PosEncoding(self.image_size, 2, version=2)
+        self.out_conv = nn.Sequential(
+            ResidualBlock(self.n_filter + self.out_pos.size(), self.lat_size, None, 1, 1, 0),
+            ResidualBlock(self.lat_size, self.lat_size, None, 1, 1, 0)
         )
+        self.out_to_lat = nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None, seed_n=0):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -122,7 +120,9 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-        lat = self.out_to_lat(self.out_freq(out).mean(dim=(2, 3)))
+        out = self.out_pos(out)
+        out = self.out_conv(out).mean(dim=(2, 3))
+        lat = self.out_to_lat(out)
 
         return lat, out_embs, None
 

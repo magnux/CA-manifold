@@ -111,9 +111,9 @@ def sin_cos_pos_encoding_nd(size, dim, version=1):
 
 
 class PosEncoding(nn.Module):
-    def __init__(self, size, dim=1):
+    def __init__(self, size, dim=1, version=1):
         super(PosEncoding, self).__init__()
-        self.register_buffer('pos_encoding', sin_cos_pos_encoding_nd(size, dim))
+        self.register_buffer('pos_encoding', sin_cos_pos_encoding_nd(size, dim, version=version))
 
     def forward(self, x):
         pos_encoding = torch.cat([self.pos_encoding] * x.size(0), 0)
@@ -143,9 +143,9 @@ class LatFreqEncoding(nn.Module):
 
 
 class ConvFreqEncoding(nn.Module):
-    def __init__(self, n_filter, size, dim=2):
+    def __init__(self, n_filter, size, dim=2, version=1):
         super(ConvFreqEncoding, self).__init__()
-        sin_cos_freq_encoding = sin_cos_pos_encoding_nd(size, dim)
+        sin_cos_freq_encoding = sin_cos_pos_encoding_nd(size, dim, version=version)
         self.register_buffer('sin_cos_freq_encoding', sin_cos_freq_encoding)
 
         if dim == 1:
