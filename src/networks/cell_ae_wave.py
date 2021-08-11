@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.expscale import ExpScale
-from src.layers.posencoding import PosEncoding, sin_cos_pos_encoding_nd
+from src.layers.posencoding import ConvFreqEncoding, sin_cos_pos_encoding_nd
 from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.noiseinjection import NoiseInjection
@@ -55,9 +55,9 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.out_pos = PosEncoding(self.image_size, 2, version=2)
+        self.out_pos = ConvFreqEncoding(self.n_filter, self.image_size, version=2)
         self.out_conv = nn.Sequential(
-            ResidualBlock(self.n_filter + self.out_pos.size(), self.lat_size, None, 1, 1, 0),
+            ResidualBlock(self.n_filter, self.lat_size, None, 1, 1, 0),
             ResidualBlock(self.lat_size, self.lat_size, None, 1, 1, 0)
         )
         self.out_to_lat = nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
