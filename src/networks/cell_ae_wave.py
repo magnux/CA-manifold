@@ -41,8 +41,6 @@ class InjectedEncoder(nn.Module):
         self.ce_in = ce_in
         self.n_seed = n_seed
 
-        self.register_buffer('call_freq', sin_cos_pos_encoding_nd(self.n_calls, 1))
-
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
@@ -52,7 +50,7 @@ class InjectedEncoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
 
-        self.frac_lat = LinearResidualBlock(self.lat_size + self.call_freq.shape[1] + (self.n_filter if self.env_feedback else 0), self.lat_size)
+        self.frac_lat = LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -62,11 +60,8 @@ class InjectedEncoder(nn.Module):
         self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size)
         # self.lat_seed = nn.Parameter(nn.init.normal_(torch.empty(self.n_seed, self.lat_size)))
         self.out_to_lat = nn.Sequential(
-            nn.Linear(self.call_freq.shape[1] + self.out_freq.size(), self.lat_size * 2),
-            LinearResidualBlock(self.lat_size * 2, self.lat_size)
-        )
-        self.lat_to_lat = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size if not z_out else z_dim)
+            nn.Linear(self.out_freq.size(), self.lat_size * 2),
+            LinearResidualBlock(self.lat_size * 2, self.lat_size if not z_out else z_dim)
         )
 
     def forward(self, x, inj_lat=None, seed_n=0):
@@ -79,16 +74,15 @@ class InjectedEncoder(nn.Module):
 
         out = self.in_conv(x)
         # if isinstance(seed_n, tuple):
-        #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+        #     # seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
         #     lat_seed = self.lat_seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
         # elif isinstance(seed_n, list):
-        #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+        #     # seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
         #     lat_seed = self.lat_seed[seed_n, ...].mean(dim=0, keepdim=True)
         # else:
-        #     seed = self.seed[seed_n:seed_n + 1, ...]
+        #     # seed = self.seed[seed_n:seed_n + 1, ...]
         #     lat_seed = self.lat_seed[seed_n:seed_n + 1, ...]
         # out_lat = lat_seed.to(float_type).repeat(batch_size, 1)
-        out_lat = 0.
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -97,9 +91,8 @@ class InjectedEncoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for c in range(self.n_calls):
-            dyna_lat = torch.cat([inj_lat, self.call_freq[:, :, c].repeat(batch_size, 1)], dim=1)
-            dyna_lat = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
-            dyna_lat = self.frac_lat(dyna_lat)
+            inj_lat = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            inj_lat = self.frac_lat(inj_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -108,7 +101,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, dyna_lat)
+            out_new = self.frac_dyna_conv(out_new, inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -129,10 +122,7 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            out_lat_new = torch.cat([self.call_freq[:, :, c].repeat(batch_size, 1), self.out_freq(out).mean(dim=(2, 3))], dim=1)
-            out_lat = out_lat + (self.out_to_lat(out_lat_new) / self.n_calls)
-
-        lat = self.lat_to_lat(out_lat)
+        lat = self.out_to_lat(self.out_freq(out).mean(dim=(2, 3)))
 
         return lat, out_embs, None
 
@@ -175,8 +165,6 @@ class Decoder(nn.Module):
         self.ce_out = ce_out
         self.n_seed = n_seed
 
-        self.register_buffer('call_freq', sin_cos_pos_encoding_nd(self.n_calls, 1))
-
         self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
 
         # self.seed = nn.Parameter(nn.init.normal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size)))
@@ -190,7 +178,7 @@ class Decoder(nn.Module):
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
 
-        self.frac_lat = LinearResidualBlock(self.lat_size + self.call_freq.shape[1] + (self.n_filter if self.env_feedback else 0), self.lat_size)
+        self.frac_lat = LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -239,9 +227,8 @@ class Decoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for c in range(self.n_calls):
-            dyna_lat = torch.cat([lat, self.call_freq[:, :, c].repeat(batch_size, 1)], dim=1)
-            dyna_lat = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
-            dyna_lat = self.frac_lat(dyna_lat)
+            lat = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
+            lat = self.frac_lat(lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -250,7 +237,7 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, dyna_lat)
+            out_new = self.frac_dyna_conv(out_new, lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
