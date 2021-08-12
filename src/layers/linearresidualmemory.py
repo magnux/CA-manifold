@@ -13,7 +13,7 @@ class LinearResidualMemory(nn.Module):
 
         self.q = nn.Linear(self.fin, self.sqrt_fin * self.n_mem)
         self.k = nn.Linear(self.fin, self.sqrt_fin * self.n_mem)
-        self.v = nn.Parameter(nn.init.orthogonal_(torch.empty(self.n_mem, self.fin)).unsqueeze(0))
+        self.v = nn.Parameter(nn.init.xavier_uniform_(torch.empty(self.n_mem, self.fin)).unsqueeze(0))
 
         self.dropout = None
         if dropout > 0:
@@ -28,7 +28,7 @@ class LinearResidualMemory(nn.Module):
         x_k = self.k(x).view(batch_size,  self.n_mem, self.sqrt_fin).permute(0, 2, 1)
         x_v = torch.cat([self.v] * batch_size, 0)
 
-        mem_x = torch.bmm(F.relu(x_q), F.relu(x_k)) / (self.sqrt_fin * self.n_mem) ** 0.5
+        mem_x = torch.bmm(F.relu(x_q), F.relu(x_k)) / self.sqrt_fin ** 0.5
         if self.dropout is not None:
             mem_x = self.dropout(mem_x)
         mem_x = torch.bmm(mem_x, x_v)
