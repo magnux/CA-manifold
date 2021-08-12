@@ -215,16 +215,16 @@ class Decoder(nn.Module):
 
         start_n_calls = 0
         if ca_init is None:
-            out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if isinstance(seed_n, tuple):
-                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                seed = self.seed[seed_n:seed_n + 1, ...]
-            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            # out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            # out = self.seed_selector(out)
+            # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
+            # if isinstance(seed_n, tuple):
+            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     seed = self.seed[seed_n:seed_n + 1, ...]
+            # out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed_selector(out)
         else:
             # if isinstance(seed_n, tuple):
             #     proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
