@@ -23,7 +23,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, n_seed=1, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=False, z_out=False, z_dim=0, auto_reg=False, ce_in=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -41,7 +41,6 @@ class InjectedEncoder(nn.Module):
         self.env_feedback = env_feedback
         self.auto_reg = auto_reg
         self.ce_in = ce_in
-        self.n_seed = n_seed
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
@@ -50,9 +49,9 @@ class InjectedEncoder(nn.Module):
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=0)
 
-        self.frac_lat = nn.ModuleList([EqualLinearBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size, 2) for _ in range(self.n_calls)])
+        self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls)])
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -91,8 +90,8 @@ class InjectedEncoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for c in range(self.n_calls):
-            dyna_lat = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
-            dyna_lat = self.frac_lat[c](dyna_lat)
+            inj_lat = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            inj_lat = self.frac_lat[c](inj_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -101,7 +100,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, dyna_lat)
+            out_new = self.frac_dyna_conv(out_new, inj_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -178,9 +177,9 @@ class Decoder(nn.Module):
         self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=2)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * (2 if self.gated else 1), self.n_filter, lat_factor=0)
 
-        self.frac_lat = nn.ModuleList([EqualLinearBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size, 2) for _ in range(self.n_calls * n_calls_factor)])
+        self.frac_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + (self.n_filter if self.env_feedback else 0), self.lat_size) for _ in range(self.n_calls * n_calls_factor)])
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -231,8 +230,8 @@ class Decoder(nn.Module):
         out_embs = [out]
         auto_reg_grads = []
         for c in range(start_n_calls, start_n_calls + self.n_calls):
-            dyna_lat = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            dyna_lat = self.frac_lat[c](dyna_lat)
+            lat = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
+            lat = self.frac_lat[c](lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -241,7 +240,7 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, dyna_lat)
+            out_new = self.frac_dyna_conv(out_new, lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)

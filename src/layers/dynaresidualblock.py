@@ -35,12 +35,14 @@ class DynaResidualBlock(nn.Module):
 
         k_total_size = (self.k_in_size + self.k_mid_size + self.k_out_size + self.k_short_size +
                         self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size)
-
-        self.dyna_k = nn.Sequential(
-            nn.Linear(lat_size, self.lat_size * lat_factor),
-            LinearResidualBlock(self.lat_size * lat_factor, self.lat_size * lat_factor),
-            LinearResidualBlock(self.lat_size * lat_factor, k_total_size, self.lat_size * lat_factor * 2),
-        )
+        if lat_factor == 0:
+            self.dyna_k = nn.Linear(lat_size, k_total_size)
+        else:
+            self.dyna_k = nn.Sequential(
+                nn.Linear(lat_size, self.lat_size * lat_factor),
+                LinearResidualBlock(self.lat_size * lat_factor, self.lat_size * lat_factor),
+                LinearResidualBlock(self.lat_size * lat_factor, k_total_size, self.lat_size * lat_factor * 2),
+            )
 
         self.prev_lat = None
         self.k_in, self.k_mid, self.k_out, self.k_short = None, None, None, None
