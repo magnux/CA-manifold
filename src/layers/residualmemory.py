@@ -23,7 +23,7 @@ class ResidualMemory(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        self.pos_encoding = PosEncoding(size, dim)
+        self.pos_encoding = PosEncoding(size, dim, version=2)
 
         self.q = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.sqrt_fin, 1, 1, 0)
         self.k = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.sqrt_fin, 1, 1, 0)
@@ -43,7 +43,7 @@ class ResidualMemory(nn.Module):
         x_k = self.k(x_pos).view(batch_size,  self.n_mem, self.sqrt_fin, -1).permute(0, 3, 2, 1).contiguous().view(-1, self.sqrt_fin, self.n_mem)
         x_v = torch.cat([self.v] * x_q.size(0), 0)
 
-        mem_x = torch.bmm(F.normalize(x_q, dim=2), F.normalize(x_k, dim=1))
+        mem_x = torch.bmm(F.relu(x_q), F.relu(x_k)) / (self.sqrt_fin * self.n_mem) ** 0.5
         if self.dropout is not None:
             mem_x = self.dropout(mem_x)
         mem_x = torch.bmm(mem_x, x_v)

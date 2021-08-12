@@ -28,7 +28,7 @@ class LinearResidualMemory(nn.Module):
         x_k = self.k(x).view(batch_size,  self.n_mem, self.sqrt_fin).permute(0, 2, 1)
         x_v = torch.cat([self.v] * batch_size, 0)
 
-        mem_x = torch.bmm(F.normalize(x_q, dim=2), F.normalize(x_k, dim=1))
+        mem_x = torch.bmm(F.relu(x_q), F.relu(x_k)) / (self.sqrt_fin * self.n_mem) ** 0.5
         if self.dropout is not None:
             mem_x = self.dropout(mem_x)
         mem_x = torch.bmm(mem_x, x_v)
