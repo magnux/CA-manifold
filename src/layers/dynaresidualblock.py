@@ -62,10 +62,10 @@ class DynaResidualBlock(nn.Module):
                                                                                         self.b_in_size, self.b_mid_size,
                                                                                         self.b_out_size, self.b_short_size], dim=1)
 
-            self.k_in = k_in.view([batch_size, self.fhidden, self.fin // self.groups] + self.kernel_size)
-            self.k_mid = k_mid.view([batch_size, self.fhidden, self.fhidden // self.groups] + self.kernel_size)
-            self.k_out = k_out.view([batch_size, self.fout, self.fhidden // self.groups] + self.kernel_size)
-            self.k_short = k_short.view([batch_size, self.fout, self.fin // self.groups] + self.kernel_size)
+            self.k_in = k_in.view([batch_size, self.fhidden, self.fin // self.groups] + self.kernel_size) / self.fhidden ** 0.5
+            self.k_mid = k_mid.view([batch_size, self.fhidden, self.fhidden // self.groups] + self.kernel_size) / self.fhidden ** 0.5
+            self.k_out = k_out.view([batch_size, self.fout, self.fhidden // self.groups] + self.kernel_size) / self.fout ** 0.5
+            self.k_short = k_short.view([batch_size, self.fout, self.fin // self.groups] + self.kernel_size) / self.fout ** 0.5
 
             self.k_in = self.k_in.reshape([batch_size * self.fhidden, self.fin // self.groups] + self.kernel_size)
             self.k_mid = self.k_mid.reshape([batch_size * self.fhidden, self.fhidden // self.groups] + self.kernel_size)
