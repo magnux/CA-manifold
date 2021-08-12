@@ -179,7 +179,7 @@ class Decoder(nn.Module):
         self.n_seed = n_seed
 
         # self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
-        self.in_conv = nn.Conv2d(self.out_freq.size(), self.n_filter, 1, 1, 0)
+        self.in_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
 
         # self.seed = nn.Parameter(nn.init.normal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size)))
         self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2, version=2))
