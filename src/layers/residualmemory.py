@@ -26,8 +26,10 @@ class ResidualMemory(nn.Module):
         self.pos_encoding = PosEncoding(size, dim, version=2)
 
         self.q = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.sqrt_fin, 1, 1, 0)
+        nn.init.normal_(self.q.weight)
         self.k = conv_fn(self.fin + self.pos_encoding.size(), self.n_mem * self.sqrt_fin, 1, 1, 0)
-        self.v = nn.Parameter(nn.init.xavier_uniform_(torch.empty(self.n_mem, self.fin)).unsqueeze(0))
+        nn.init.normal_(self.k.weight)
+        self.v = nn.Parameter(torch.zeros((1, self.n_mem, self.fin)))
 
         self.dropout = None
         if dropout > 0:

@@ -12,8 +12,10 @@ class LinearResidualMemory(nn.Module):
         self.n_mem = n_mem
 
         self.q = nn.Linear(self.fin, self.sqrt_fin * self.n_mem)
+        nn.init.normal_(self.q.weight)
         self.k = nn.Linear(self.fin, self.sqrt_fin * self.n_mem)
-        self.v = nn.Parameter(nn.init.xavier_uniform_(torch.empty(self.n_mem, self.fin)).unsqueeze(0))
+        nn.init.normal_(self.k.weight)
+        self.v = nn.Parameter(torch.zeros((1, self.n_mem, self.fin)))
 
         self.dropout = None
         if dropout > 0:
