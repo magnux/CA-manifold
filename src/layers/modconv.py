@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.layers.equallinear import EqualLinear
+from src.layers.equallinear import EqualLinearBlock
 
 
 class ModConv(nn.Module):
     def __init__(self, lat_size, fin, fout, kernel, demod=True, stride=1, dilation=1, dim=2, n_layers_style=4, **kwargs):
-        super().__init__()
+        super(ModConv, self).__init__()
         
         if dim == 1:
             self.f_conv = F.conv1d
@@ -28,11 +28,7 @@ class ModConv(nn.Module):
         nn.init.kaiming_normal_(weight, a=0, mode='fan_in', nonlinearity='leaky_relu')
         self.weight = nn.Parameter(weight.unsqueeze(0))
 
-        lat_to_fin = []
-        for _ in range(n_layers_style):
-            lat_to_fin.extend([EqualLinear(lat_size, lat_size), nn.LeakyReLU(0.2, True)])
-        lat_to_fin.append(nn.Linear(lat_size, fin))
-        self.lat_to_fin = nn.Sequential(*lat_to_fin)
+        self.lat_to_fin = EqualLinearBlock(lat_size, fin, n_layers_style)
         self.prev_lat = None
         self.mod_weight = None
 
