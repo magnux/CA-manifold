@@ -177,7 +177,8 @@ class Decoder(nn.Module):
         self.n_seed = n_seed
 
         # self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
-        self.in_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
+        self.in_freq = ConvFreqEncoding(self.n_filter, self.image_size, version=2)
+        self.in_conv = nn.Conv2d(self.in_freq.size(), self.n_filter, 1, 1, 0)
 
         # self.seed = nn.Parameter(nn.init.normal_(torch.empty(self.n_seed, self.n_filter, self.image_size, self.image_size)))
         self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2, version=2))
@@ -232,7 +233,8 @@ class Decoder(nn.Module):
             #     proj = self.in_proj[seed_n:seed_n + 1, ...]
             # proj = torch.cat([proj.to(float_type)] * batch_size, 0)
             # out = ca_init + proj
-            out = self.in_conv(ca_init)
+            out = self.in_freq(ca_init)
+            out = self.in_conv(out)
             start_n_calls = self.n_calls
 
         if self.perception_noise and self.training:
