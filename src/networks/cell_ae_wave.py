@@ -59,16 +59,15 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        # self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-        # self.out_to_lat = nn.Sequential(
-        #     nn.Linear(sum(self.conv_state_size), self.lat_size),
-        #     LinearResidualBlock(self.lat_size, lat_size if not z_out else z_dim)
-        # )
-        # torch.nn.init.orthogonal_(self.out_to_lat[0].weight)
+        self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
+        self.out_to_lat = nn.Sequential(
+            nn.Linear(sum(self.conv_state_size), self.lat_size),
+            LinearResidualBlock(self.lat_size, lat_size if not z_out else z_dim)
+        )
 
-        self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size, version=2)
-        self.out_to_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size) for _ in range(self.n_calls)])
-        self.lat_to_lat = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
+        # self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size, version=2)
+        # self.out_to_lat = nn.ModuleList([LinearResidualBlock(self.lat_size + self.out_freq.size(), self.lat_size) for _ in range(self.n_calls)])
+        # self.lat_to_lat = nn.Linear(self.lat_size, lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
         assert (inj_lat is not None) == self.injected, 'latent should only be passed to injected encoders'
@@ -79,7 +78,7 @@ class InjectedEncoder(nn.Module):
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
         out = self.in_conv(x)
-        lat = torch.zeros((batch_size, self.lat_size), device=x.device)
+        # lat = torch.zeros((batch_size, self.lat_size), device=x.device)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=x.device))
@@ -119,20 +118,20 @@ class InjectedEncoder(nn.Module):
                 out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
             out_embs.append(out)
 
-            lat = self.out_to_lat[c](torch.cat([lat, self.out_freq(out).mean(dim=(2, 3))], dim=1))
+            # lat = self.out_to_lat[c](torch.cat([lat, self.out_freq(out).mean(dim=(2, 3))], dim=1))
 
-        # out = self.out_conv(out)
-        # if self.multi_cut:
-        #     conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
-        #     conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
-        #                             conv_state_fh.mean(dim=3).view(batch_size, -1),
-        #                             conv_state_fw.mean(dim=2).view(batch_size, -1),
-        #                             conv_state_hw.view(batch_size, -1)], dim=1)
-        # else:
-        #     conv_state = out.mean(dim=(2, 3))
-        # lat = self.out_to_lat(conv_state)
+        # lat = self.lat_to_lat(lat)
 
-        lat = self.lat_to_lat(lat)
+        out = self.out_conv(out)
+        if self.multi_cut:
+            conv_state_f, conv_state_fh, conv_state_fw, conv_state_hw = torch.split(out, self.split_sizes, dim=1)
+            conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
+                                    conv_state_fh.mean(dim=3).view(batch_size, -1),
+                                    conv_state_fw.mean(dim=2).view(batch_size, -1),
+                                    conv_state_hw.view(batch_size, -1)], dim=1)
+        else:
+            conv_state = out.mean(dim=(2, 3))
+        lat = self.out_to_lat(conv_state)
 
         return lat, out_embs, None
 
