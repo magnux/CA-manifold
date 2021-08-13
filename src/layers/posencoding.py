@@ -73,8 +73,8 @@ def sin_cos_pos_encoding_1d(size, freq_div=1.):
     return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size) / len(spaces), dtype=torch.float32)
 
 
-def sin_cos_pos_encoding_1d_2(size, pos_scale=7):
-    scales = [(2 ** i) / (2 ** pos_scale) for i in range(pos_scale + 1)]
+def sin_cos_pos_encoding_1d_2(size, pos_scale=32):
+    scales = [(i + 1) / pos_scale for i in range(pos_scale)]
     spaces = [scale * np.linspace(0, 2 * np.pi, size) for scale in scales]
 
     sin = [np.sin(space) for space in spaces]
@@ -82,7 +82,7 @@ def sin_cos_pos_encoding_1d_2(size, pos_scale=7):
     return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size), dtype=torch.float32)
 
 
-def sin_cos_pos_encoding_nd(size, dim, version=1):
+def sin_cos_pos_encoding_nd(size, dim, version=1, **kwargs):
     if isinstance(size, int):
         size = (size,)
         if dim > 0:
@@ -95,9 +95,9 @@ def sin_cos_pos_encoding_nd(size, dim, version=1):
     # else :
     # TODO: check size tuples are correct
     if dim == 0:
-        pos_encoding = encoding_fun(size[0]).view(1, -1)
+        pos_encoding = encoding_fun(size[0], kwargs).view(1, -1)
     elif dim == 1:
-        pos_encoding = encoding_fun(size[0])
+        pos_encoding = encoding_fun(size[0], kwargs)
     elif dim > 1:
         pos_enc_l = []
         for d in range(2, dim + 2):
