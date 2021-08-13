@@ -75,7 +75,7 @@ def sin_cos_pos_encoding_1d(size, freq_div=1.):
 
 def sin_cos_pos_encoding_1d_2(size, pos_scale=32):
     scales = [(i + 1) / pos_scale for i in range(pos_scale)]
-    spaces = [scale * np.linspace(0, 2 * np.pi, size) for scale in scales]
+    spaces = [(scale / np.sum(scales)) * np.linspace(0, 2 * np.pi, size) for scale in scales]
 
     sin = [np.sin(space) for space in spaces]
     cos = [np.cos(space) for space in spaces]
