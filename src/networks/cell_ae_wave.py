@@ -42,7 +42,7 @@ class InjectedEncoder(nn.Module):
         self.auto_reg = auto_reg
         self.ce_in = ce_in
 
-        self.split_sizes = [self.n_filter, self.n_filter, self.n_filter, 1, 1] if self.multi_cut else [self.n_filter]
+        self.split_sizes = [self.n_filter] * 5 if self.multi_cut else [self.n_filter]
         self.conv_state_size = [self.n_filter, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2, 1] if self.multi_cut else [self.n_filter]
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
@@ -128,7 +128,7 @@ class InjectedEncoder(nn.Module):
             conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
                                     conv_state_fh.mean(dim=3).view(batch_size, -1),
                                     conv_state_fw.mean(dim=2).view(batch_size, -1),
-                                    conv_state_hw.view(batch_size, -1),
+                                    conv_state_hw.mean(dim=1).view(batch_size, -1),
                                     conv_state_g.mean(dim=(1, 2, 3)).view(batch_size, 1)], dim=1)
         else:
             conv_state = out.mean(dim=(2, 3))
