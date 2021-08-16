@@ -68,7 +68,7 @@ networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
-    'discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
+    'discriminator': {'class': 'base', 'sub_class': 'UnconditionalDiscriminator'},
 }
 # to_avg = ['encoder', 'decoder', 'generator']
 

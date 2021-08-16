@@ -68,7 +68,7 @@ networks_dict = {
     'generator': {'class': 'base', 'sub_class': 'Generator'},
     'dis_generator': {'class': 'base', 'sub_class': 'Generator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'InjectedEncoder'},
-    'discriminator': {'class': 'base', 'sub_class': 'Discriminator'},
+    'discriminator': {'class': 'base', 'sub_class': 'UnconditionalDiscriminator'},
 }
 # to_avg = ['encoder', 'decoder', 'generator']
 
@@ -295,9 +295,9 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
 
-                    dis_encoder_stats_dict = get_grads_stats(dis_encoder)
-                    lat_top_enc_stats = get_tensor_stats(lat_top_enc)
-                    lat_top_dec_stats = get_tensor_stats(lat_top_dec)
+                    # dis_encoder_stats_dict = get_grads_stats(dis_encoder)
+                    # lat_top_enc_stats = get_tensor_stats(lat_top_enc)
+                    # lat_top_dec_stats = get_tensor_stats(lat_top_dec)
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
@@ -357,9 +357,9 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     # grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
 
-                    encoder_stats_dict = get_grads_stats(encoder)
-                    lat_enc_stats = get_tensor_stats(lat_enc)
-                    lat_gen_stats = get_tensor_stats(lat_gen)
+                    # encoder_stats_dict = get_grads_stats(encoder)
+                    # lat_enc_stats = get_tensor_stats(lat_enc)
+                    # lat_gen_stats = get_tensor_stats(lat_gen)
 
                 # Streaming Images
                 with torch.no_grad():
@@ -396,31 +396,31 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                 model_manager.log_manager.add_scalar('regs', 'd_reg_every_mean', d_reg_every_mean, it=it)
                 model_manager.log_manager.add_scalar('regs', 'd_reg_param_mean', d_reg_param_mean, it=it)
 
-                for param_name, param_stats in dis_encoder_stats_dict.items():
-                    param_norm, param_max, param_std = param_stats
-                    model_manager.log_manager.add_scalar('stats', 'dis_encoder/%s_norm' % param_name, param_norm, it=it)
-                    # model_manager.log_manager.add_scalar('stats', 'dis_encoder/%s_max' % param_name, param_max, it=it)
-                    # model_manager.log_manager.add_scalar('stats', 'dis_encoder/%s_std' % param_name, param_std, it=it)
-
-                model_manager.log_manager.add_scalar('stats', 'lat_top_enc_norm', lat_top_enc_stats[0], it=it)
-                # model_manager.log_manager.add_scalar('stats', 'lat_top_enc_max', lat_top_enc_stats[1], it=it)
-                # model_manager.log_manager.add_scalar('stats', 'lat_top_enc_std', lat_top_enc_stats[2], it=it)
-                model_manager.log_manager.add_scalar('stats', 'lat_top_dec_norm', lat_top_dec_stats[0], it=it)
-                # model_manager.log_manager.add_scalar('stats', 'lat_top_dec_max', lat_top_dec_stats[1], it=it)
-                # model_manager.log_manager.add_scalar('stats', 'lat_top_dec_std', lat_top_dec_stats[2], it=it)
-
-                for param_name, param_stats in encoder_stats_dict.items():
-                    param_norm, param_max, param_std = param_stats
-                    model_manager.log_manager.add_scalar('stats', 'encoder/%s_norm' % param_name, param_norm, it=it)
-                    # model_manager.log_manager.add_scalar('stats', 'encoder/%s_max' % param_name, param_max, it=it)
-                    # model_manager.log_manager.add_scalar('stats', 'encoder/%s_std' % param_name, param_std, it=it)
-
-                model_manager.log_manager.add_scalar('stats', 'lat_enc_norm', lat_enc_stats[0], it=it)
-                # model_manager.log_manager.add_scalar('stats', 'lat_enc_max', lat_enc_stats[1], it=it)
-                # model_manager.log_manager.add_scalar('stats', 'lat_enc_std', lat_enc_stats[2], it=it)
-                model_manager.log_manager.add_scalar('stats', 'lat_gen_norm', lat_gen_stats[0], it=it)
-                # model_manager.log_manager.add_scalar('stats', 'lat_gen_max', lat_gen_stats[1], it=it)
-                # model_manager.log_manager.add_scalar('stats', 'lat_gen_std', lat_gen_stats[2], it=it)
+                # for param_name, param_stats in dis_encoder_stats_dict.items():
+                #     param_norm, param_max, param_std = param_stats
+                #     model_manager.log_manager.add_scalar('stats', 'dis_encoder/%s_norm' % param_name, param_norm, it=it)
+                #     # model_manager.log_manager.add_scalar('stats', 'dis_encoder/%s_max' % param_name, param_max, it=it)
+                #     # model_manager.log_manager.add_scalar('stats', 'dis_encoder/%s_std' % param_name, param_std, it=it)
+                #
+                # model_manager.log_manager.add_scalar('stats', 'lat_top_enc_norm', lat_top_enc_stats[0], it=it)
+                # # model_manager.log_manager.add_scalar('stats', 'lat_top_enc_max', lat_top_enc_stats[1], it=it)
+                # # model_manager.log_manager.add_scalar('stats', 'lat_top_enc_std', lat_top_enc_stats[2], it=it)
+                # model_manager.log_manager.add_scalar('stats', 'lat_top_dec_norm', lat_top_dec_stats[0], it=it)
+                # # model_manager.log_manager.add_scalar('stats', 'lat_top_dec_max', lat_top_dec_stats[1], it=it)
+                # # model_manager.log_manager.add_scalar('stats', 'lat_top_dec_std', lat_top_dec_stats[2], it=it)
+                #
+                # for param_name, param_stats in encoder_stats_dict.items():
+                #     param_norm, param_max, param_std = param_stats
+                #     model_manager.log_manager.add_scalar('stats', 'encoder/%s_norm' % param_name, param_norm, it=it)
+                #     # model_manager.log_manager.add_scalar('stats', 'encoder/%s_max' % param_name, param_max, it=it)
+                #     # model_manager.log_manager.add_scalar('stats', 'encoder/%s_std' % param_name, param_std, it=it)
+                #
+                # model_manager.log_manager.add_scalar('stats', 'lat_enc_norm', lat_enc_stats[0], it=it)
+                # # model_manager.log_manager.add_scalar('stats', 'lat_enc_max', lat_enc_stats[1], it=it)
+                # # model_manager.log_manager.add_scalar('stats', 'lat_enc_std', lat_enc_stats[2], it=it)
+                # model_manager.log_manager.add_scalar('stats', 'lat_gen_norm', lat_gen_stats[0], it=it)
+                # # model_manager.log_manager.add_scalar('stats', 'lat_gen_max', lat_gen_stats[1], it=it)
+                # # model_manager.log_manager.add_scalar('stats', 'lat_gen_std', lat_gen_stats[2], it=it)
 
                 if g_reg_every > 0:
                     model_manager.log_manager.add_scalar('regs', 'reg_gen_enc', reg_gen_enc_sum, it=it)

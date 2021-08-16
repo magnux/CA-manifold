@@ -9,11 +9,16 @@ class EqualLinear(nn.Module):
         self.weight = nn.Parameter(torch.randn(fout, fin))
         if bias:
             self.bias = nn.Parameter(torch.zeros(fout))
+        else:
+            self.bias = None
 
         self.lr_mul = lr_mul
 
     def forward(self, x):
-        return F.linear(x, self.weight * self.lr_mul, bias=self.bias * self.lr_mul)
+        if self.bias is not None:
+            return F.linear(x, self.weight * self.lr_mul, bias=self.bias * self.lr_mul)
+        else:
+            return F.linear(x, self.weight * self.lr_mul)
 
 
 class EqualLinearBlock(nn.Module):
