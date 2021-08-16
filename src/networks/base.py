@@ -46,9 +46,10 @@ class Discriminator(nn.Module):
         lat = self.lat_cond(lat, yembed)
         score = self.lat_to_score(lat)
 
-        if score.requires_grad:
+        if self.training and score.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / score.numel()) * (score - 1)
+                auto_reg_grad = score - 1
+                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
             score.register_hook(lambda grad: grad + auto_reg_grad)
 
         return score
@@ -87,17 +88,19 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         y_lat = self.yembed_to_lat(yembed)
 
-        if y_lat.requires_grad:
+        if self.training and y_lat.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / y_lat.numel()) * (y_lat - 1)
+                auto_reg_grad = y_lat - 1
+                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
             y_lat.register_hook(lambda grad: grad + auto_reg_grad)
 
         z = self.z_cond(z, yembed)
         z_lat = self.z_to_lat(z)
 
-        if z_lat.requires_grad:
+        if self.training and z_lat.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / z_lat.numel()) * (z_lat - 1)
+                auto_reg_grad = z_lat - 1
+                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
             z_lat.register_hook(lambda grad: grad + auto_reg_grad)
 
         return y_lat + z_lat
@@ -125,9 +128,10 @@ class LabsEncoder(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
 
-        if lat.requires_grad:
+        if self.training and lat.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / lat.numel()) * (lat - 1)
+                auto_reg_grad = lat - 1
+                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
             lat.register_hook(lambda grad: grad + auto_reg_grad)
 
         return lat
@@ -142,9 +146,10 @@ class UnconditionalDiscriminator(nn.Module):
     def forward(self, lat):
         score = self.lat_to_score(lat)
 
-        if score.requires_grad:
+        if self.training and score.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / score.numel()) * (score - 1)
+                auto_reg_grad = score - 1
+                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
             score.register_hook(lambda grad: grad + auto_reg_grad)
 
         return score
