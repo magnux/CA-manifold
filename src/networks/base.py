@@ -46,6 +46,11 @@ class Discriminator(nn.Module):
         lat = self.lat_cond(lat, yembed)
         score = self.lat_to_score(lat)
 
+        if score.requires_grad:
+            with torch.no_grad():
+                auto_reg_grad = (2 / score.numel()) * score
+            score.register_hook(lambda grad: grad + auto_reg_grad)
+
         return score
 
 
@@ -80,12 +85,22 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        lat = self.yembed_to_lat(yembed)
+        y_lat = self.yembed_to_lat(yembed)
+
+        if y_lat.requires_grad:
+            with torch.no_grad():
+                auto_reg_grad = (2 / y_lat.numel()) * y_lat
+            y_lat.register_hook(lambda grad: grad + auto_reg_grad)
 
         z = self.z_cond(z, yembed)
-        lat = lat + self.z_to_lat(z)
+        z_lat = self.z_to_lat(z)
 
-        return lat
+        if z_lat.requires_grad:
+            with torch.no_grad():
+                auto_reg_grad = (2 / z_lat.numel()) * z_lat
+            z_lat.register_hook(lambda grad: grad + auto_reg_grad)
+
+        return y_lat + z_lat
 
 
 class LabsEncoder(nn.Module):
@@ -110,6 +125,11 @@ class LabsEncoder(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
 
+        if lat.requires_grad:
+            with torch.no_grad():
+                auto_reg_grad = (2 / lat.numel()) * lat
+            lat.register_hook(lambda grad: grad + auto_reg_grad)
+
         return lat
 
 
@@ -121,6 +141,11 @@ class UnconditionalDiscriminator(nn.Module):
 
     def forward(self, lat):
         score = self.lat_to_score(lat)
+
+        if score.requires_grad:
+            with torch.no_grad():
+                auto_reg_grad = (2 / score.numel()) * score
+            score.register_hook(lambda grad: grad + auto_reg_grad)
 
         return score
 
@@ -140,6 +165,11 @@ class UnconditionalGenerator(nn.Module):
             z = F.normalize(z, dim=1)
 
         lat = self.z_to_lat(z)
+
+        if lat.requires_grad:
+            with torch.no_grad():
+                auto_reg_grad = (2 / lat.numel()) * lat
+            lat.register_hook(lambda grad: grad + auto_reg_grad)
 
         return lat
 
