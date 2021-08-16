@@ -142,7 +142,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
         # Discriminator mean sign target
         sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (n_epochs / (epoch + 1e-8)))
 
-        lr_mul = 1. * (1. - 0.999 ** (n_epochs / (epoch + 1e-8)))
+        lr_mul = 1. * (1. - 0.99 ** (n_epochs / (epoch + 1e-8)))
         model_manager.set_lr_mul('generator', lr_mul)
         model_manager.set_lr_mul('discriminator', lr_mul)
         model_manager.set_lr_mul('dis_encoder', lr_mul)
