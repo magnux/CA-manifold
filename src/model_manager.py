@@ -115,6 +115,12 @@ class ModelManager(object):
         else:
             self.networks_dict[net_name]['net'].n_calls = n_calls
 
+    def set_lr_mul(self, net_name, lr_mul):
+        if isinstance(self.networks_dict[net_name]['net'], torch.nn.DataParallel):
+            self.networks_dict[net_name]['net'].module.lr_mul = lr_mul
+        else:
+            self.networks_dict[net_name]['net'].lr_mul = lr_mul
+
     def on_epoch_start(self, epoch):
         self.epoch = epoch
 

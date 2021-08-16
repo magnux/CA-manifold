@@ -148,6 +148,14 @@ class LabsInjectedEncoder(InjectedEncoder):
         self.inj_lat = self.labs_encoder(labels)
         return super().forward(x, self.inj_lat)
 
+    @property
+    def lr_mul(self):
+        return self.labs_encoder.yembed_to_lat.lr_mul
+
+    @lr_mul.setter
+    def lr_mul(self, lr_mul):
+        self.labs_encoder.yembed_to_lat.lr_mul = lr_mul
+
 
 class ZInjectedEncoder(LabsInjectedEncoder):
     def __init__(self, **kwargs):
