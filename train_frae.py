@@ -80,6 +80,8 @@ dis_generator = model_manager.get_network('dis_generator')
 dis_encoder = model_manager.get_network('dis_encoder')
 discriminator = model_manager.get_network('discriminator')
 
+dis_generator.auto_reg = False
+
 # encoder_avg = model_manager.get_network_avg('encoder')
 # decoder_avg = model_manager.get_network_avg('decoder')
 # generator_avg = model_manager.get_network_avg('generator')

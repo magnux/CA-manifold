@@ -21,11 +21,12 @@ class Classifier(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_labels, lat_size, embed_size, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, auto_reg=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
         self.embed_size = embed_size
+        self.auto_reg = auto_reg
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
@@ -46,14 +47,14 @@ class Discriminator(nn.Module):
         lat = self.lat_cond(lat, yembed)
         score = self.lat_to_score(lat)
 
-        if self.training and score.requires_grad:
+        if self.training and self.auto_reg and score.requires_grad:
             score.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return score
 
 
 class Generator(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, n_calls=4, norm_z=False, **kwargs):
+    def __init__(self, n_labels, lat_size, z_dim, embed_size, n_calls=4, norm_z=False, auto_reg=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.fhidden = lat_size if lat_size > 3 else 512
@@ -61,6 +62,7 @@ class Generator(nn.Module):
         self.embed_size = embed_size
         self.norm_z = norm_z
         self.n_calls = n_calls
+        self.auto_reg = auto_reg
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
@@ -85,26 +87,24 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         y_lat = self.yembed_to_lat(yembed)
 
-        if self.training and y_lat.requires_grad:
+        if self.training and self.auto_reg and y_lat.requires_grad:
             y_lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
-
-        if self.training and z.requires_grad:
-            z.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         z = self.z_cond(z, yembed)
         z_lat = self.z_to_lat(z)
 
-        if self.training and z_lat.requires_grad:
+        if self.training and self.auto_reg and z_lat.requires_grad:
             z_lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return y_lat + z_lat
 
 
 class LabsEncoder(nn.Module):
-    def __init__(self, n_labels, lat_size, embed_size, **kwargs):
+    def __init__(self, n_labels, lat_size, embed_size, auto_reg=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.embed_size = embed_size
+        self.auto_reg = auto_reg
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
@@ -122,34 +122,37 @@ class LabsEncoder(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
 
-        if self.training and lat.requires_grad:
+        if self.training and self.auto_reg and lat.requires_grad:
             lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return lat
 
 
 class UnconditionalDiscriminator(nn.Module):
-    def __init__(self, lat_size, **kwargs):
+    def __init__(self, lat_size, auto_reg=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
+        self.auto_reg = auto_reg
+
         self.lat_to_score = EqualLinear(self.lat_size, 1, lr_mul=0.1, bias=False)
 
     def forward(self, lat):
         score = self.lat_to_score(lat)
 
-        if self.training and score.requires_grad:
+        if self.training and self.auto_reg and score.requires_grad:
             score.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return score
 
 
 class UnconditionalGenerator(nn.Module):
-    def __init__(self, lat_size, z_dim, n_calls=4, norm_z=False, **kwargs):
+    def __init__(self, lat_size, z_dim, n_calls=4, norm_z=False, auto_reg=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
         self.norm_z = norm_z
         self.n_calls = n_calls
+        self.auto_reg = auto_reg
 
         self.z_to_lat = EqualLinear(self.z_dim, self.lat_size, lr_mul=0.1, bias=False)
 
@@ -159,7 +162,7 @@ class UnconditionalGenerator(nn.Module):
 
         lat = self.z_to_lat(z)
 
-        if self.training and lat.requires_grad:
+        if self.training and self.auto_reg and lat.requires_grad:
             lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return lat
