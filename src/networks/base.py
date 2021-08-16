@@ -48,7 +48,7 @@ class Discriminator(nn.Module):
 
         if score.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / score.numel()) * score
+                auto_reg_grad = (2 / score.numel()) * (score - 1)
             score.register_hook(lambda grad: grad + auto_reg_grad)
 
         return score
@@ -89,7 +89,7 @@ class Generator(nn.Module):
 
         if y_lat.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / y_lat.numel()) * y_lat
+                auto_reg_grad = (2 / y_lat.numel()) * (y_lat - 1)
             y_lat.register_hook(lambda grad: grad + auto_reg_grad)
 
         z = self.z_cond(z, yembed)
@@ -97,7 +97,7 @@ class Generator(nn.Module):
 
         if z_lat.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / z_lat.numel()) * z_lat
+                auto_reg_grad = (2 / z_lat.numel()) * (z_lat - 1)
             z_lat.register_hook(lambda grad: grad + auto_reg_grad)
 
         return y_lat + z_lat
@@ -127,7 +127,7 @@ class LabsEncoder(nn.Module):
 
         if lat.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / lat.numel()) * lat
+                auto_reg_grad = (2 / lat.numel()) * (lat - 1)
             lat.register_hook(lambda grad: grad + auto_reg_grad)
 
         return lat
@@ -144,7 +144,7 @@ class UnconditionalDiscriminator(nn.Module):
 
         if score.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / score.numel()) * score
+                auto_reg_grad = (2 / score.numel()) * (score - 1)
             score.register_hook(lambda grad: grad + auto_reg_grad)
 
         return score
@@ -168,7 +168,7 @@ class UnconditionalGenerator(nn.Module):
 
         if lat.requires_grad:
             with torch.no_grad():
-                auto_reg_grad = (2 / lat.numel()) * lat
+                auto_reg_grad = (2 / lat.numel()) * (lat - 1)
             lat.register_hook(lambda grad: grad + auto_reg_grad)
 
         return lat
