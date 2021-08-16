@@ -88,7 +88,6 @@ class Generator(nn.Module):
         if self.training and y_lat.requires_grad:
             y_lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
-
         if self.training and z.requires_grad:
             z.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
