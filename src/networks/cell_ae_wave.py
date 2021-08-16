@@ -22,7 +22,7 @@ from src.networks.conv_ae import Encoder
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=True, ce_in=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -85,7 +85,6 @@ class InjectedEncoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=x.device))
 
         out_embs = [out]
-        auto_reg_grads = []
         for c in range(self.n_calls):
             inj_lat = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
             inj_lat = self.frac_lat(inj_lat)
@@ -112,10 +111,7 @@ class InjectedEncoder(nn.Module):
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
-                with torch.no_grad():
-                    auto_reg_grad = (2e-3 / out.numel()) * out
-                auto_reg_grads.append(auto_reg_grad)
-                out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
+                out.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
             out_embs.append(out)
 
             # lat = self.out_to_lat[c](torch.cat([lat, self.out_freq(out).mean(dim=(2, 3))], dim=1))
@@ -165,7 +161,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, ce_out=False, n_seed=1, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=True, ce_out=False, n_seed=1, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -247,7 +243,6 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
 
         out_embs = [out]
-        auto_reg_grads = []
         for c in range(self.n_calls):
             lat = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
             lat = self.frac_lat(lat)
@@ -274,10 +269,7 @@ class Decoder(nn.Module):
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
-                with torch.no_grad():
-                    auto_reg_grad = (2e-3 / out.numel()) * out
-                auto_reg_grads.append(auto_reg_grad)
-                out.register_hook(lambda grad: grad + auto_reg_grads.pop() if len(auto_reg_grads) > 0 else grad)
+                out.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
             out_embs.append(out)
 
         out = self.out_conv(out)
