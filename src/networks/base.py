@@ -5,6 +5,7 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.dynalinear import DynaLinear
 from src.layers.irm import IRMLinear
+from src.layers.equallinear import EqualLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
@@ -29,7 +30,7 @@ class Discriminator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.lat_cond = DynaLinear(self.embed_size, self.lat_size, int(self.lat_size ** 0.5), bias=False)
-        self.lat_to_score = nn.Linear(int(self.lat_size ** 0.5), 1, bias=False)
+        self.lat_to_score = EqualLinear(int(self.lat_size ** 0.5), 1, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -60,12 +61,10 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.yembed_irm = IRMLinear(self.embed_size)
-        self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
+        self.yembed_to_lat = EqualLinear(self.embed_size, self.lat_size, bias=False)
 
-        self.z_irm = IRMLinear(self.z_dim)
         self.z_cond = DynaLinear(self.embed_size, self.z_dim, self.z_dim, bias=False)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.z_to_lat = EqualLinear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -81,7 +80,6 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        yembed = self.yembed_irm(yembed)
         lat = self.yembed_to_lat(yembed)
 
         z = self.z_irm(z)
@@ -99,8 +97,7 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.yembed_irm = IRMLinear(self.embed_size)
-        self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
+        self.yembed_to_lat = EqualLinear(self.embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -112,7 +109,6 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.labs_to_yembed(yembed)
-        yembed = self.yembed_irm(yembed)
         lat = self.yembed_to_lat(yembed)
 
         return lat
@@ -122,7 +118,7 @@ class UnconditionalDiscriminator(nn.Module):
     def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
+        self.lat_to_score = EqualLinear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
         score = self.lat_to_score(lat)
@@ -138,7 +134,6 @@ class UnconditionalGenerator(nn.Module):
         self.norm_z = norm_z
         self.n_calls = n_calls
 
-        self.z_irm = IRMLinear(self.z_dim)
         self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):

@@ -171,7 +171,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                         lat_top_enc, _, _ = dis_encoder(images, labels)
-                        labs_enc = discriminator(lat_top_enc, labels)
+                        labs_enc = discriminator(lat_top_enc)
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -194,7 +194,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                         images_dec.requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                        labs_dec = discriminator(lat_top_dec, labels)
+                        labs_dec = discriminator(lat_top_dec)
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -235,7 +235,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         images_dec, _, _ = decoder(lat_gen)
 
                         lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                        labs_dec = discriminator(lat_top_dec, labels)
+                        labs_dec = discriminator(lat_top_dec)
 
                         if g_reg_every > 0 and it % g_reg_every == 0:
                             reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)

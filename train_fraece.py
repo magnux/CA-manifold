@@ -217,7 +217,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                         lat_enc.requires_grad_()
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc, labels)
+                        labs_enc = discriminator(lat_top_enc)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                             reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images)
@@ -243,7 +243,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         lat_gen.requires_grad_()
                         images_redec_raw[0].requires_grad_()
                         lat_top_dec, _, _ = dis_encoder(images_redec_raw[0], lat_gen)
-                        labs_dec = discriminator(lat_top_dec, labels)
+                        labs_dec = discriminator(lat_top_dec)
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
                             reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_redec_raw[0])
@@ -280,7 +280,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         loss_dec_sum += loss_dec.item()
 
                         lat_top_enc, _, _ = dis_encoder(images, lat_enc)
-                        labs_enc = discriminator(lat_top_enc, labels)
+                        labs_enc = discriminator(lat_top_enc)
 
                         loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
                         model_manager.loss_backward(loss_gen_enc, nets_to_train)
@@ -298,7 +298,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                                 _, _, images_redec_raw = decoder(lat_gen.detach().clone(), out_embs[-1].detach().clone())
 
                         lat_top_dec, _, _ = dis_encoder(images_redec_raw[0], lat_gen)
-                        labs_dec = discriminator(lat_top_dec, labels)
+                        labs_dec = discriminator(lat_top_dec)
 
                         loss_gen_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 1)
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
