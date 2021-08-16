@@ -82,7 +82,6 @@ class Generator(nn.Module):
         yembed = self.labs_to_yembed(yembed)
         lat = self.yembed_to_lat(yembed)
 
-        z = self.z_irm(z)
         z = self.z_cond(z, yembed)
         lat = lat + self.z_to_lat(z)
 
@@ -140,7 +139,6 @@ class UnconditionalGenerator(nn.Module):
         if self.norm_z:
             z = F.normalize(z, dim=1)
 
-        z = self.z_irm(z)
         lat = self.z_to_lat(z)
 
         return lat
