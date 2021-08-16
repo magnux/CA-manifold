@@ -80,8 +80,6 @@ dis_generator = model_manager.get_network('dis_generator')
 dis_encoder = model_manager.get_network('dis_encoder')
 discriminator = model_manager.get_network('discriminator')
 
-dis_generator.auto_reg = False
-
 # encoder_avg = model_manager.get_network_avg('encoder')
 # decoder_avg = model_manager.get_network_avg('decoder')
 # generator_avg = model_manager.get_network_avg('generator')
@@ -187,7 +185,7 @@ torch.autograd.set_detect_anomaly(True)
 g_factor_enc = model_manager.log_manager.get_last('regs', 'g_factor_enc', 1.)
 g_factor_dec = model_manager.log_manager.get_last('regs', 'g_factor_dec', 1.)
 
-# lr_mul = model_manager.log_manager.get_last('regs', 'lr_mul', 1.)
+lr_mul = model_manager.log_manager.get_last('regs', 'lr_mul', 1.)
 
 for epoch in range(model_manager.start_epoch, n_epochs):
     with model_manager.on_epoch(epoch):
@@ -200,11 +198,11 @@ for epoch in range(model_manager.start_epoch, n_epochs):
         # Discriminator mean sign target
         sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (n_epochs / (epoch + 1e-8)))
 
-        # lr_mul = 1. * (1. - 0.99 ** (n_epochs / (epoch + 1e-8)))
-        # model_manager.set_lr_mul('encoder', lr_mul)
-        # model_manager.set_lr_mul('generator', lr_mul)
-        # model_manager.set_lr_mul('dis_generator', lr_mul)
-        # model_manager.set_lr_mul('discriminator', lr_mul)
+        lr_mul = 1. * (1. - 0.99 ** (n_epochs / (epoch + 1e-8)))
+        model_manager.set_lr_mul('encoder', lr_mul)
+        model_manager.set_lr_mul('generator', lr_mul)
+        model_manager.set_lr_mul('dis_generator', lr_mul)
+        model_manager.set_lr_mul('discriminator', lr_mul)
 
         it = epoch * (len(trainloader) // batch_split)
 
@@ -399,7 +397,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
 
-                # model_manager.log_manager.add_scalar('regs', 'lr_mul', lr_mul, it=it)
+                model_manager.log_manager.add_scalar('regs', 'lr_mul', lr_mul, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'g_factor_enc', g_factor_enc, it=it)
                 model_manager.log_manager.add_scalar('regs', 'g_factor_dec', g_factor_dec, it=it)
