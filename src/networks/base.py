@@ -47,10 +47,7 @@ class Discriminator(nn.Module):
         score = self.lat_to_score(lat)
 
         if self.training and score.requires_grad:
-            with torch.no_grad():
-                auto_reg_grad = score - 1
-                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
-            score.register_hook(lambda grad: grad + auto_reg_grad)
+            score.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return score
 
@@ -89,19 +86,13 @@ class Generator(nn.Module):
         y_lat = self.yembed_to_lat(yembed)
 
         if self.training and y_lat.requires_grad:
-            with torch.no_grad():
-                auto_reg_grad = y_lat - 1
-                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
-            y_lat.register_hook(lambda grad: grad + auto_reg_grad)
+            y_lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         z = self.z_cond(z, yembed)
         z_lat = self.z_to_lat(z)
 
         if self.training and z_lat.requires_grad:
-            with torch.no_grad():
-                auto_reg_grad = z_lat - 1
-                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
-            z_lat.register_hook(lambda grad: grad + auto_reg_grad)
+            z_lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return y_lat + z_lat
 
@@ -129,10 +120,7 @@ class LabsEncoder(nn.Module):
         lat = self.yembed_to_lat(yembed)
 
         if self.training and lat.requires_grad:
-            with torch.no_grad():
-                auto_reg_grad = lat - 1
-                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
-            lat.register_hook(lambda grad: grad + auto_reg_grad)
+            lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return lat
 
@@ -147,10 +135,7 @@ class UnconditionalDiscriminator(nn.Module):
         score = self.lat_to_score(lat)
 
         if self.training and score.requires_grad:
-            with torch.no_grad():
-                auto_reg_grad = score - 1
-                auto_reg_grad = auto_reg_grad / auto_reg_grad.norm()
-            score.register_hook(lambda grad: grad + auto_reg_grad)
+            score.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return score
 
@@ -171,10 +156,8 @@ class UnconditionalGenerator(nn.Module):
 
         lat = self.z_to_lat(z)
 
-        if lat.requires_grad:
-            with torch.no_grad():
-                auto_reg_grad = (2 / lat.numel()) * (lat - 1)
-            lat.register_hook(lambda grad: grad + auto_reg_grad)
+        if self.training and lat.requires_grad:
+            lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
         return lat
 
