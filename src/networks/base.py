@@ -63,7 +63,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size)
+        self.z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -79,7 +79,7 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
+        lat = self.z_to_lat(z, yembed)
 
         if self.auto_reg and self.training and lat.requires_grad:
             lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
@@ -96,7 +96,7 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
+        self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -122,7 +122,7 @@ class UnconditionalDiscriminator(nn.Module):
         self.lat_size = lat_size
         self.auto_reg = auto_reg
 
-        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
+        self.lat_to_score = nn.Linear(self.lat_size, 1)
 
     def forward(self, lat):
         score = self.lat_to_score(lat)
@@ -142,7 +142,7 @@ class UnconditionalGenerator(nn.Module):
         self.n_calls = n_calls
         self.auto_reg = auto_reg
 
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size)
 
     def forward(self, z):
         if self.norm_z:
