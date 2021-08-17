@@ -31,7 +31,7 @@ class Discriminator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
         self.lat_cond = DynaLinear(self.embed_size, self.lat_size, int(self.lat_size ** 0.5), bias=False)
-        self.lat_to_score = EqualLinear(int(self.lat_size ** 0.5), 1, lr_mul=0.1, bias=False)
+        self.lat_to_score = nn.Linear(int(self.lat_size ** 0.5), 1, bias=False)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -69,7 +69,7 @@ class Generator(nn.Module):
         self.yembed_to_lat = EqualLinear(self.embed_size, self.lat_size, lr_mul=0.1, bias=False)
 
         self.z_cond = DynaLinear(self.embed_size, self.z_dim, self.z_dim, bias=False)
-        self.z_to_lat = EqualLinear(self.z_dim, self.lat_size, lr_mul=0.1, bias=False)
+        self.z_to_lat = EqualLinear(self.z_dim, self.lat_size, lr_mul=0.01, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -134,7 +134,7 @@ class UnconditionalDiscriminator(nn.Module):
         self.lat_size = lat_size
         self.auto_reg = auto_reg
 
-        self.lat_to_score = EqualLinear(self.lat_size, 1, lr_mul=0.1, bias=False)
+        self.lat_to_score = nn.Linear(self.lat_size, 1, bias=False)
 
     def forward(self, lat):
         score = self.lat_to_score(lat)
@@ -154,7 +154,7 @@ class UnconditionalGenerator(nn.Module):
         self.n_calls = n_calls
         self.auto_reg = auto_reg
 
-        self.z_to_lat = EqualLinear(self.z_dim, self.lat_size, lr_mul=0.1, bias=False)
+        self.z_to_lat = EqualLinear(self.z_dim, self.lat_size, lr_mul=0.01, bias=False)
 
     def forward(self, z):
         if self.norm_z:
