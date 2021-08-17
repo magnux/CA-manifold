@@ -29,8 +29,7 @@ class Discriminator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.lat_cond = DynaLinear(self.embed_size, self.lat_size, int(self.lat_size ** 0.5), bias=False)
-        self.lat_to_score = nn.Linear(int(self.lat_size ** 0.5), 1, bias=False)
+        self.lat_to_score = DynaLinear(self.lat_size, self.embed_size, 1)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -43,8 +42,7 @@ class Discriminator(nn.Module):
             yembed = y
 
         yembed = self.labs_to_yembed(yembed)
-        lat = self.lat_cond(lat, yembed)
-        score = self.lat_to_score(lat)
+        score = self.lat_to_score(yembed, lat)
 
         if self.auto_reg and self.training and score.requires_grad:
             score.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
@@ -65,10 +63,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
-
-        self.z_cond = DynaLinear(self.embed_size, self.z_dim, self.z_dim, bias=False)
-        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
+        self.z_to_lat = DynaLinear(self.z_dim, self.embed_size, self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -84,18 +79,12 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        y_lat = self.yembed_to_lat(yembed)
+        lat = self.z_to_lat(yembed, z)
 
-        if self.auto_reg and self.training and y_lat.requires_grad:
-            y_lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
+        if self.auto_reg and self.training and lat.requires_grad:
+            lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
 
-        z = self.z_cond(z, yembed)
-        z_lat = self.z_to_lat(z)
-
-        if self.auto_reg and self.training and z_lat.requires_grad:
-            z_lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
-
-        return y_lat + z_lat
+        return lat
 
 
 class LabsEncoder(nn.Module):
