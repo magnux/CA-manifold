@@ -92,6 +92,16 @@ def grad_mult_hook(g_factor):
     return partial(_grad_mult_hook, g_factor=g_factor)
 
 
+def grad_ema_update(network, m=0.9):
+    for p in network.parameters():
+        if p.grad is not None:
+            if not hasattr(p, 'grad_ema'):
+                p.grad_ema = p.grad.clone()
+            else:
+                p.grad_ema = m * p.grad_ema + (1 - m) * p.grad.clone()
+                p.grad = p.grad_ema.clone()
+
+
 def bkp_grad(network, bkp_name):
     for p in network.parameters():
         if p.grad is not None:

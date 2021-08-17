@@ -5,7 +5,6 @@ from src.layers.residualblock import ResidualBlock
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.dynalinear import DynaLinear
 from src.layers.irm import IRMLinear
-from src.layers.equallinear import EqualLinear
 from src.layers.augment.augment import AugmentPipe, augpipe_specs
 from src.utils.loss_utils import vae_sample_gaussian, vae_gaussian_kl_loss
 
@@ -66,10 +65,10 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.yembed_to_lat = EqualLinear(self.embed_size, self.lat_size, lr_mul=0.1, bias=False)
+        self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
         self.z_cond = DynaLinear(self.embed_size, self.z_dim, self.z_dim, bias=False)
-        self.z_to_lat = EqualLinear(self.z_dim, self.lat_size, lr_mul=0.01, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -108,7 +107,7 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.yembed_to_lat = EqualLinear(self.embed_size, self.lat_size, lr_mul=0.1, bias=False)
+        self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size, bias=False)
 
     def forward(self, y):
         if y.dtype is torch.int64:
@@ -154,7 +153,7 @@ class UnconditionalGenerator(nn.Module):
         self.n_calls = n_calls
         self.auto_reg = auto_reg
 
-        self.z_to_lat = EqualLinear(self.z_dim, self.lat_size, lr_mul=0.01, bias=False)
+        self.z_to_lat = nn.Linear(self.z_dim, self.lat_size, bias=False)
 
     def forward(self, z):
         if self.norm_z:
