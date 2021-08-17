@@ -29,8 +29,7 @@ class Discriminator(nn.Module):
 
         self.register_buffer('embedding_mat', torch.eye(n_labels))
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.lat_seed = nn.Parameter(torch.randn(1, int(self.lat_size ** 0.5)) / int(self.lat_size ** 0.5))
-        self.seed_to_score = DynaLinear(self.lat_size + self.embed_size, int(self.lat_size ** 0.5), 1)
+        self.lat_to_score = DynaLinear(self.embed_size, self.lat_size, 1)
 
     def forward(self, lat, y):
         assert(lat.size(0) == y.size(0))
@@ -43,7 +42,7 @@ class Discriminator(nn.Module):
             yembed = y
 
         yembed = self.labs_to_yembed(yembed)
-        score = self.seed_to_score(self.lat_seed.repeat(lat.size(0), 1), torch.cat([lat, yembed], dim=1))
+        score = self.lat_to_score(lat, yembed)
 
         if self.auto_reg and self.training and score.requires_grad:
             score.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
@@ -64,8 +63,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
-        self.lat_seed = nn.Parameter(torch.randn(1, int(self.lat_size ** 0.5)) / int(self.lat_size ** 0.5))
-        self.seed_to_lat = DynaLinear(self.z_dim + self.embed_size, int(self.lat_size ** 0.5), self.lat_size)
+        self.z_to_lat = nn.Linear(self.z_dim + self.embed_size, self.lat_size)
 
     def forward(self, z, y):
         assert (z.size(0) == y.size(0))
@@ -81,7 +79,7 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        lat = self.seed_to_lat(self.lat_seed.repeat(z.size(0), 1), torch.cat([z, yembed], dim=1))
+        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
 
         if self.auto_reg and self.training and lat.requires_grad:
             lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
