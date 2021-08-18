@@ -265,7 +265,7 @@ class Decoder(nn.Module):
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
             out = out_new + out
-            wave = -out_new
+            wave = out_new
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
