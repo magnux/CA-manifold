@@ -181,12 +181,12 @@ class Decoder(nn.Module):
         self.ce_out = ce_out
         self.n_seed = n_seed
 
-        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
-        # self.in_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
+        # self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
+        self.in_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        # self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
-        # self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
+        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
+        self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
@@ -218,25 +218,25 @@ class Decoder(nn.Module):
 
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if isinstance(seed_n, tuple):
-                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                seed = self.seed[seed_n:seed_n + 1, ...]
-            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            # out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            # out = self.seed_selector(out)
+            # if isinstance(seed_n, tuple):
+            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     seed = self.seed[seed_n:seed_n + 1, ...]
+            # out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed_selector(out)
         else:
-            if isinstance(seed_n, tuple):
-                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                proj = self.in_proj[seed_n:seed_n + 1, ...]
-            proj = torch.cat([proj.to(float_type)] * batch_size, 0)
-            out = ca_init + proj
-            # out = self.in_conv(ca_init)
+            # if isinstance(seed_n, tuple):
+            #     proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     proj = self.in_proj[seed_n:seed_n + 1, ...]
+            # proj = torch.cat([proj.to(float_type)] * batch_size, 0)
+            # out = ca_init + proj
+            out = self.in_conv(ca_init)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
