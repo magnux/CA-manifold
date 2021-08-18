@@ -255,12 +255,12 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                     if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                        reg_dis_mean = 0.5 * (reg_dis_enc_sum + reg_dis_dec_sum)
-                        loss_dis_mean = 0.5 * (loss_dis_enc_sum + loss_dis_dec_sum)
+                        reg_dis_max = max(reg_dis_enc_sum, reg_dis_dec_sum)
+                        loss_dis_min = min(loss_dis_enc_sum, loss_dis_dec_sum)
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every,
                                                                                     d_reg_param_mean, 1 / d_reg_param,
-                                                                                    reg_dis_mean, reg_dis_target, loss_dis_mean)
+                                                                                    reg_dis_max, reg_dis_target, loss_dis_min)
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
