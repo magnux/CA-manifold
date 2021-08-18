@@ -238,13 +238,13 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, images)
+                            reg_dis_enc = (1 / batch_mult) * 0.5 * d_reg_factor * compute_grad_reg(labs_enc, images)
                             model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
-                            # reg_dis_enc = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_enc, z_enc)
-                            # model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
-                            # reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
+                            reg_dis_enc = (1 / batch_mult) * 0.5 * d_reg_factor * compute_grad_reg(labs_enc, z_enc)
+                            model_manager.loss_backward(reg_dis_enc, nets_to_train, retain_graph=True)
+                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
                         loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
                         labs_enc.register_hook(grad_mult_hook(g_factor_enc))
@@ -262,13 +262,13 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                         if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
-                            reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
+                            reg_dis_dec = (1 / batch_mult) * 0.5 * d_reg_factor * compute_grad_reg(labs_dec, images_dec)
                             model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
-                            # reg_dis_dec = (1 / batch_mult) * d_reg_factor * compute_grad_reg(labs_dec, z_gen)
-                            # model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                            # reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
+                            reg_dis_dec = (1 / batch_mult) * 0.5 * d_reg_factor * compute_grad_reg(labs_dec, z_gen)
+                            model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
+                            reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
                         labs_dec.register_hook(grad_mult_hook(g_factor_dec))
