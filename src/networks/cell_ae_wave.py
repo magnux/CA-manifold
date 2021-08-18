@@ -46,6 +46,7 @@ class InjectedEncoder(nn.Module):
         self.conv_state_size = [self.n_filter, self.image_size, self.image_size, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2, 1] if self.multi_cut else [self.n_filter]
 
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
+        nn.init.normal_(self.in_conv.weight)
 
         self.register_buffer('wave', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
         self.wave_selector = nn.Conv2d(self.wave.shape[1], self.n_filter, 1, 1, 0, bias=None)
