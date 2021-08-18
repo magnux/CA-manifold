@@ -48,9 +48,6 @@ class InjectedEncoder(nn.Module):
         self.in_conv = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
         nn.init.normal_(self.in_conv.weight)
 
-        self.register_buffer('wave', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
-        self.wave_selector = nn.Conv2d(self.wave.shape[1], self.n_filter, 1, 1, 0, bias=None)
-
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
         self.frac_factor = self.frac_sobel.c_factor
@@ -78,9 +75,6 @@ class InjectedEncoder(nn.Module):
         batch_size = x.size(0)
         float_type = torch.float16 if isinstance(x, torch.cuda.HalfTensor) else torch.float32
 
-        wave = self.wave.to(float_type).repeat(batch_size, 1, 1, 1)
-        wave = self.wave_selector(wave)
-
         if self.ce_in:
             x = x.view(batch_size, self.in_chan * 256, self.image_size, self.image_size)
 
@@ -93,11 +87,11 @@ class InjectedEncoder(nn.Module):
 
         out_embs = [out]
         for c in range(self.n_calls):
-            inj_lat = torch.cat([inj_lat, wave.mean((2, 3))], 1) if self.env_feedback else inj_lat
+            inj_lat = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
             inj_lat = self.frac_lat(inj_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
-            out_new = wave
+            out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
@@ -114,8 +108,7 @@ class InjectedEncoder(nn.Module):
                     out_new = out_new * self.skip_fire_mask.to(device=x.device).to(float_type)
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=x.device).to(float_type))
-            out = out_new + out
-            wave = -out_new
+            out = out_new
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
