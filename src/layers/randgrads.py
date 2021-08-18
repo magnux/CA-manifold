@@ -4,12 +4,12 @@ from torch.nn import functional as F
 import numpy as np
 
 
-def get_rand_grads_kernel_nd(channels, kernel_size, dim):
-    return torch.nn.init.orthogonal_(torch.empty([channels, 1]+[kernel_size for _ in range(dim)]))
+def get_rand_grads_kernel_nd(channels, kernel_size, dim, ind_chan):
+    return torch.nn.init.orthogonal_(torch.empty([channels, 1 if ind_chan else channels]+[kernel_size for _ in range(dim)]))
 
 
 class RandGrads(nn.Module):
-    def __init__(self, channels, kernel_sizes, paddings, dim=2, n_calls=1, mode='split_out', learnable=True):
+    def __init__(self, channels, kernel_sizes, paddings, dim=2, n_calls=1, mode='split_out', learnable=True, ind_chan=False):
         super(RandGrads, self).__init__()
 
         if isinstance(kernel_sizes, int):
@@ -22,7 +22,7 @@ class RandGrads(nn.Module):
             assert len(kernel_sizes) == len(paddings), 'there should be equal number of kernel_sizes and paddings'
 
         for i, kernel_size in enumerate(kernel_sizes):
-            weight = get_rand_grads_kernel_nd(channels, kernel_size, dim)
+            weight = get_rand_grads_kernel_nd(channels, kernel_size, dim, ind_chan)
             if learnable:
                 self.register_parameter('weight%d' % i, nn.Parameter(weight * (10 / kernel_size ** dim)))
                 self.register_parameter('weight%d_theta' % i, nn.Parameter(torch.randn(channels) * (1/n_calls) * np.pi))
@@ -30,7 +30,7 @@ class RandGrads(nn.Module):
                 self.register_buffer('weight%d' % i, weight * (10 / kernel_size ** dim))
                 self.register_buffer('weight%d_theta' % i, torch.randn(channels) * (1/n_calls) * np.pi)
 
-        self.groups = channels
+        self.groups = channels if ind_chan else 1
         self.paddings = paddings
         self.dim = dim
         self.mode = mode
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     # kernel_sizes = [3]
     # kernels = []
     # for i, kernel_size in enumerate(kernel_sizes):
-    #     kernel = get_rand_grads_kernel_nd(3, kernel_size, 2)
+    #     kernel = get_rand_grads_kernel_nd(3, kernel_size, 2, True)
     #     kernels.append(kernel)
     # # paddings = [1, 15, 31]
     # # paddings = [2 ** (i - 1) for i in range(1, 5)]
