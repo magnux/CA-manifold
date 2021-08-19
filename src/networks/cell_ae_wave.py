@@ -181,11 +181,12 @@ class Decoder(nn.Module):
         self.ce_out = ce_out
         self.n_seed = n_seed
 
-        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
+        # self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
+        self.in_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('wave', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
-        self.wave_selector = nn.Conv2d(self.wave.shape[1], self.n_filter, 1, 1, 0, bias=None)
+        # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
+        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
+        self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
@@ -215,27 +216,27 @@ class Decoder(nn.Module):
         batch_size = lat.size(0)
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
-        wave = self.wave.to(float_type).repeat(batch_size, 1, 1, 1)
-        wave = self.wave_selector(wave)
-
         if ca_init is None:
             # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if isinstance(seed_n, tuple):
-                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                seed = self.seed[seed_n:seed_n + 1, ...]
-            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            # if isinstance(seed_n, tuple):
+            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     seed = self.seed[seed_n:seed_n + 1, ...]
+            # out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.seed_selector(out)
         else:
-            if isinstance(seed_n, tuple):
-                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                proj = self.in_proj[seed_n:seed_n + 1, ...]
-            proj = torch.cat([proj.to(float_type)] * batch_size, 0)
-            out = ca_init + proj
+            # if isinstance(seed_n, tuple):
+            #     proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     proj = self.in_proj[seed_n:seed_n + 1, ...]
+            # proj = torch.cat([proj.to(float_type)] * batch_size, 0)
+            # out = ca_init + proj
+            out = self.in_conv(ca_init)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
@@ -243,11 +244,11 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         for c in range(self.n_calls):
-            lat = torch.cat([lat, wave.mean((2, 3))], 1) if self.env_feedback else lat
+            lat = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
             lat = self.frac_lat(lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
-            out_new = wave
+            out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             out_new = self.frac_sobel(out_new)
@@ -264,8 +265,7 @@ class Decoder(nn.Module):
                     out_new = out_new * self.skip_fire_mask.to(device=lat.device).to(float_type)
                 else:
                     out_new = out_new * (1 - self.skip_fire_mask.to(device=lat.device).to(float_type))
-            out = out_new + out
-            wave = out_new
+            out = out_new
             if self.causal:
                 out = out[:, :, 1:, 1:]
             if self.auto_reg and out.requires_grad:
