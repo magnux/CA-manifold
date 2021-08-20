@@ -59,6 +59,10 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
+        self.register_buffer('wave', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
+        self.out_to_wave = nn.Conv2d(self.n_filter, self.wave.shape[1], 1, 1, 0)
+        self.wave_to_bias = nn.Conv2d(self.wave.shape[1], self.n_filter, 1, 1, 0)
+
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
         self.out_to_lat = nn.Sequential(
             nn.Linear(sum(self.conv_state_size), self.lat_size),
@@ -118,7 +122,9 @@ class InjectedEncoder(nn.Module):
 
         # lat = self.lat_to_lat(lat)
 
-        out = self.out_conv(out)
+        wave_out = self.out_to_wave(out) * self.wave.to(float_type).repeat(batch_size, 1, 1, 1)
+        wave_bias = self.wave_to_bias(wave_out)
+        out = self.out_conv(out - wave_bias)
         if self.multi_cut:
             conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(out, self.split_sizes, dim=1)
             conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
@@ -185,8 +191,8 @@ class Decoder(nn.Module):
         self.in_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
 
         # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('seed', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
-        self.seed_selector = nn.Conv2d(self.seed.shape[1], self.n_filter, 1, 1, 0, bias=None)
+        self.register_buffer('wave', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
+        self.wave_to_out = nn.Conv2d(self.wave.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
@@ -225,8 +231,8 @@ class Decoder(nn.Module):
             # else:
             #     seed = self.seed[seed_n:seed_n + 1, ...]
             # out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.seed_selector(out)
+            wave = self.wave.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = self.wave_to_out(wave)
         else:
             # if isinstance(seed_n, tuple):
             #     proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
