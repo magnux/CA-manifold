@@ -59,10 +59,6 @@ class InjectedEncoder(nn.Module):
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
 
-        self.register_buffer('wave', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
-        self.out_to_wave = nn.Conv2d(self.n_filter, self.wave.shape[1], 1, 1, 0)
-        self.wave_to_bias = nn.Conv2d(self.wave.shape[1], self.n_filter, 1, 1, 0)
-
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
         self.out_to_lat = nn.Sequential(
             nn.Linear(sum(self.conv_state_size), self.lat_size),
@@ -122,9 +118,7 @@ class InjectedEncoder(nn.Module):
 
         # lat = self.lat_to_lat(lat)
 
-        wave_out = self.out_to_wave(out) * self.wave.to(float_type).repeat(batch_size, 1, 1, 1)
-        wave_bias = self.wave_to_bias(wave_out)
-        out = self.out_conv(out - wave_bias)
+        out = self.out_conv(out)
         if self.multi_cut:
             conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(out, self.split_sizes, dim=1)
             conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
@@ -167,7 +161,7 @@ class ZInjectedEncoder(LabsInjectedEncoder):
 
 class Decoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, auto_reg=False, ce_out=False, n_seed=1, **kwargs):
+                 skip_fire=False, log_mix_out=False, causal=False, gated=False, env_feedback=False, multi_cut=True, auto_reg=False, ce_out=False, n_seed=1, **kwargs):
         super().__init__()
         self.out_chan = channels
         self.n_labels = n_labels
@@ -183,16 +177,24 @@ class Decoder(nn.Module):
         self.causal = causal
         self.gated = gated
         self.env_feedback = env_feedback
+        self.multi_cut = multi_cut
         self.auto_reg = auto_reg
         self.ce_out = ce_out
         self.n_seed = n_seed
 
+        self.split_sizes = [self.n_filter] * 7 if self.multi_cut else [self.n_filter]
+        self.conv_state_size = [self.n_filter, self.image_size, self.image_size, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2, 1] if self.multi_cut else [self.n_filter]
+
+        self.lat_to_in = nn.Sequential(
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            nn.Linear(self.lat_size, sum(self.conv_state_size)),
+        )
+        self.in_conv = nn.Conv2d(sum(self.split_sizes), self.n_filter, 1, 1, 0)
+
         # self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
-        self.in_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
+        self.rein_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
 
         # self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.register_buffer('wave', sin_cos_pos_encoding_nd(self.image_size, 2, version=2, pos_scale=self.n_filter))
-        self.wave_to_out = nn.Conv2d(self.wave.shape[1], self.n_filter, 1, 1, 0, bias=None)
 
         self.frac_sobel = RandGrads(self.n_filter, [(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)],
                                                    [2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], n_calls=n_calls)
@@ -231,8 +233,16 @@ class Decoder(nn.Module):
             # else:
             #     seed = self.seed[seed_n:seed_n + 1, ...]
             # out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
-            wave = self.wave.to(float_type).repeat(batch_size, 1, 1, 1)
-            out = self.wave_to_out(wave)
+            conv_state = self.lat_to_in(lat)
+            conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(conv_state, self.conv_state_size, dim=1)
+            conv_state = torch.cat([conv_state_f.view(batch_size, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size),
+                                    conv_state_h.view(batch_size, 1, self.image_size, 1).repeat(1, self.n_filter, 1, self.image_size),
+                                    conv_state_w.view(batch_size, 1, 1, self.image_size).repeat(1, self.n_filter, self.image_size, 1),
+                                    conv_state_fh.view(batch_size, self.n_filter, self.image_size, 1).repeat(1, 1, 1, self.image_size),
+                                    conv_state_fw.view(batch_size, self.n_filter, 1, self.image_size).repeat(1, 1, self.image_size, 1),
+                                    conv_state_hw.view(batch_size, 1,  self.image_size, self.image_size).repeat(1, self.n_filter, 1, 1),
+                                    conv_state_g.view(batch_size, 1, 1, 1).repeat(1, self.n_filter, self.image_size, self.image_size)], dim=1)
+            out = self.in_conv(conv_state)
         else:
             # if isinstance(seed_n, tuple):
             #     proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
@@ -242,7 +252,7 @@ class Decoder(nn.Module):
             #     proj = self.in_proj[seed_n:seed_n + 1, ...]
             # proj = torch.cat([proj.to(float_type)] * batch_size, 0)
             # out = ca_init + proj
-            out = self.in_conv(ca_init)
+            out = self.rein_conv(ca_init)
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
