@@ -6,7 +6,7 @@ from src.layers.posencoding import cos_pos_encoding_nd
 CE_ZERO = np.log(0.5)
 
 
-def compute_gan_loss(d_out, target, gan_type='dyna_gan'):
+def compute_gan_loss(d_out, target, gan_type='wgan'):
 
     if gan_type == 'standard':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
@@ -31,7 +31,7 @@ def compute_gan_loss(d_out, target, gan_type='dyna_gan'):
         loss = F.relu((1 - 2*target) * d_out).mean()
     elif gan_type == 'softplus':
         loss = F.softplus((1 - 2*target) * d_out).mean()
-    elif gan_type == 'dyna_gan':
+    elif gan_type == 'new_mse':
         target = d_out.new_full(size=d_out.size(), fill_value=(target - 0.5))
         loss = F.mse_loss(d_out, target)
     else:
@@ -83,14 +83,14 @@ def compute_hinted_sample(g_in, d_out, target, gan_type='dyna_gan'):
 
 
 def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, reg_loss, reg_loss_target,
-                      loss_dis=None, update_every=True, maximize=True, lr=0.1):
+                      loss_dis=None, update_every=True, maximize=True, lr=0.01):
 
-    if loss_dis is not None:
-        # Emergency break, in case the discriminator had slowly slip through the fence
-        if loss_dis < 0.1:
-            if update_every:
-                reg_every = 1
-            return reg_every, reg_param
+    # if loss_dis is not None:
+    #     # Emergency break, in case the discriminator had slowly slip through the fence
+    #     if loss_dis < 0.1:
+    #         if update_every:
+    #             reg_every = 1
+    #         return reg_every, reg_param
 
     # reg_param update
     delta_reg = reg_loss_target - reg_loss
