@@ -61,8 +61,8 @@ class InjectedEncoder(nn.Module):
 
         self.out_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
         self.out_to_lat = nn.Sequential(
-            nn.Linear(sum(self.conv_state_size), self.lat_size),
-            LinearResidualBlock(self.lat_size, lat_size if not z_out else z_dim)
+            nn.Linear(sum(self.conv_state_size) + self.lat_size, self.lat_size * 2),
+            LinearResidualBlock(self.lat_size * 2, lat_size if not z_out else z_dim)
         )
 
         # self.out_freq = ConvFreqEncoding(self.n_filter, self.image_size, version=2)
@@ -85,9 +85,10 @@ class InjectedEncoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=x.device))
 
         out_embs = [out]
+        dyna_lat = inj_lat
         for c in range(self.n_calls):
-            inj_lat = torch.cat([inj_lat, out.mean((2, 3))], 1) if self.env_feedback else inj_lat
-            inj_lat = self.frac_lat(inj_lat)
+            dyna_lat = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
+            dyna_lat = self.frac_lat(dyna_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -96,7 +97,7 @@ class InjectedEncoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, inj_lat)
+            out_new = self.frac_dyna_conv(out_new, dyna_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -130,7 +131,7 @@ class InjectedEncoder(nn.Module):
                                     conv_state_g.mean(dim=(1, 2, 3)).view(batch_size, 1)], dim=1)
         else:
             conv_state = out.mean(dim=(2, 3))
-        lat = self.out_to_lat(conv_state)
+        lat = self.out_to_lat(torch.cat([conv_state, inj_lat], dim=1))
 
         return lat, out_embs, None
 
@@ -186,8 +187,8 @@ class Decoder(nn.Module):
         self.conv_state_size = [self.n_filter, self.image_size, self.image_size, self.n_filter * self.image_size, self.n_filter * self.image_size, self.image_size ** 2, 1] if self.multi_cut else [self.n_filter]
 
         self.lat_to_in = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            nn.Linear(self.lat_size, sum(self.conv_state_size)),
+            LinearResidualBlock(self.lat_size, self.lat_size * 2),
+            nn.Linear(self.lat_size * 2, sum(self.conv_state_size)),
         )
         self.in_conv = nn.Conv2d(sum(self.split_sizes), self.n_filter, 1, 1, 0)
 
@@ -259,9 +260,10 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
 
         out_embs = [out]
+        dyna_lat = lat
         for c in range(self.n_calls):
-            lat = torch.cat([lat, out.mean((2, 3))], 1) if self.env_feedback else lat
-            lat = self.frac_lat(lat)
+            dyna_lat = torch.cat([dyna_lat, out.mean((2, 3))], 1) if self.env_feedback else dyna_lat
+            dyna_lat = self.frac_lat(dyna_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
@@ -270,7 +272,7 @@ class Decoder(nn.Module):
             out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            out_new = self.frac_dyna_conv(out_new, lat)
+            out_new = self.frac_dyna_conv(out_new, dyna_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
