@@ -240,8 +240,8 @@ class LetterEncoder(nn.Module):
         self.letter_channels = letter_channels
         self.letter_bits = letter_bits
         self.lat_to_letters = nn.Sequential(
-            ResidualBlock(1, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d),
-            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d) for _ in range(n_layers-1)]),
+            ResidualBlock(1, letter_channels * letter_bits, None, 1, 1, 0, 1, nn.Conv1d),
+            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, 1, nn.Conv1d) for _ in range(n_layers-1)]),
         )
 
     def forward(self, lat):
@@ -260,8 +260,8 @@ class LetterDecoder(nn.Module):
         self.letter_channels = letter_channels
         self.letter_bits = letter_bits
         self.letters_to_lat = nn.Sequential(
-            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, nn.Conv1d) for _ in range(n_layers-1)]),
-            ResidualBlock(letter_channels * letter_bits, 1, None, 1, 1, 0, nn.Conv1d),
+            *([ResidualBlock(letter_channels * letter_bits, letter_channels * letter_bits, None, 1, 1, 0, 1, nn.Conv1d) for _ in range(n_layers-1)]),
+            ResidualBlock(letter_channels * letter_bits, 1, None, 1, 1, 0, 1, nn.Conv1d),
         )
 
     def forward(self, letters):
