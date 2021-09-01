@@ -185,6 +185,12 @@ torch.autograd.set_detect_anomaly(True)
 g_factor_enc = model_manager.log_manager.get_last('regs', 'g_factor_enc', 1.)
 g_factor_dec = model_manager.log_manager.get_last('regs', 'g_factor_dec', 1.)
 
+retrain = False
+if model_manager.start_epoch >= n_epochs:
+    print('Network is already fully trained, continued onto the retrain phase')
+    retrain = True
+    n_epochs *= 2
+
 for epoch in range(model_manager.start_epoch, n_epochs):
     with model_manager.on_epoch(epoch):
 
@@ -192,7 +198,10 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
         batch_mult = (int((epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
         # Discriminator reg target
-        reg_dis_target = config['training']['lr']  # 1. * (1. - 0.999 ** (n_epochs / (epoch + 1e-8)))
+        if retrain:
+            reg_dis_target = config['training']['lr'] * (1. - 0.999 ** ((n_epochs // 2) / ((epoch - (n_epochs // 2)) + 1e-8)))
+        else:
+            reg_dis_target = config['training']['lr']
         # Discriminator mean sign target
         sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (n_epochs / (epoch + 1e-8)))
 
