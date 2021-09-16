@@ -71,7 +71,7 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     return reg
 
 
-def compute_hinted_sample(g_in, d_out, target, gan_type='dyna_gan'):
+def compute_hinted_sample(g_in, d_out, target=1, gan_type='softplus'):
     d_loss = compute_gan_loss(d_out, target, gan_type)
     grad_g_in = torch.autograd.grad(outputs=d_loss, inputs=g_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]

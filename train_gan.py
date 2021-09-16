@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_gan_loss, compute_grad_reg, compute_pl_reg, update_reg_params, update_g_factors
-from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_dither, grad_dither_hook, update_network_average, grad_ema_update
+from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_dither, grad_dither_hook, update_network_average, grad_ema_update, get_grads_stats
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -264,6 +264,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     # grad_mult(decoder, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
                     # grad_mult(generator, (0.5 * (g_factor_enc + g_factor_dec)) ** 0.5)
 
+                    # decoder_stats_dict = get_grads_stats(decoder)
+
                 # Streaming Images
                 with torch.no_grad():
                     lat_gen = generator(z_test, labels_test)
@@ -295,6 +297,13 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                 model_manager.log_manager.add_scalar('regs', 'reg_dis_dec', reg_dis_dec_sum, it=it)
                 model_manager.log_manager.add_scalar('regs', 'd_reg_every_mean', d_reg_every_mean, it=it)
                 model_manager.log_manager.add_scalar('regs', 'd_reg_param_mean', d_reg_param_mean, it=it)
+
+                # for param_name, param_stats in decoder_stats_dict.items():
+                #     param_norm, param_max, param_std = param_stats
+                #     # model_manager.log_manager.add_scalar('stats', 'decoder/%s/norm' % param_name, param_norm, it=it)
+                #     # model_manager.log_manager.add_scalar('stats', 'decoder/%s/max' % param_name, param_max, it=it)
+                #     # model_manager.log_manager.add_scalar('stats', 'decoder/%s/std' % param_name, param_std, it=it)
+                #     model_manager.log_manager.add_scalar('stats', 'decoder/%s/std_norm' % param_name, param_std / (param_norm + 1e-8), it=it)
 
                 if g_reg_every > 0:
                     model_manager.log_manager.add_scalar('regs', 'reg_gen_dec', reg_gen_dec_sum, it=it)

@@ -29,6 +29,7 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 image_size = config['data']['image_size']
 n_filter = config['network']['kwargs']['n_filter']
+injected_encoder = config['network']['kwargs'].get('injected_encoder', False)
 letter_encoding = config['network']['kwargs']['letter_encoding']
 n_epochs = config['training']['n_epochs']
 persistence = config['training']['persistence']
@@ -49,7 +50,7 @@ config['training']['steps_per_epoch'] = len(trainloader) // batch_split
 
 # Networks
 networks_dict = {
-    'encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
+    'encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder' if injected_encoder else 'Encoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
 }
 if letter_encoding:
@@ -112,14 +113,14 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                     for _ in range(batch_mult):
 
-                        images, _, trainiter = get_inputs(trainiter, batch_split_size, device)
+                        images, labels, trainiter = get_inputs(trainiter, batch_split_size, device)
                         init_samples = None
 
                         # Obscure the input
                         # re_images = rand_erase_images(images)
 
                         # Encoding
-                        lat_enc, _, _ = encoder(images)
+                        lat_enc, _, _ = encoder(*([images] + ([labels] if injected_encoder else [])))
 
                         if letter_encoding:
                             letters = letter_encoder(lat_enc)
@@ -143,19 +144,12 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                             _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
 
-                            # Slow down aging: minimize the differences, to slow down the motion energy as much as possible
-                            # pers_out_embs_s = torch.stack(pers_out_embs, dim=-1)
-                            # pers_out_diff = pers_out_embs_s[..., 1:] - pers_out_embs_s[..., :-1]
-                            # loss_pers = (1 / batch_mult) * (pers_out_diff.abs() + 1).log().mean()
-
-                            # Repair aging drift: reverse the differences that occurred after many execs
-                            # with torch.no_grad():
-                            #     for _ in range(int(n_calls_save * epoch / n_epochs)):
-                            #         _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1])
-                            # _, pers_out_embs, _ = decoder(lat_dec, pers_out_embs[-1].detach().requires_grad_())
-
                             pers_target_out_embs = [out_embs[-1] for _ in range(n_calls_save)]
-                            loss_pers = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(pers_out_embs[1:]), torch.stack(pers_target_out_embs))
+                            loss_pers = (1 / batch_mult) * F.mse_loss(torch.cat(pers_out_embs[1:]), torch.cat(pers_target_out_embs))
+
+                            pers_redec_images = decoder.out_conv(torch.cat(pers_out_embs[1:]))
+                            pers_target_images = torch.cat([images for _ in range(n_calls_save)])
+                            loss_pers += (1 / batch_mult) * F.mse_loss(pers_redec_images, pers_target_images)
 
                             model_manager.loss_backward(loss_pers, nets_to_train, retain_graph=True)
                             loss_pers_sum += loss_pers.item()
@@ -172,9 +166,12 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                             _, regen_out_embs, _ = decoder(lat_dec, corrupt_init)
 
                             regen_target_out_embs = [out_embs[-1] for _ in range(n_calls_save)]
+                            loss_regen = (1 / batch_mult) * F.mse_loss(torch.cat(regen_out_embs[1:]), torch.cat(regen_target_out_embs))
 
-                            # Make all damaged and undamaged bits tend towards the true final state
-                            loss_regen = (1 / batch_mult) * 10 * F.mse_loss(torch.stack(regen_out_embs[1:]), torch.stack(regen_target_out_embs))
+                            regen_redec_images = decoder.out_conv(torch.cat(regen_out_embs[1:]))
+                            regen_target_images = torch.cat([images for _ in range(n_calls_save)])
+                            loss_regen += (1 / batch_mult) * F.mse_loss(regen_redec_images, regen_target_images)
+
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                             loss_regen_sum += loss_regen.item()
 
@@ -182,7 +179,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                 # Streaming Images
                 with torch.no_grad():
-                    lat_enc, _, _ = encoder(images_test)
+                    lat_enc, _, _ = encoder(*([images_test] + ([labels_test] if injected_encoder else [])))
                     if letter_encoding:
                         letters = letter_encoder(lat_enc)
                         lat_dec = letter_decoder(letters)
@@ -215,7 +212,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
         if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
             t.write('Creating samples...')
             images, labels, trainiter = get_inputs(trainiter, batch_size, device)
-            lat_enc, _, _ = encoder(images)
+
+            lat_enc, _, _ = encoder(*([images] + ([labels] if injected_encoder else [])))
             if letter_encoding:
                 letters = letter_encoder(lat_enc)
                 lat_dec = letter_decoder(letters)

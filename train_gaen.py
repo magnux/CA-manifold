@@ -9,7 +9,7 @@ from src.config import load_config
 from src.distributions import get_ydist, get_zdist
 from src.inputs import get_dataset
 from src.utils.loss_utils import compute_grad_reg, compute_gan_loss, update_reg_params, compute_pl_reg, update_g_factors
-from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_dither_hook, update_network_average
+from src.utils.model_utils import compute_inception_score, grad_mult, grad_mult_hook, grad_dither_hook, update_network_average, grad_ema_update
 from src.model_manager import ModelManager
 from src.utils.web.webstreaming import stream_images
 from os.path import basename, splitext
@@ -185,6 +185,12 @@ torch.autograd.set_detect_anomaly(True)
 g_factor_enc = model_manager.log_manager.get_last('regs', 'g_factor_enc', 1.)
 g_factor_dec = model_manager.log_manager.get_last('regs', 'g_factor_dec', 1.)
 
+retrain = False
+if model_manager.start_epoch >= n_epochs:
+    print('Network is already fully trained, continued onto the retrain phase')
+    retrain = True
+    n_epochs *= 2
+
 for epoch in range(model_manager.start_epoch, n_epochs):
     with model_manager.on_epoch(epoch):
 
@@ -193,7 +199,10 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
         batch_mult = (int((epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
         # Discriminator reg target
-        reg_dis_target = config['training']['lr']  # 1. * (1. - 0.999 ** (n_epochs / (epoch + 1e-8)))
+        if retrain:
+            reg_dis_target = config['training']['lr'] * (1. - 0.999 ** ((n_epochs // 2) / ((epoch - (n_epochs // 2)) + 1e-8)))
+        else:
+            reg_dis_target = config['training']['lr']
         # Discriminator mean sign target
         sign_mean_target = 0.2  # 0.5 * (1. - 0.9 ** (n_epochs / (epoch + 1e-8)))
 
@@ -247,7 +256,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                             reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
                         loss_dis_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 1)
-                        labs_enc.register_hook(grad_mult_hook(g_factor_enc))
+                        # labs_enc.register_hook(grad_mult_hook(g_factor_enc))
                         model_manager.loss_backward(loss_dis_enc, nets_to_train)
                         loss_dis_enc_sum += loss_dis_enc.item()
 
@@ -271,7 +280,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                             reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
                         loss_dis_dec = (1 / batch_mult) * compute_gan_loss(labs_dec, 0)
-                        labs_dec.register_hook(grad_mult_hook(g_factor_dec))
+                        # labs_dec.register_hook(grad_mult_hook(g_factor_dec))
                         model_manager.loss_backward(loss_dis_dec, nets_to_train)
                         loss_dis_dec_sum += loss_dis_dec.item()
 
@@ -283,13 +292,16 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                                                                                     d_reg_param_mean, 1 / d_reg_param,
                                                                                     reg_dis_max, reg_dis_target, loss_dis_min)
 
-                    g_factor_enc, g_factor_dec = update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target)
+                    # g_factor_enc, g_factor_dec = update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target)
+
                     # reg_dis_target = config['training']['lr'] * ((0.5 * (g_factor_enc + g_factor_dec)) ** 4)
                     # dis_encoder.fire_rate = 0.5 * (g_factor_enc + g_factor_dec)
                     # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                     # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
                     # dis_grad_norm = get_grad_norm(discriminator).item()
                     # dis_enc_grad_norm = get_grad_norm(dis_encoder).item()
+
+                    grad_ema_update(dis_generator)
 
                 with model_manager.on_step(['encoder', 'decoder', 'generator']) as nets_to_train:
 
@@ -343,6 +355,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         # labs_dec.register_hook(grad_mult_hook(g_factor_enc ** 0.5))
                         model_manager.loss_backward(loss_gen_dec, nets_to_train)
                         loss_gen_dec_sum += loss_gen_dec.item()
+
+                    grad_ema_update(generator)
 
                     # enc_grad_norm = get_grad_norm(encoder).item()
                     # dec_grad_norm = get_grad_norm(decoder).item()

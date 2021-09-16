@@ -40,7 +40,9 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 image_size = config['data']['image_size']
 channels = config['data']['channels']
+n_labels = config['data']['n_labels']
 n_filter = config['network']['kwargs']['n_filter']
+injected_encoder = config['network']['kwargs'].get('injected_encoder', False)
 letter_encoding = config['network']['kwargs']['letter_encoding']
 persistence = config['training']['persistence']
 regeneration = config['training']['regeneration']
@@ -53,7 +55,7 @@ trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
 
 # Networks
 networks_dict = {
-    'encoder': {'class': config['network']['class'], 'sub_class': 'Encoder'},
+    'encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder' if injected_encoder else 'Encoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
 }
 if letter_encoding:
@@ -72,8 +74,8 @@ if letter_encoding:
 model_manager.print()
 
 
-def enc(images):
-    lat_enc, _, _ = encoder(images)
+def enc(images, labels=None):
+    lat_enc, _, _ = encoder(*([images] + ([labels] if injected_encoder else [])))
     if letter_encoding:
         lat_enc = letter_encoder(lat_enc)
     return lat_enc
@@ -89,11 +91,12 @@ def dec(lat_enc, init_seed=None):
     return images_dec, out_embs
 
 
-def forward_pass(images, init_seed=None):
-    lat_enc = enc(images)
+def forward_pass(images, init_seed=None, labels=None):
+    lat_enc = enc(images, labels)
     images_dec, out_embs = dec(lat_enc, init_seed)
     return images_dec, out_embs
 
+embedding_mat = torch.eye(n_labels, device=device)
 
 def get_inputs(idxs, device):
     images = []
@@ -101,8 +104,11 @@ def get_inputs(idxs, device):
     for idx in idxs:
         image, label = trainset[idx]
         images.append(image)
+        if isinstance(label, int):
+            label = embedding_mat[label]
         labels.append(label)
     images = torch.stack(images, 0).to(device)
+    labels = torch.stack(labels, 0).to(device)
     return images, labels
 
 
@@ -178,16 +184,17 @@ with torch.no_grad():
     print('Plotting Steps')
     if config['data']['train_dir'] == 'data/emoji':
         images = load_image(os.path.join(config['data']['train_dir'], 'smileys_and_emotion', '%s.png' % smiley_emos_ids[1]))
+        labels = torch.tensor([6], device=device)
     else:
         images, labels = get_inputs([int(len(trainset) * 0.042)], device)
-    images_dec, out_embs = forward_pass(images)
+    images_dec, out_embs = forward_pass(images, None, labels)
     save_imgs(out_embs[1:, 0, :config['data']['channels'], :, :], test_dir, 'dec_steps', True)
 
     print('Plotting Random CAs...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
     save_imgs(images, os.path.join(test_dir, 'random'), 'input')
 
-    images_dec, out_embs = forward_pass(images)
+    images_dec, out_embs = forward_pass(images, None, labels)
     save_imgs(images_dec, os.path.join(test_dir, 'random'), 'dec_%s' % config_name)
     for i in range(batch_size):
         save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(test_dir, 'random'), '%d' % i, True)
@@ -199,7 +206,7 @@ with torch.no_grad():
         for batch in t:
             idxs = torch.arange(batch * batch_size, min((batch + 1) * batch_size, len(trainset)))
             images, labels = get_inputs(idxs, device)
-            images_dec, out_embs = forward_pass(images)
+            images_dec, out_embs = forward_pass(images, None, labels)
             loss = F.mse_loss(images_dec, images, reduction='none').mean(dim=(1, 2, 3))
             losses.append(loss)
         losses = torch.cat(losses, 0)
@@ -212,7 +219,7 @@ with torch.no_grad():
         images, labels = get_inputs(sorted_idxs[:batch_size], device)
         save_imgs(images, os.path.join(test_dir, 'best'), 'input')
 
-        images_dec, out_embs = forward_pass(images)
+        images_dec, out_embs = forward_pass(images, None, labels)
         save_imgs(images_dec, os.path.join(test_dir, 'best'), 'dec_%s' % config_name)
         for i in range(batch_size):
             save_imgs(out_embs[1:, i, :channels, :, :], os.path.join(test_dir, 'best'), '%d' % i, True)
@@ -221,7 +228,7 @@ with torch.no_grad():
         images, labels = get_inputs(sorted_idxs[-batch_size:], device)
         save_imgs(images, os.path.join(test_dir, 'worst'), 'input')
 
-        images_dec, out_embs = forward_pass(images)
+        images_dec, out_embs = forward_pass(images, None, labels)
         save_imgs(images_dec, os.path.join(test_dir, 'worst'), 'dec_%s' % config_name)
         for i in range(batch_size):
             save_imgs(out_embs[1:, i, :channels, :, :], os.path.join(test_dir, 'worst'), '%d' % i, True)
@@ -229,7 +236,8 @@ with torch.no_grad():
     if args.persist:
         print('Plotting Persistence...')
         unicorn = load_image(os.path.join(config['data']['train_dir'], 'animals_and_nature', '%s.png' % unicorn_id))
-        unicorn_enc = enc(unicorn)
+        unicorn_lab = torch.tensor([1], device=device)
+        unicorn_enc = enc(unicorn, unicorn_lab)
 
         num_passes = 8
         images_out = []
@@ -245,7 +253,8 @@ with torch.no_grad():
     if args.regen:
         print('Plotting Regeneration...')
         super_girl = load_image(os.path.join(config['data']['train_dir'], 'people_and_body', '%s.png' % super_girl_id))
-        super_girl_enc = enc(super_girl)
+        super_girl_lab = torch.tensor([5], device=device)
+        super_girl_enc = enc(super_girl, super_girl_lab)
         _, out_embs = dec(super_girl_enc)
         init_image = out_embs[-1, ...]
 
@@ -291,7 +300,7 @@ with torch.no_grad():
             idxs = torch.arange(batch * batch_size, min((batch + 1) * batch_size, len(trainset)))
             images, labels = get_inputs(idxs, device)
             lat_labels.append(np.array(labels))
-            lat_enc = enc(images)
+            lat_enc = enc(images, labels)
             if letter_encoding:
                 lat_enc = lat_enc.reshape(lat_enc.size(0), -1)
             lat_encs.append(lat_enc)
@@ -322,14 +331,15 @@ with torch.no_grad():
         assert letter_encoding, "Genetic engineering tests can only be performed in with letenc models"
         print('Performing genetic tests...')
         smiley_dir = os.path.join(config['data']['train_dir'], 'smileys_and_emotion')
+        smiley_lab = torch.tensor([6], device=device)
         normal_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in normal_emos_ids])
-        normal_enc = enc(normal_emos)
+        normal_enc = enc(normal_emos, smiley_lab)
         smiley_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in smiley_emos_ids])
-        smiley_enc = enc(smiley_emos)
+        smiley_enc = enc(smiley_emos, smiley_lab)
         tongue_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in tongue_emos_ids])
-        tongue_enc = enc(tongue_emos)
+        tongue_enc = enc(tongue_emos, smiley_lab)
         other_emos = torch.cat([load_image(os.path.join(smiley_dir, '%s.png' % id)) for id in other_emos_ids])
-        other_enc = enc(other_emos)
+        other_enc = enc(other_emos, smiley_lab)
         
         gene_dir = os.path.join(test_dir, 'lat_gene')
         
