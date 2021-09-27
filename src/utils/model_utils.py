@@ -5,6 +5,9 @@ from src.metrics.inception_score import inception_score
 from src.metrics.fid_score import calculate_fid_given_images
 from functools import partial
 from collections import OrderedDict
+from src.layers.gaussiansmoothing import get_gaussian_kernel
+
+GAUSSIAN_KERNEL = None
 
 
 def count_parameters(network):
@@ -82,14 +85,29 @@ def grad_dither_hook(g_factor):
 def grad_mult(network, g_factor):
     for p in network.parameters():
         if p.grad is not None:
-            p.grad.data.copy_(g_factor ** 2 * p.grad)
+            p.grad.data.copy_(g_factor * p.grad)
 
 
 def grad_mult_hook(g_factor):
     def _grad_mult_hook(grad, g_factor=1):
         with torch.no_grad():
-            return g_factor ** 2 * grad
+            return g_factor * grad
     return partial(_grad_mult_hook, g_factor=g_factor)
+
+
+def image_grad_smooth_hook(channels, g_factor=0.5):
+    global GAUSSIAN_KERNEL
+
+    if GAUSSIAN_KERNEL is None:
+        GAUSSIAN_KERNEL = get_gaussian_kernel(channels, 3, 0.5)
+
+    def _grad_smooth_hook(grad, channels=channels, g_factor=1):
+        global GAUSSIAN_KERNEL
+
+        GAUSSIAN_KERNEL = GAUSSIAN_KERNEL.to(grad.device)
+        with torch.no_grad():
+            return g_factor * grad + (1. - g_factor) * F.conv2d(grad, GAUSSIAN_KERNEL, padding=1, groups=channels)
+    return partial(_grad_smooth_hook, channels=channels, g_factor=g_factor)
 
 
 def grad_ema_update(network, m=0.9):

@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaConv(nn.Module):
-    def __init__(self, lat_size, fin, fout, kernel_size=1, stride=1, padding=0, dim=2):
+    def __init__(self, lat_size, fin, fout, kernel_size=1, stride=1, padding=0, dim=2, lat_factor=1):
         super(DynaConv, self).__init__()
 
         self.lat_size = lat_size
@@ -25,10 +25,13 @@ class DynaConv(nn.Module):
         self.k_size = self.fout * self.fin * (kernel_size ** dim)
         self.b_size = self.fout
 
-        self.dyna_k = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.k_size + self.b_size, self.lat_size * 2),
-        )
+        if lat_factor == 0:
+            self.dyna_k = nn.Linear(self.lat_size, self.k_size + self.b_size)
+        else:
+            self.dyna_k = nn.Sequential(
+                LinearResidualBlock(self.lat_size, self.lat_size * lat_factor),
+                LinearResidualBlock(self.lat_size * lat_factor, self.k_size + self.b_size, self.lat_size * 2),
+            )
 
         self.prev_lat = None
         self.k, self.b = None, 0

@@ -13,13 +13,17 @@ def lin_pos_encoding_1d(size):
     return torch.cat([pos_encoding_start, pos_encoding_end, pos_encoding_center], 1)
 
 
-def cos_pos_encoding_1d(size, freq_div=2., sub_freq_max=4.):
-    ## Note: freqs can be computed up to 'size', but only 'size / 2' are taken to reduce computation
-    freqs = list(range(1, int(size / freq_div)))
-    spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
+def cos_pos_encoding_1d(size, phase=0., log_freq=False, freq_div=1., sub_freq_max=2):
+    if log_freq:
+        ## Note: freqs can be computed up to 'size', but taking intervals in 2^i intervals
+        freqs = [2 ** i for i in range(int(np.log2(size)) + 1)]
+    else:
+        ## Note: freqs can be computed up to 'size', but only 'size / freq_div' are taken to reduce computation
+        freqs = list(range(1, int(size / freq_div)))
+    spaces = [np.linspace(phase, phase + (freq * 2 * np.pi), size) for freq in freqs]
 
-    ## Note: more sub freqs (low freqs, waves longer than size) can be computed, but only 2 are taken to reduce computation
-    sub_freqs = [1./ float(i) for i in range(2, int(sub_freq_max))]
+    ## Note: more sub freqs (low freqs, waves longer than size) can be computed, but only 'sub_freq_max - 2' are taken to reduce computation
+    sub_freqs = [1. / float(i) for i in range(2, int(sub_freq_max))]
     sub_spaces = [np.linspace(i * freq * 2 * np.pi, (i + 1) * freq * 2 * np.pi, size) for freq in sub_freqs for i in range(int(1 / freq))]
     spaces = spaces + sub_spaces
 
@@ -27,7 +31,7 @@ def cos_pos_encoding_1d(size, freq_div=2., sub_freq_max=4.):
     return torch.tensor(np.stack(cos).reshape(1, len(spaces), size), dtype=torch.float32)
 
 
-def cos_pos_encoding_nd(size, dim):
+def cos_pos_encoding_nd(size, dim, phase=0.):
     if isinstance(size, int):
         size = (size,)
         if dim > 0:
@@ -35,13 +39,13 @@ def cos_pos_encoding_nd(size, dim):
     # else :
     # TODO: check size tuples are correct
     if dim == 0:
-        pos_encoding = cos_pos_encoding_1d(size[0]).view(1, -1)
+        pos_encoding = cos_pos_encoding_1d(size[0], phase).view(1, -1)
     elif dim == 1:
-        pos_encoding = cos_pos_encoding_1d(size[0])
+        pos_encoding = cos_pos_encoding_1d(size[0], phase)
     elif dim > 1:
         pos_enc_l = []
         for d in range(2, dim + 2):
-            pos_enc = cos_pos_encoding_1d(size[d - 2])
+            pos_enc = cos_pos_encoding_1d(size[d - 2], phase)
             pos_enc = pos_enc.view(*[size[dd - 2] if dd == d else (pos_enc.size(1) if dd == 1 else 1) for dd in range(dim + 2)])
             pos_enc = pos_enc.repeat(*[size[dd - 2] if dd != d and dd > 1 else 1 for dd in range(dim + 2)])
             pos_enc_l.append(pos_enc)
@@ -64,71 +68,119 @@ def cos_pos_encoding_nd(size, dim):
     return pos_encoding
 
 
-def sin_cos_pos_encoding_1d(size, freq_div=1.):
+def cos_pos_encoding_dyn(size, dim, n_calls):
+    pos_enc_l = []
+    phase_step = 2 * np.pi / n_calls
+    for c in range(n_calls):
+        pos_enc_l.append(cos_pos_encoding_nd(size, dim, c * phase_step))
+    return torch.stack(pos_enc_l)
+
+
+def sin_cos_pos_encoding_1d(size, phase=0., freq_div=1.):
     freqs = list(range(1, int(size / freq_div)))
-    spaces = [np.linspace(0, freq * 2 * np.pi, size) for freq in freqs]
+    spaces = [np.linspace(phase, phase + (freq * 2 * np.pi), size) for freq in freqs]
 
     sin = [np.sin(space) for space in spaces]
     cos = [np.cos(space) for space in spaces]
-    return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size) / len(spaces), dtype=torch.float32)
+    return torch.tensor(np.stack(sin + cos)[None, :, :] / len(spaces), dtype=torch.float32)
 
 
-def sin_cos_pos_encoding_1d_2(size, pos_scale=32):
+def sin_cos_pos_encoding_1d_2(size, phase=0., pos_scale=1):
     scales = [(i + 1) / pos_scale for i in range(pos_scale)]
-    spaces = [(scale / np.sum(scales)) * np.linspace(0, 2 * np.pi, size) for scale in scales]
+    spaces = [(scale / np.sum(scales)) * np.linspace(phase, phase + (2 * np.pi), size) for scale in scales]
 
     sin = [np.sin(space) for space in spaces]
     cos = [np.cos(space) for space in spaces]
-    return torch.tensor(np.stack(sin + cos).reshape(1, len(spaces) * 2, size), dtype=torch.float32)
+    return torch.tensor(np.stack(sin + cos)[None, :, :], dtype=torch.float32)
 
 
-def sin_cos_pos_encoding_nd(size, dim, version=1, **kwargs):
+def sin_cos_pos_encoding_nd(size, dim, version=1, phase=0.):
     if isinstance(size, int):
         size = (size,)
         if dim > 0:
             size = size * dim
     if version == 1:
         encoding_fun = sin_cos_pos_encoding_1d
-    elif version == 2:
+    elif version == 2 or version == 4:
         encoding_fun = sin_cos_pos_encoding_1d_2
+    else:
+        raise RuntimeError('version {} not implemented.'.format(version))
 
     # else :
     # TODO: check size tuples are correct
     if dim == 0:
-        pos_encoding = encoding_fun(size[0], kwargs).view(1, -1)
+        pos_encoding = encoding_fun(size[0], phase).view(1, -1)
     elif dim == 1:
-        pos_encoding = encoding_fun(size[0], kwargs)
+        pos_encoding = encoding_fun(size[0], phase)
     elif dim > 1:
-        pos_enc_l = []
+        sin_enc_l = []
+        cos_enc_l = []
         for d in range(2, dim + 2):
-            pos_enc = encoding_fun(size[d - 2])
+            pos_enc = encoding_fun(size[d - 2], phase)
             pos_enc = pos_enc.view(*[size[dd - 2] if dd == d else (pos_enc.size(1) if dd == 1 else 1) for dd in range(dim + 2)])
             pos_enc = pos_enc.repeat(*[size[dd - 2] if dd != d and dd > 1 else 1 for dd in range(dim + 2)])
-            pos_enc_l.append(pos_enc)
-        pos_encoding = torch.cat(pos_enc_l, 1)
+            sin_enc, cos_enc = torch.split(pos_enc, pos_enc.shape[1] // 2, dim=1)
+            sin_enc_l.append(sin_enc)
+            cos_enc_l.append(cos_enc)
+        pos_enc_l_comb = []
+        for pos_enc_l in [sin_enc_l, cos_enc_l]:
+            for c in range(2, dim + 1):
+                combs = list(combinations(pos_enc_l, c))
+                for comb in combs:
+                    comb_l = list(comb)
+                    while len(comb_l) > 1:
+                        to_comb_a_l = torch.split(comb_l.pop(), 1, dim=1)
+                        to_comb_b = comb_l.pop()
+                        comb_pos_l = []
+                        for to_comb_a in to_comb_a_l:
+                            to_comb_a = torch.cat([to_comb_a] * to_comb_b.size(1), dim=1)
+                            comb_pos_l.append(torch.stack([to_comb_a, to_comb_b], dim=-1).prod(dim=-1))
+                        comb_l.append(torch.cat(comb_pos_l, 1))
+                    pos_enc_l_comb.append(torch.cat(comb_l, 1))
+            pos_encoding = torch.cat(pos_enc_l + pos_enc_l_comb, 1)
 
     return pos_encoding
 
 
-class PosEncoding(nn.Module):
-    def __init__(self, size, dim=1, version=1):
-        super(PosEncoding, self).__init__()
-        self.register_buffer('pos_encoding', sin_cos_pos_encoding_nd(size, dim, version=version))
+def sin_cos_pos_encoding_dyn(size, dim, n_calls):
+    pos_enc_l = []
+    phase_step = 2 * np.pi / n_calls
+    for c in range(n_calls):
+        pos_enc_l.append(sin_cos_pos_encoding_nd(size, dim, version=4, phase=c * phase_step))
+    return torch.stack(pos_enc_l)
 
-    def forward(self, x):
-        pos_encoding = torch.cat([self.pos_encoding] * x.size(0), 0)
+
+class PosEncoding(nn.Module):
+    def __init__(self, size, dim=1, version=1, n_calls=1):
+        super(PosEncoding, self).__init__()
+        self.version = version
+        if self.version == 3:
+            self.register_buffer('pos_encoding', cos_pos_encoding_dyn(size, dim, n_calls))
+        elif self.version == 4:
+            self.register_buffer('pos_encoding', sin_cos_pos_encoding_dyn(size, dim, n_calls))
+        else:
+            self.register_buffer('pos_encoding', sin_cos_pos_encoding_nd(size, dim, version=version))
+
+    def forward(self, x, call_n=0):
+        if self.version == 3 or self.version == 4:
+            pos_encoding = torch.cat([self.pos_encoding[call_n]] * x.size(0), 0)
+        else:
+            pos_encoding = torch.cat([self.pos_encoding] * x.size(0), 0)
         return torch.cat([x, pos_encoding], 1)
 
     def size(self):
-        return int(self.pos_encoding.size(1))
+        if self.version == 3 or self.version == 4:
+            return int(self.pos_encoding.size(2))
+        else:
+            return int(self.pos_encoding.size(1))
 
 
 class LatFreqEncoding(nn.Module):
-    def __init__(self, lat_size, norm=False):
+    def __init__(self, lat_size, norm=False, version=1):
         super(LatFreqEncoding, self).__init__()
         self.lat_size = lat_size
         self.norm = norm
-        sin_cos_freq_encoding = sin_cos_pos_encoding_1d(self.lat_size, 1)
+        sin_cos_freq_encoding = sin_cos_pos_encoding_nd(self.lat_size, 1, version=version)
         self.register_buffer('sin_cos_freq_encoding', sin_cos_freq_encoding)
         self.to_freq_size = nn.Linear(self.lat_size, sin_cos_freq_encoding.size(1), bias=False)
 

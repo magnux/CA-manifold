@@ -63,6 +63,7 @@ class Generator(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.yembed_to_yembed = DynaLinear(self.embed_size, self.embed_size, self.embed_size)
         self.z_to_lat = DynaLinear(self.embed_size, self.z_dim, self.lat_size)
 
     def forward(self, z, y):
@@ -79,7 +80,8 @@ class Generator(nn.Module):
             z = F.normalize(z, dim=1)
 
         yembed = self.labs_to_yembed(yembed)
-        lat = self.z_to_lat(z, yembed)
+        yembed = self.yembed_to_yembed(yembed, yembed)
+        lat = self.z_to_lat(z, F.normalize(yembed))
 
         if self.auto_reg and self.training and lat.requires_grad:
             lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
@@ -96,6 +98,7 @@ class LabsEncoder(nn.Module):
         self.register_buffer('embedding_mat', torch.eye(n_labels))
 
         self.labs_to_yembed = nn.Linear(n_labels, self.embed_size)
+        self.yembed_to_yembed = DynaLinear(self.embed_size, self.embed_size, self.embed_size)
         self.yembed_to_lat = nn.Linear(self.embed_size, self.lat_size)
 
     def forward(self, y):
@@ -108,7 +111,8 @@ class LabsEncoder(nn.Module):
             yembed = y
 
         yembed = self.labs_to_yembed(yembed)
-        lat = self.yembed_to_lat(yembed)
+        yembed = self.yembed_to_yembed(yembed, yembed)
+        lat = self.yembed_to_lat(F.normalize(yembed))
 
         if self.auto_reg and self.training and lat.requires_grad:
             lat.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))

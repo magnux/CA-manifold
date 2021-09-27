@@ -32,6 +32,7 @@ class CheckpointManager(object):
             print('=> Loading checkpoint...')
             out_dict = torch.load(filename)
             self.it = out_dict['it']
+            # self.it = int(filename[-9:-3])
             for k, v in self.module_dict.items():
                 if k in out_dict:
                     out_dict_mod = {}
