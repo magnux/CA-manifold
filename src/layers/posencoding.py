@@ -123,7 +123,7 @@ def sin_cos_pos_encoding_nd(size, dim, version=1, phase=0.):
             sin_enc_l.append(sin_enc)
             cos_enc_l.append(cos_enc)
         pos_enc_l_comb = []
-        for pos_enc_l in [sin_enc_l, cos_enc_l]:
+        for pos_enc_l in (sin_enc_l, cos_enc_l):
             for c in range(2, dim + 1):
                 combs = list(combinations(pos_enc_l, c))
                 for comb in combs:
@@ -137,7 +137,7 @@ def sin_cos_pos_encoding_nd(size, dim, version=1, phase=0.):
                             comb_pos_l.append(torch.stack([to_comb_a, to_comb_b], dim=-1).prod(dim=-1))
                         comb_l.append(torch.cat(comb_pos_l, 1))
                     pos_enc_l_comb.append(torch.cat(comb_l, 1))
-            pos_encoding = torch.cat(pos_enc_l + pos_enc_l_comb, 1)
+        pos_encoding = torch.cat(sin_enc_l + cos_enc_l + pos_enc_l_comb, 1)
 
     return pos_encoding
 
@@ -223,16 +223,19 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     img_size = 16
-    cos_pos = cos_pos_encoding_nd(img_size, 2)
-    for i in range(cos_pos.shape[1]):
-        plt.imshow(cos_pos[:, i, ...].reshape(img_size, img_size).detach().numpy())
-        plt.show()
+    n_calls = 8
+    cos_pos = sin_cos_pos_encoding_dyn(img_size, 2, n_calls)
 
-    lat_size = 512
-    cos_enc = LatFreqEncoding(lat_size, True)
-    print(cos_enc.cos_freq_encoding.shape)
+    for c in range(n_calls):
+        for i in range(cos_pos.shape[2]):
+            plt.imshow(cos_pos[c, :, i, ...].reshape(img_size, img_size).detach().numpy())
+            plt.show()
 
-    n_samples = 16
-    sample = cos_enc(torch.randn((n_samples, lat_size))).unsqueeze(2).repeat(1, 1, lat_size // n_samples)
-    plt.imshow(sample.view(n_samples, lat_size, lat_size // n_samples).permute(1, 0, 2).reshape(lat_size, n_samples * (lat_size // n_samples)).detach().numpy())
-    plt.show()
+    # lat_size = 512
+    # cos_enc = LatFreqEncoding(lat_size, True)
+    # print(cos_enc.cos_freq_encoding.shape)
+    #
+    # n_samples = 16
+    # sample = cos_enc(torch.randn((n_samples, lat_size))).unsqueeze(2).repeat(1, 1, lat_size // n_samples)
+    # plt.imshow(sample.view(n_samples, lat_size, lat_size // n_samples).permute(1, 0, 2).reshape(lat_size, n_samples * (lat_size // n_samples)).detach().numpy())
+    # plt.show()
