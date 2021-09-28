@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
-from src.layers.posencoding import sin_cos_pos_encoding_dyn
+from src.layers.posencoding import cos_pos_encoding_dyn
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.residualblock import ResidualBlock
 from src.layers.randgrads import RandGrads
@@ -54,7 +54,7 @@ class InjectedEncoder(nn.Module):
         # self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
-        self.register_buffer('frac_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
+        self.register_buffer('frac_pos', cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
         self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
@@ -200,15 +200,15 @@ class Decoder(nn.Module):
         # self.in_conv = nn.Conv2d(sum(self.split_sizes), self.n_filter, 1, 1, 0)
         # self.rein_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).unsqueeze(2).unsqueeze(3).repeat(1, 1, self.image_size, self.image_size))
-        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter)).reshape(self.n_seed, self.n_filter, 1, 1))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1)))
+        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1)))
 
         # self.frac_sobel = RandGrads(self.n_filter, np.repeat([(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)], 3),
         #                                            np.repeat([2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], 3), n_calls=n_calls)
         # self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
-        self.register_buffer('frac_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
+        self.register_buffer('frac_pos', cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
         self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
@@ -244,7 +244,7 @@ class Decoder(nn.Module):
                 seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
-            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = seed.to(float_type).repeat(batch_size, 1, self.image_size, self.image_size)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
@@ -252,7 +252,7 @@ class Decoder(nn.Module):
                 proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
             else:
                 proj = self.in_proj[seed_n:seed_n + 1, ...]
-            proj = torch.cat([proj.to(float_type)] * batch_size, 0)
+            proj = proj.to(float_type).repeat(batch_size, 1, self.image_size, self.image_size)
             out = ca_init + proj
 
         if self.perception_noise and self.training:

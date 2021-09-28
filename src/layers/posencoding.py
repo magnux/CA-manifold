@@ -13,12 +13,12 @@ def lin_pos_encoding_1d(size):
     return torch.cat([pos_encoding_start, pos_encoding_end, pos_encoding_center], 1)
 
 
-def cos_pos_encoding_1d(size, phase=0., log_freq=False, freq_div=1., sub_freq_max=2):
+def cos_pos_encoding_1d(size, phase=0., log_freq=False, freq_div=2., sub_freq_max=2):
     if log_freq:
         ## Note: freqs can be computed up to 'size', but taking intervals in 2^i intervals
         freqs = [2 ** i for i in range(int(np.log2(size)) + 1)]
     else:
-        ## Note: freqs can be computed up to 'size', but only 'size / freq_div' are taken to reduce computation
+        ## Note: freqs can be computed up to 'size / 2', but only 'size / freq_div' are taken to reduce computation
         freqs = list(range(1, int(size / freq_div)))
     spaces = [np.linspace(phase, phase + (freq * 2 * np.pi), size) for freq in freqs]
 
@@ -76,7 +76,7 @@ def cos_pos_encoding_dyn(size, dim, n_calls):
     return torch.stack(pos_enc_l)
 
 
-def sin_cos_pos_encoding_1d(size, phase=0., freq_div=1.):
+def sin_cos_pos_encoding_1d(size, phase=0., freq_div=2.):
     freqs = list(range(1, int(size / freq_div)))
     spaces = [np.linspace(phase, phase + (freq * 2 * np.pi), size) for freq in freqs]
 
@@ -224,12 +224,12 @@ if __name__ == '__main__':
 
     img_size = 16
     n_calls = 8
-    cos_pos = sin_cos_pos_encoding_dyn(img_size, 2, n_calls)
+    cos_pos = cos_pos_encoding_dyn(img_size, 2, n_calls)
 
-    for c in range(n_calls):
-        for i in range(cos_pos.shape[2]):
-            plt.imshow(cos_pos[c, :, i, ...].reshape(img_size, img_size).detach().numpy())
-            plt.show()
+    # for c in range(n_calls):
+    for i in range(cos_pos.shape[2]):
+        plt.imshow(cos_pos[0, :, i, ...].reshape(img_size, img_size).detach().numpy())
+        plt.show()
 
     # lat_size = 512
     # cos_enc = LatFreqEncoding(lat_size, True)
