@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
-from src.layers.posencoding import cos_pos_encoding_dyn
+from src.layers.posencoding import sin_cos_pos_encoding_dyn
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.residualblock import ResidualBlock
 from src.layers.randgrads import RandGrads
@@ -54,7 +54,7 @@ class InjectedEncoder(nn.Module):
         # self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
-        self.register_buffer('frac_pos', cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
+        self.register_buffer('frac_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
         self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
@@ -208,7 +208,7 @@ class Decoder(nn.Module):
         # self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
-        self.register_buffer('frac_pos', cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
+        self.register_buffer('frac_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
         self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
@@ -237,23 +237,25 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            if isinstance(seed_n, tuple):
-                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                seed = self.seed[seed_n:seed_n + 1, ...]
-            out = seed.to(float_type).repeat(batch_size, 1, self.image_size, self.image_size)
+            # # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
+            # if isinstance(seed_n, tuple):
+            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     seed = self.seed[seed_n:seed_n + 1, ...]
+            # out = seed.to(float_type).repeat(batch_size, 1, self.image_size, self.image_size)
+            out = torch.zeros(batch_size, self.n_filter, self.image_size, self.image_size, device=lat.device)
         else:
-            if isinstance(seed_n, tuple):
-                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            elif isinstance(seed_n, list):
-                proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
-            else:
-                proj = self.in_proj[seed_n:seed_n + 1, ...]
-            proj = proj.to(float_type).repeat(batch_size, 1, self.image_size, self.image_size)
-            out = ca_init + proj
+            # if isinstance(seed_n, tuple):
+            #     proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            # elif isinstance(seed_n, list):
+            #     proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
+            # else:
+            #     proj = self.in_proj[seed_n:seed_n + 1, ...]
+            # proj = proj.to(float_type).repeat(batch_size, 1, self.image_size, self.image_size)
+            # out = ca_init + proj
+            out = ca_init
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))

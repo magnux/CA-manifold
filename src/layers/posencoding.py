@@ -85,7 +85,7 @@ def sin_cos_pos_encoding_1d(size, phase=0., freq_div=2.):
     return torch.tensor(np.stack(sin + cos)[None, :, :] / len(spaces), dtype=torch.float32)
 
 
-def sin_cos_pos_encoding_1d_2(size, phase=0., pos_scale=1):
+def sin_cos_pos_encoding_1d_2(size, phase=0., pos_scale=32):
     scales = [(i + 1) / pos_scale for i in range(pos_scale)]
     spaces = [(scale / np.sum(scales)) * np.linspace(phase, phase + (2 * np.pi), size) for scale in scales]
 
@@ -99,9 +99,9 @@ def sin_cos_pos_encoding_nd(size, dim, version=1, phase=0.):
         size = (size,)
         if dim > 0:
             size = size * dim
-    if version == 1:
+    if version == 1 or version == 4:
         encoding_fun = sin_cos_pos_encoding_1d
-    elif version == 2 or version == 4:
+    elif version == 2:
         encoding_fun = sin_cos_pos_encoding_1d_2
     else:
         raise RuntimeError('version {} not implemented.'.format(version))
@@ -224,7 +224,7 @@ if __name__ == '__main__':
 
     img_size = 16
     n_calls = 8
-    cos_pos = cos_pos_encoding_dyn(img_size, 2, n_calls)
+    cos_pos = sin_cos_pos_encoding_dyn(img_size, 2, n_calls)
 
     # for c in range(n_calls):
     for i in range(cos_pos.shape[2]):
