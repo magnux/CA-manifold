@@ -78,10 +78,10 @@ def cos_pos_encoding_dyn(size, dim, n_calls):
 
 def sin_cos_pos_encoding_1d(size, phase=0., freq_div=2.):
     freqs = list(range(1, int(size / freq_div)))
-    spaces = [np.linspace(phase, phase + (freq * 2 * np.pi), size) * (len(freqs) - freq) / len(freqs) for freq in freqs]
+    spaces = [np.linspace(phase, phase + (freq * 2 * np.pi), size) for freq in freqs]
 
-    sin = [np.sin(space) for space in spaces]
-    cos = [np.cos(space) for space in spaces]
+    sin = [np.sin(space) * (len(spaces) - s) / len(spaces) for s, space in enumerate(spaces)]
+    cos = [np.cos(space) * (len(spaces) - s) / len(spaces) for s, space in enumerate(spaces)]
     return torch.tensor(np.stack(sin + cos)[None, :, :], dtype=torch.float32)
 
 
