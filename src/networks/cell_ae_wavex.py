@@ -54,7 +54,7 @@ class InjectedEncoder(nn.Module):
         # self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
-        self.register_buffer('frac_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
+        self.frac_pos = nn.Parameter(sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
         self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
@@ -109,7 +109,7 @@ class InjectedEncoder(nn.Module):
             # out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            pos_encoding = torch.cat([self.frac_pos[c]] * out.size(0), 0)
+            pos_encoding = self.frac_pos[c].repeat(batch_size, 1, 1, 1)
             pos_encoding = self.frac_wave(pos_encoding, dyna_lat)
             out_new = torch.cat([out_new, pos_encoding], dim=1)
             out_new = self.frac_dyna_conv(out_new, dyna_lat)
@@ -200,15 +200,15 @@ class Decoder(nn.Module):
         # self.in_conv = nn.Conv2d(sum(self.split_sizes), self.n_filter, 1, 1, 0)
         # self.rein_conv = nn.Conv2d(self.n_filter, self.n_filter, 1, 1, 0)
 
-        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1)))
-        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1)))
+        self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size)))
+        self.in_proj = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size)))
 
         # self.frac_sobel = RandGrads(self.n_filter, np.repeat([(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)], 3),
         #                                            np.repeat([2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], 3), n_calls=n_calls)
         # self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
-        self.register_buffer('frac_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
+        self.frac_pos = nn.Parameter(sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
         self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
@@ -237,25 +237,23 @@ class Decoder(nn.Module):
         float_type = torch.float16 if isinstance(lat, torch.cuda.HalfTensor) else torch.float32
 
         if ca_init is None:
-            # # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
-            # if isinstance(seed_n, tuple):
-            #     seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            # elif isinstance(seed_n, list):
-            #     seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
-            # else:
-            #     seed = self.seed[seed_n:seed_n + 1, ...]
-            # out = seed.to(float_type).repeat(batch_size, 1, self.image_size, self.image_size)
-            out = torch.zeros(batch_size, self.n_filter, self.image_size, self.image_size, device=lat.device)
+            # out = ca_seed(batch_size, self.n_filter, self.image_size, lat.device).to(float_type)
+            if isinstance(seed_n, tuple):
+                seed = self.seed[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            elif isinstance(seed_n, list):
+                seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
+            else:
+                seed = self.seed[seed_n:seed_n + 1, ...]
+            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
         else:
-            # if isinstance(seed_n, tuple):
-            #     proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
-            # elif isinstance(seed_n, list):
-            #     proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
-            # else:
-            #     proj = self.in_proj[seed_n:seed_n + 1, ...]
-            # proj = proj.to(float_type).repeat(batch_size, 1, self.image_size, self.image_size)
-            # out = ca_init + proj
-            out = ca_init
+            if isinstance(seed_n, tuple):
+                proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
+            elif isinstance(seed_n, list):
+                proj = self.in_proj[seed_n, ...].mean(dim=0, keepdim=True)
+            else:
+                proj = self.in_proj[seed_n:seed_n + 1, ...]
+            proj = proj.to(float_type).repeat(batch_size, 1, 1, 1)
+            out = ca_init + proj
 
         if self.perception_noise and self.training:
             noise_mask = torch.round_(torch.rand([batch_size, 1], device=lat.device))
@@ -287,7 +285,7 @@ class Decoder(nn.Module):
             # out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
-            pos_encoding = torch.cat([self.frac_pos[c]] * out.size(0), 0)
+            pos_encoding = self.frac_pos[c].repeat(batch_size, 1, 1, 1)
             pos_encoding = self.frac_wave(pos_encoding, dyna_lat)
             out_new = torch.cat([out_new, pos_encoding], dim=1)
             out_new = self.frac_dyna_conv(out_new, dyna_lat)
