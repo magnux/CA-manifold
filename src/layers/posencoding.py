@@ -13,10 +13,10 @@ def lin_pos_encoding_1d(size):
     return torch.cat([pos_encoding_start, pos_encoding_end, pos_encoding_center], 1)
 
 
-def cos_pos_encoding_1d(size, phase=0., log_freq=False, freq_div=2., sub_freq_max=2):
+def cos_pos_encoding_1d(size, phase=0., log_freq=True, freq_div=2., sub_freq_max=2):
     if log_freq:
         ## Note: freqs can be computed up to 'size', but taking intervals in 2^i intervals
-        freqs = [2 ** i for i in range(int(np.log2(size)) + 1)]
+        freqs = [2 ** i for i in range(int(np.log2(size)))]
     else:
         ## Note: freqs can be computed up to 'size / 2', but only 'size / freq_div' are taken to reduce computation
         freqs = list(range(1, int(size / freq_div)))
@@ -76,8 +76,11 @@ def cos_pos_encoding_dyn(size, dim, n_calls):
     return torch.stack(pos_enc_l)
 
 
-def sin_cos_pos_encoding_1d(size, phase=0., freq_div=2.):
-    freqs = list(range(1, int(size / freq_div)))
+def sin_cos_pos_encoding_1d(size, phase=0., log_freq=True, freq_div=2.):
+    if log_freq:
+        freqs = [2 ** i for i in range(int(np.log2(size)))]
+    else:
+        freqs = list(range(1, int(size / freq_div)))
     spaces = [np.linspace(phase, phase + (freq * 2 * np.pi), size) for freq in freqs]
 
     sin = [np.sin(space) * (len(spaces) - s) / len(spaces) for s, space in enumerate(spaces)]
