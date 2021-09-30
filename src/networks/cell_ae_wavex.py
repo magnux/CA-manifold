@@ -54,7 +54,7 @@ class InjectedEncoder(nn.Module):
         out = self.conv_img(x)
 
         out_embs = [out]
-        lat = inj_lat if inj_lat is not None else 0
+        lat = 0
         for c in range(self.n_calls):
             if not self.auto_reg:
                 out = self.frac_norm(out)
