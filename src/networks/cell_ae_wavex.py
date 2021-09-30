@@ -5,11 +5,11 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.posencoding import sin_cos_pos_encoding_dyn
 from src.layers.linearresidualblock import LinearResidualBlock
+from src.layers.mixconv import MixConv
 from src.layers.mixresidualblock import MixResidualBlock
 from src.layers.randgrads import RandGrads
 from src.layers.dynaconv import DynaConv
 from src.layers.dynaresidualblock import DynaResidualBlock
-from src.layers.dynalinear import DynaLinear
 from src.networks.base import LabsEncoder
 from src.utils.model_utils import ca_seed
 from src.utils.loss_utils import sample_from_discretized_mix_logistic
@@ -42,7 +42,7 @@ class InjectedEncoder(nn.Module):
 
         self.frac_conv = nn.ModuleList([MixResidualBlock(self.lat_size, self.n_filter, self.n_filter, lat_factor=2) for _ in range(self.n_calls)])
 
-        self.out_conv = nn.ModuleList([nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0) for _ in range(self.n_calls)])
+        self.out_conv = nn.ModuleList([MixConv(self.lat_size, self.n_filter, sum(self.split_sizes)) for _ in range(self.n_calls)])
         self.out_to_lat = nn.ModuleList([LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2) for _ in range(self.n_calls)])
         self.lat_to_lat = nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
 
@@ -59,7 +59,8 @@ class InjectedEncoder(nn.Module):
                 out = self.frac_norm(out)
             out = self.frac_conv[c](out, inj_lat)
             if self.multi_cut:
-                conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(self.out_conv[c](out), self.split_sizes, dim=1)
+                conv_state = self.out_conv[c](out, inj_lat)
+                conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(conv_state, self.split_sizes, dim=1)
                 conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
                                         conv_state_h.mean(dim=(1, 3)),
                                         conv_state_w.mean(dim=(1, 2)),
