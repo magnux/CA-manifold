@@ -18,7 +18,7 @@ from itertools import chain
 
 
 class InjectedEncoder(nn.Module):
-    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls,
+    def __init__(self, n_labels, lat_size, image_size, ds_size, channels, n_filter, n_calls, shared_params,
                  multi_cut=True, z_out=False, z_dim=0, auto_reg=False, **kwargs):
         super().__init__()
         self.injected = True
@@ -30,6 +30,7 @@ class InjectedEncoder(nn.Module):
         self.n_filter = n_filter
         self.lat_size = lat_size
         self.n_calls = n_calls
+        self.shared_params = shared_params
         self.auto_reg = auto_reg
 
         self.split_sizes = [self.n_filter] * 7 if self.multi_cut else [self.n_filter]
@@ -40,10 +41,10 @@ class InjectedEncoder(nn.Module):
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
 
-        self.frac_conv = nn.ModuleList([MixResidualBlock(self.lat_size, self.n_filter, self.n_filter, lat_factor=2) for _ in range(self.n_calls)])
+        self.frac_conv = nn.ModuleList([MixResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter * 4, lat_factor=4) for _ in range(1 if self.shared_params else self.n_calls)])
 
-        self.out_conv = nn.ModuleList([MixConv(self.lat_size, self.n_filter, sum(self.split_sizes)) for _ in range(self.n_calls)])
-        self.out_to_lat = nn.ModuleList([LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2) for _ in range(self.n_calls)])
+        self.out_conv = nn.ModuleList([MixConv(self.lat_size, self.n_filter, sum(self.split_sizes)) for _ in range(1 if self.shared_params else self.n_calls)])
+        self.out_to_lat = nn.ModuleList([LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2) for _ in range(1 if self.shared_params else self.n_calls)])
         self.lat_to_lat = nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
@@ -57,9 +58,9 @@ class InjectedEncoder(nn.Module):
         for c in range(self.n_calls):
             if not self.auto_reg:
                 out = self.frac_norm(out)
-            out = self.frac_conv[c](out, inj_lat)
+            out = self.frac_conv[0 if self.shared_params else c](out, inj_lat)
             if self.multi_cut:
-                conv_state = self.out_conv[c](out, inj_lat)
+                conv_state = self.out_conv[0 if self.shared_params else c](out, inj_lat)
                 conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(conv_state, self.split_sizes, dim=1)
                 conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
                                         conv_state_h.mean(dim=(1, 3)),
@@ -71,7 +72,7 @@ class InjectedEncoder(nn.Module):
             else:
                 conv_state = out.mean(dim=(2, 3))
 
-            lat = lat + self.out_to_lat[c](conv_state)
+            lat = lat + self.out_to_lat[0 if self.shared_params else c](conv_state)
 
             if self.auto_reg and out.requires_grad:
                 out.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
