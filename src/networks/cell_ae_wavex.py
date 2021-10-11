@@ -38,13 +38,14 @@ class InjectedEncoder(nn.Module):
 
         self.conv_img = nn.Conv2d(self.in_chan, self.n_filter, 1, 1, 0)
 
+        self.frac_sobel = RandGrads(self.n_filter, np.repeat([(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)], 3),
+                                                   np.repeat([2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], 3), n_calls=n_calls)
         if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter)
-
-        self.frac_conv = nn.ModuleList([MixResidualBlock(self.lat_size, self.n_filter, self.n_filter, self.n_filter * 4, lat_factor=4) for _ in range(1 if self.shared_params else self.n_calls)])
+            self.frac_norm = nn.InstanceNorm2d(self.n_filter * self.frac_sobel.c_factor)
+        self.frac_conv = nn.ModuleList([MixResidualBlock(self.lat_size, self.n_filter * self.frac_sobel.c_factor, self.n_filter, self.n_filter * 4, lat_factor=4) for _ in range(1 if self.shared_params else self.n_calls)])
 
         self.out_conv = nn.ModuleList([MixConv(self.lat_size, self.n_filter, sum(self.split_sizes)) for _ in range(1 if self.shared_params else self.n_calls)])
-        self.out_to_lat = nn.ModuleList([LinearResidualBlock(sum(self.conv_state_size), self.lat_size, self.lat_size * 2) for _ in range(1 if self.shared_params else self.n_calls)])
+        self.out_to_lat = nn.ModuleList([LinearResidualBlock(sum(self.conv_state_size) + self.lat_size, self.lat_size, self.lat_size * 2) for _ in range(1 if self.shared_params else self.n_calls)])
         self.lat_to_lat = nn.Linear(self.lat_size, self.lat_size if not z_out else z_dim)
 
     def forward(self, x, inj_lat=None):
@@ -54,8 +55,10 @@ class InjectedEncoder(nn.Module):
         out = self.conv_img(x)
 
         out_embs = [out]
-        lat = 0
+        lat = torch.zeros(batch_size, self.lat_size, device=x.device)
+        self.frac_sobel.call_c = 0
         for c in range(self.n_calls):
+            out = self.frac_sobel(out)
             if not self.auto_reg:
                 out = self.frac_norm(out)
             out = self.frac_conv[0 if self.shared_params else c](out, inj_lat)
@@ -72,7 +75,7 @@ class InjectedEncoder(nn.Module):
             else:
                 conv_state = out.mean(dim=(2, 3))
 
-            lat = lat + self.out_to_lat[0 if self.shared_params else c](conv_state)
+            lat = self.out_to_lat[0 if self.shared_params else c](torch.cat([conv_state, lat], dim=1))
 
             if self.auto_reg and out.requires_grad:
                 out.register_hook(lambda grad: grad + ((grad - 1e-4) / (grad - 1e-4).norm()))
@@ -139,16 +142,13 @@ class Decoder(nn.Module):
         self.register_buffer('seed', torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size)))
         self.register_buffer('in_proj', torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size)))
 
-        # self.frac_sobel = RandGrads(self.n_filter, np.repeat([(2 ** i) + 1 for i in range(1, int(np.log2(image_size)-1), 1)], 3),
-        #                                            np.repeat([2 ** (i - 1) for i in range(1, int(np.log2(image_size)-1), 1)], 3), n_calls=n_calls)
-        # self.frac_factor = self.frac_sobel.c_factor
         if not self.auto_reg:
             self.frac_norm = nn.InstanceNorm2d(self.n_filter)
         self.register_buffer('frac_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
         self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
-        # self.frac_lat = LinearResidualBlock(self.lat_size, self.lat_size)
+        self.frac_lat = LinearResidualBlock(self.lat_size, self.lat_size)
         if self.env_feedback:
             self.frac_feedback = nn.Linear(sum(self.conv_state_size) + self.lat_size, self.lat_size)
             self.feed_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
@@ -197,7 +197,6 @@ class Decoder(nn.Module):
 
         out_embs = [out]
         dyna_lat = lat
-        # self.frac_sobel.call_c = 0
         for c in range(self.n_calls):
             if self.env_feedback:
                 if self.multi_cut:
@@ -212,13 +211,12 @@ class Decoder(nn.Module):
                 else:
                     conv_state = out.mean(dim=(2, 3))
                 dyna_lat = self.frac_feedback(torch.cat([conv_state, dyna_lat], 1))
-            # dyna_lat = self.frac_lat(dyna_lat)
+            dyna_lat = self.frac_lat(dyna_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
-            # out_new = self.frac_sobel(out_new)
             if not self.auto_reg:
                 out_new = self.frac_norm(out_new)
             pos_encoding = self.frac_pos[c].repeat(batch_size, 1, 1, 1)
