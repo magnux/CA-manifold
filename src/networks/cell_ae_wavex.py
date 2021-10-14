@@ -119,7 +119,7 @@ class Decoder(nn.Module):
         self.image_size = image_size
         self.n_filter = n_filter
         self.lat_size = lat_size
-        self.n_calls = n_calls
+        self.n_calls = n_calls + 1
         self.perception_noise = perception_noise
         self.fire_rate = fire_rate
         self.skip_fire = skip_fire

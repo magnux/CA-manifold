@@ -147,7 +147,11 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                             pers_target_out_embs = [out_embs[-1] for _ in range(n_calls_save)]
                             loss_pers = (1 / batch_mult) * F.mse_loss(torch.cat(pers_out_embs[1:]), torch.cat(pers_target_out_embs))
 
-                            pers_redec_images = decoder.out_conv(torch.cat(pers_out_embs[1:]))
+                            if isinstance(decoder, torch.nn.DataParallel):
+                                pers_redec_images = decoder.module.out_conv(torch.cat(pers_out_embs[1:]))
+                            else:
+                                pers_redec_images = decoder.out_conv(torch.cat(pers_out_embs[1:]))
+
                             pers_target_images = torch.cat([images for _ in range(n_calls_save)])
                             loss_pers += (1 / batch_mult) * F.mse_loss(pers_redec_images, pers_target_images)
 
@@ -168,7 +172,11 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                             regen_target_out_embs = [out_embs[-1] for _ in range(n_calls_save)]
                             loss_regen = (1 / batch_mult) * F.mse_loss(torch.cat(regen_out_embs[1:]), torch.cat(regen_target_out_embs))
 
-                            regen_redec_images = decoder.out_conv(torch.cat(regen_out_embs[1:]))
+                            if isinstance(decoder, torch.nn.DataParallel):
+                                regen_redec_images = decoder.module.out_conv(torch.cat(regen_out_embs[1:]))
+                            else:
+                                regen_redec_images = decoder.out_conv(torch.cat(regen_out_embs[1:]))
+
                             regen_target_images = torch.cat([images for _ in range(n_calls_save)])
                             loss_regen += (1 / batch_mult) * F.mse_loss(regen_redec_images, regen_target_images)
 
