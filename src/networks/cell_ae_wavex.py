@@ -148,7 +148,7 @@ class Decoder(nn.Module):
         self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
         self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
-        self.frac_lat = LinearResidualBlock(self.lat_size, self.lat_size)
+        # self.frac_lat = LinearResidualBlock(self.lat_size, self.lat_size)
         if self.env_feedback:
             self.frac_feedback = nn.Linear(sum(self.conv_state_size) + self.lat_size, self.lat_size)
             self.feed_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
@@ -211,7 +211,7 @@ class Decoder(nn.Module):
                 else:
                     conv_state = out.mean(dim=(2, 3))
                 dyna_lat = self.frac_feedback(torch.cat([conv_state, dyna_lat], 1))
-            dyna_lat = self.frac_lat(dyna_lat)
+            # dyna_lat = self.frac_lat(dyna_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
