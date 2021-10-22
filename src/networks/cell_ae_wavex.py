@@ -53,7 +53,7 @@ class InjectedEncoder(nn.Module):
         # self.frac_lat = LinearResidualBlock(self.lat_size, self.lat_size)
         if self.env_feedback:
             self.feed_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-            self.frac_feedback = nn.Linear(sum(self.conv_state_size) + self.lat_size, self.lat_size)
+            self.frac_feedback = LinearResidualBlock(sum(self.conv_state_size) + self.lat_size, self.lat_size)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
