@@ -144,9 +144,10 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                             _, pers_out_embs, _ = decoder(lat_dec, out_embs[-1])
 
-                            pers_target_out_embs = [out_embs[-1] for _ in range(n_calls_save)]
-                            loss_pers = (1 / batch_mult) * F.mse_loss(torch.cat(pers_out_embs[1:]), torch.cat(pers_target_out_embs))
+                            pers_target_out_embs = torch.cat([out_embs[-1] for _ in range(n_calls_save)])
+                            loss_pers = (1 / batch_mult) * F.mse_loss(torch.cat(pers_out_embs[1:]), pers_target_out_embs)
 
+                            # Loss on image output
                             if isinstance(decoder, torch.nn.DataParallel):
                                 pers_redec_images = decoder.module.out_conv(torch.cat(pers_out_embs[1:]))
                             else:
@@ -166,19 +167,22 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                             # regen_steps = n_calls_save // 4
                             # model_manager.set_n_calls('decoder', regen_steps)
 
-                            corrupt_init, _ = rand_circle_masks(out_embs[-1], batch_split_size)
-                            _, regen_out_embs, _ = decoder(lat_dec, corrupt_init)
+                            corrupt_inits = rand_circle_masks(out_embs[-1])
+                            loss_regen = 0
+                            regen_target_out_embs = torch.cat([out_embs[-1] for _ in range(n_calls_save)])
+                            for corrupt_init in corrupt_inits:
+                                _, regen_out_embs, _ = decoder(lat_dec, corrupt_init)
 
-                            regen_target_out_embs = [out_embs[-1] for _ in range(n_calls_save)]
-                            loss_regen = (1 / batch_mult) * F.mse_loss(torch.cat(regen_out_embs[1:]), torch.cat(regen_target_out_embs))
+                                loss_regen += (1 / batch_mult) * F.mse_loss(torch.cat(regen_out_embs[1:]), regen_target_out_embs)
 
-                            if isinstance(decoder, torch.nn.DataParallel):
-                                regen_redec_images = decoder.module.out_conv(torch.cat(regen_out_embs[1:]))
-                            else:
-                                regen_redec_images = decoder.out_conv(torch.cat(regen_out_embs[1:]))
-
-                            regen_target_images = torch.cat([images for _ in range(n_calls_save)])
-                            loss_regen += (1 / batch_mult) * F.mse_loss(regen_redec_images, regen_target_images)
+                            # # Loss on image output
+                            # if isinstance(decoder, torch.nn.DataParallel):
+                            #     regen_redec_images = decoder.module.out_conv(torch.cat(regen_out_embs[1:]))
+                            # else:
+                            #     regen_redec_images = decoder.out_conv(torch.cat(regen_out_embs[1:]))
+                            #
+                            # regen_target_images = torch.cat([images for _ in range(n_calls_save)])
+                            # loss_regen += (1 / batch_mult) * F.mse_loss(regen_redec_images, regen_target_images)
 
                             model_manager.loss_backward(loss_regen, nets_to_train, retain_graph=True)
                             loss_regen_sum += loss_regen.item()

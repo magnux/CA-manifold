@@ -1,18 +1,30 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 
 class EqualLinear(nn.Module):
     def __init__(self, fin, fout, lr_mul=0.1, bias=True):
         super(EqualLinear, self).__init__()
-        self.weight = nn.Parameter(torch.randn(fout, fin))
+        self.fin = fin
+        self.fout = fout
+        self.lr_mul = lr_mul
+
+        self.weight = nn.Parameter(torch.Tensor(fout, fin))
         if bias:
-            self.bias = nn.Parameter(torch.zeros(fout))
+            self.bias = nn.Parameter(torch.Tensor(fout))
         else:
             self.bias = None
 
         self.lr_mul = lr_mul
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        torch.nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5) / self.lr_mul)
+        if self.bias is not None:
+            bound = 1 / (math.sqrt(self.fin) * self.lr_mul)
+            torch.nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, x):
         if self.bias is not None:
@@ -22,7 +34,7 @@ class EqualLinear(nn.Module):
 
 
 class EqualLinearBlock(nn.Module):
-    def __init__(self, fin, fout, n_layers, lr_mul=0.1, bias=True):
+    def __init__(self, fin, fout, n_layers, lr_mul=0.01, bias=True):
         super(EqualLinearBlock, self).__init__()
         l_block = []
         for _ in range(n_layers):

@@ -65,7 +65,7 @@ def cos_pos_encoding_nd(size, dim, phase=0.):
                 pos_enc_l_comb.append(torch.cat(comb_l, 1))
         pos_encoding = torch.cat(pos_enc_l + pos_enc_l_comb, 1)
 
-    return pos_encoding
+    return torch.nn.functional.instance_norm(pos_encoding)
 
 
 def cos_pos_encoding_dyn(size, dim, n_calls):
@@ -142,7 +142,7 @@ def sin_cos_pos_encoding_nd(size, dim, version=1, phase=0.):
                     pos_enc_l_comb.append(torch.cat(comb_l, 1))
         pos_encoding = torch.cat(sin_enc_l + cos_enc_l + pos_enc_l_comb, 1)
 
-    return pos_encoding
+    return torch.nn.functional.instance_norm(pos_encoding)
 
 
 def sin_cos_pos_encoding_dyn(size, dim, n_calls):

@@ -162,7 +162,10 @@ class VarDiscriminator(nn.Module):
         self.lat_size = lat_size
         self.z_dim = z_dim
         self.norm_lat = norm_lat
-        self.lat_to_z = nn.Linear(self.lat_size, z_dim * 2, bias=False)
+        self.lat_to_z = nn.Sequential(
+            LinearResidualBlock(self.lat_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, z_dim * 2),
+        )
         self.z_to_score = nn.Linear(z_dim, 1, bias=False)
 
     def forward(self, lat):
@@ -170,67 +173,29 @@ class VarDiscriminator(nn.Module):
         z_mu, z_log_var = torch.split(z, self.z_dim, 1)
         z = vae_sample_gaussian(z_mu, z_log_var)
         score = self.z_to_score(z)
-        kl_loss = vae_gaussian_kl_loss(z_mu, z_log_var)
+        loss_kl = vae_gaussian_kl_loss(z_mu, z_log_var)
 
-        return score, kl_loss
+        return score, loss_kl
 
 
 class VarEncoder(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
+    def __init__(self, lat_size, z_dim, norm_lat=True, **kwargs):
         super().__init__()
         self.lat_size = lat_size
         self.z_dim = z_dim
-        self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.embedding_fc = nn.Linear(n_labels, embed_size)
+        self.norm_lat = norm_lat
         self.lat_to_z = nn.Sequential(
-            LinearResidualBlock(self.lat_size + embed_size, self.lat_size),
+            LinearResidualBlock(self.lat_size, self.lat_size),
             LinearResidualBlock(self.lat_size, z_dim * 2),
         )
 
-    def forward(self, lat, y):
-        assert (lat.size(0) == y.size(0))
-        if y.dtype is torch.int64:
-            if y.dim() == 1:
-                yembed = self.embedding_mat[y]
-            else:
-                yembed = y.to(torch.float32)
-        else:
-            yembed = y
+    def forward(self, lat):
+        z = self.lat_to_z(lat)
+        z_mu, z_log_var = torch.split(z, self.z_dim, 1)
+        z = vae_sample_gaussian(z_mu, z_log_var)
+        loss_kl = vae_gaussian_kl_loss(z_mu, z_log_var)
 
-        yembed = self.embedding_fc(yembed)
-        yembed = F.normalize(yembed)
-        z = self.lat_to_z(torch.cat([lat, yembed], dim=1))
-        z_mu, z_log_var = torch.split(z, self.z_dim, dim=1)
-
-        return z_mu, z_log_var
-
-
-class VarDecoder(nn.Module):
-    def __init__(self, n_labels, lat_size, z_dim, embed_size, **kwargs):
-        super().__init__()
-        self.lat_size = lat_size
-        self.register_buffer('embedding_mat', torch.eye(n_labels))
-        self.embedding_fc = nn.Linear(n_labels, embed_size)
-        self.z_to_lat = nn.Sequential(
-            LinearResidualBlock(z_dim + embed_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.lat_size),
-        )
-
-    def forward(self, z, y):
-        assert (z.size(0) == y.size(0))
-        if y.dtype is torch.int64:
-            if y.dim() == 1:
-                yembed = self.embedding_mat[y]
-            else:
-                yembed = y.to(torch.float32)
-        else:
-            yembed = y
-
-        yembed = self.embedding_fc(yembed)
-        yembed = F.normalize(yembed)
-        lat = self.z_to_lat(torch.cat([z, yembed], dim=1))
-
-        return lat
+        return z, loss_kl
 
 
 class LetterEncoder(nn.Module):

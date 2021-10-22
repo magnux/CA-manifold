@@ -20,7 +20,7 @@ torch.backends.cudnn.benchmark = True
 np.random.seed(42)
 torch.manual_seed(42)
 
-parser = argparse.ArgumentParser(description='Train a GAX')
+parser = argparse.ArgumentParser(description='Train a GAVAX')
 parser.add_argument('config', type=str, help='Path to config file.')
 args = parser.parse_args()
 config = load_config(args.config)
@@ -63,11 +63,11 @@ networks_dict = {
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
     'generator': {'class': 'base', 'sub_class': 'Generator'},
     'dis_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
-    'discriminator': {'class': 'base', 'sub_class': 'UnconditionalDiscriminator'},
+    'discriminator': {'class': 'base', 'sub_class': 'VarDiscriminator'},
 }
 # to_avg = ['decoder', 'generator']
 
-model_manager = ModelManager('gax', networks_dict, config)
+model_manager = ModelManager('gavax', networks_dict, config)
 decoder = model_manager.get_network('decoder')
 generator = model_manager.get_network('generator')
 dis_encoder = model_manager.get_network('dis_encoder')
@@ -160,6 +160,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                 loss_dis_enc_sum, loss_dis_dec_sum = 0, 0
                 labs_dis_enc_sign, labs_dis_dec_sign = 0, 0
                 loss_gen_dec_sum = 0
+                loss_kl_sum = 0
 
                 reg_dis_enc_sum, reg_dis_dec_sum = 0, 0
                 reg_gen_dec_sum = 0
@@ -174,7 +175,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     reg_gen_dec_sum = model_manager.log_manager.get_last('regs', 'reg_gen_dec')
 
                 def train_d(loss_dis_enc_sum, labs_dis_enc_sign, reg_dis_enc_sum,
-                            loss_dis_dec_sum, labs_dis_dec_sign, reg_dis_dec_sum,
+                            loss_dis_dec_sum, labs_dis_dec_sign, reg_dis_dec_sum, loss_kl_sum,
                             trainiter, d_reg_param_mean, d_reg_every_mean, d_reg_every_mean_next):
                     # Discriminator step
                     with model_manager.on_step(['dis_encoder', 'discriminator']) as nets_to_train:
@@ -183,7 +184,11 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                             images, labels, z_gen, trainiter = get_inputs(trainiter, batch_split_size, device)
 
                             lat_top_enc, _, _ = dis_encoder(images, labels)
-                            labs_enc = discriminator(lat_top_enc)
+                            labs_enc, loss_kl = discriminator(lat_top_enc)
+
+                            model_manager.loss_backward((1 / batch_mult) * loss_kl.mean(), nets_to_train, retain_graph=True)
+                            loss_kl_sum += loss_kl.mean().item()
+
                             labs_dis_enc_sign += ((1 / batch_mult) * labs_enc.sign().mean()).item()
 
                             if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -206,7 +211,11 @@ for epoch in range(model_manager.start_epoch, n_epochs):
 
                             images_dec.requires_grad_()
                             lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                            labs_dec = discriminator(lat_top_dec)
+                            labs_dec, loss_kl = discriminator(lat_top_dec)
+
+                            model_manager.loss_backward((1 / batch_mult) * loss_kl.mean(), nets_to_train, retain_graph=True)
+                            loss_kl_sum += loss_kl.mean().item()
+
                             labs_dis_dec_sign -= ((1 / batch_mult) * labs_dec.sign().mean()).item()
 
                             if d_reg_every_mean > 0 and it % d_reg_every_mean == 0:
@@ -240,7 +249,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         # grad_ema_update(dis_encoder.labs_encoder)
 
                     return (loss_dis_enc_sum, labs_dis_enc_sign, reg_dis_enc_sum,
-                            loss_dis_dec_sum, labs_dis_dec_sign, reg_dis_dec_sum,
+                            loss_dis_dec_sum, labs_dis_dec_sign, reg_dis_dec_sum, loss_kl_sum,
                             trainiter, d_reg_param_mean, d_reg_every_mean, d_reg_every_mean_next)
 
                 def train_g(loss_gen_dec_sum, reg_gen_dec_sum, trainiter, pl_mean_dec):
@@ -254,7 +263,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                             images_dec, _, _ = decoder(lat_gen)
 
                             lat_top_dec, _, _ = dis_encoder(images_dec, labels)
-                            labs_dec = discriminator(lat_top_dec)
+                            labs_dec, _ = discriminator(lat_top_dec)
 
                             if g_reg_every > 0 and it % g_reg_every == 0:
                                 reg_gen_dec, pl_mean_dec = compute_pl_reg(images_dec, lat_gen, pl_mean_dec)
@@ -282,9 +291,9 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                 for turn in train_order:
                     if turn:
                         (loss_dis_enc_sum, labs_dis_enc_sign, reg_dis_enc_sum,
-                         loss_dis_dec_sum, labs_dis_dec_sign, reg_dis_dec_sum,
+                         loss_dis_dec_sum, labs_dis_dec_sign, reg_dis_dec_sum, loss_kl_sum,
                          trainiter, d_reg_param_mean, d_reg_every_mean, d_reg_every_mean_next) = train_d(loss_dis_enc_sum, labs_dis_enc_sign, reg_dis_enc_sum,
-                                                                                                         loss_dis_dec_sum, labs_dis_dec_sign, reg_dis_dec_sum,
+                                                                                                         loss_dis_dec_sum, labs_dis_dec_sign, reg_dis_dec_sum, loss_kl_sum,
                                                                                                          trainiter, d_reg_param_mean, d_reg_every_mean, d_reg_every_mean_next)
                     else:
                         loss_gen_dec_sum, reg_gen_dec_sum, trainiter, pl_mean_dec = train_g(loss_gen_dec_sum, reg_gen_dec_sum, trainiter, pl_mean_dec)
@@ -294,7 +303,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                     lat_gen = generator(z_test, labels_test)
                     images_gen, _, _ = decoder(lat_gen)
 
-                stream_images(images_gen, config_name + '/gax', config['training']['out_dir'] + '/gax')
+                stream_images(images_gen, config_name + '/gavax', config['training']['out_dir'] + '/gavax')
 
                 # Print progress
                 running_loss_dis[batch % window_size] = loss_dis_enc_sum + loss_dis_dec_sum
@@ -312,6 +321,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                 model_manager.log_manager.add_scalar('losses', 'labs_dis_enc_sign', labs_dis_enc_sign, it=it)
                 model_manager.log_manager.add_scalar('losses', 'labs_dis_dec_sign', labs_dis_dec_sign, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_dis_dec', loss_dis_dec_sum, it=it)
+                model_manager.log_manager.add_scalar('losses', 'loss_dis_kl', loss_kl_sum, it=it)
                 model_manager.log_manager.add_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum, it=it)
 
                 model_manager.log_manager.add_scalar('regs', 'g_factor_enc', g_factor_enc, it=it)
