@@ -5,7 +5,8 @@ import torch.utils.data
 import torch.utils.data.distributed
 from src.layers.posencoding import sin_cos_pos_encoding_dyn
 from src.layers.linearresidualblock import LinearResidualBlock
-from src.layers.randgrads import RandGrads
+from src.layers.sobel import SinSobel
+from src.layers.dynalinear import DynaLinear
 from src.layers.dynaconv import DynaConv
 from src.layers.dynaresidualblock import DynaResidualBlock
 from src.networks.base import LabsEncoder
@@ -19,7 +20,7 @@ from itertools import chain
 
 class InjectedEncoder(nn.Module):
     def __init__(self, n_labels, lat_size, image_size, channels, n_filter, n_calls, perception_noise, fire_rate,
-                 skip_fire=False, causal=False, gated=False, env_feedback=False, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, **kwargs):
+                 skip_fire=False, causal=False, gated=False, env_feedback=True, multi_cut=True, z_out=False, z_dim=0, auto_reg=False, ce_in=False, **kwargs):
         super().__init__()
         self.injected = True
         self.n_labels = n_labels
@@ -44,16 +45,16 @@ class InjectedEncoder(nn.Module):
 
         self.conv_img = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
-        if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter)
-        self.register_buffer('frac_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
-        self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
+        self.cell_sobel = SinSobel(self.n_filter, 3, 1)
+        self.register_buffer('cell_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
+        self.cell_to_wave = DynaResidualBlock(self.lat_size, self.n_filter, self.cell_pos.size(2), self.n_filter * 2)
+        self.wave_to_cell = DynaConv(self.lat_size, self.cell_pos.size(2), self.n_filter)
+        self.cell_to_cell = DynaResidualBlock(self.lat_size, self.n_filter * 4, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
-        # self.frac_lat = LinearResidualBlock(self.lat_size, self.lat_size)
         if self.env_feedback:
             self.feed_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-            self.frac_feedback = LinearResidualBlock(sum(self.conv_state_size) + self.lat_size, self.lat_size)
+            self.feed_fc = LinearResidualBlock(sum(self.conv_state_size), z_dim, z_dim * 2)
+            self.feed_dyn = DynaLinear(self.lat_size, z_dim, self.lat_size)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (2 if self.causal else 0), self.image_size + (2 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -77,35 +78,38 @@ class InjectedEncoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=x.device))
 
         out_embs = [out]
-        dyna_lat = inj_lat
+        if self.env_feedback:
+            conv_state = self.feed_conv(out)
+            if self.multi_cut:
+                conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(conv_state, self.split_sizes, dim=1)
+                conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
+                                        conv_state_h.mean(dim=(1, 3)),
+                                        conv_state_w.mean(dim=(1, 2)),
+                                        conv_state_fh.mean(dim=3).view(batch_size, -1),
+                                        conv_state_fw.mean(dim=2).view(batch_size, -1),
+                                        conv_state_hw.mean(dim=1).view(batch_size, -1),
+                                        conv_state_g.mean(dim=(1, 2, 3)).view(batch_size, 1)], dim=1)
+            else:
+                conv_state = out.mean(dim=(2, 3))
+            dyna_lat = self.feed_dyn(self.feed_fc(conv_state), inj_lat)
+        else:
+            dyna_lat = inj_lat
         lat = torch.zeros(batch_size, self.lat_size, device=x.device)
         for c in range(self.n_calls):
-            if self.env_feedback:
-                conv_state = self.feed_conv(out)
-                if self.multi_cut:
-                    conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(conv_state, self.split_sizes, dim=1)
-                    conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
-                                            conv_state_h.mean(dim=(1, 3)),
-                                            conv_state_w.mean(dim=(1, 2)),
-                                            conv_state_fh.mean(dim=3).view(batch_size, -1),
-                                            conv_state_fw.mean(dim=2).view(batch_size, -1),
-                                            conv_state_hw.mean(dim=1).view(batch_size, -1),
-                                            conv_state_g.mean(dim=(1, 2, 3)).view(batch_size, 1)], dim=1)
-                else:
-                    conv_state = out.mean(dim=(2, 3))
-                dyna_lat = self.frac_feedback(torch.cat([conv_state, dyna_lat], 1))
-            # dyna_lat = self.frac_lat(dyna_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
+            pos_encoding = self.cell_to_wave(out, dyna_lat).mean(dim=(2, 3), keepdims=True)
+            pos_encoding = pos_encoding * self.cell_pos[c].repeat(batch_size, 1, 1, 1)
+            pos_encoding = self.wave_to_cell(pos_encoding, dyna_lat)
+            out_new = self.cell_sobel(out_new)
             if not self.auto_reg:
-                out_new = self.frac_norm(out_new)
-            pos_encoding = self.frac_pos[c].repeat(batch_size, 1, 1, 1)
-            pos_encoding = self.frac_wave(pos_encoding, dyna_lat)
+                out_new = F.instance_norm(out_new)
+                pos_encoding = F.instance_norm(pos_encoding)
             out_new = torch.cat([out_new, pos_encoding], dim=1)
-            out_new = self.frac_dyna_conv(out_new, dyna_lat)
+            out_new = self.cell_to_cell(out_new, dyna_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)
@@ -198,16 +202,16 @@ class Decoder(nn.Module):
         self.register_buffer('seed', torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size)))
         self.register_buffer('in_proj', torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size)))
 
-        if not self.auto_reg:
-            self.frac_norm = nn.InstanceNorm2d(self.n_filter)
-        self.register_buffer('frac_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
-        self.frac_wave = DynaConv(self.lat_size, self.frac_pos.size(2), self.n_filter)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * 2, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
+        self.cell_sobel = SinSobel(self.n_filter, 3, 1)
+        self.register_buffer('cell_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
+        self.cell_to_wave = DynaResidualBlock(self.lat_size, self.n_filter, self.cell_pos.size(2), self.n_filter * 2)
+        self.wave_to_cell = DynaConv(self.lat_size, self.cell_pos.size(2), self.n_filter)
+        self.cell_to_cell = DynaResidualBlock(self.lat_size, self.n_filter * 4, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
-        # self.frac_lat = LinearResidualBlock(self.lat_size, self.lat_size)
         if self.env_feedback:
             self.feed_conv = nn.Conv2d(self.n_filter, sum(self.split_sizes), 1, 1, 0)
-            self.frac_feedback = LinearResidualBlock(sum(self.conv_state_size) + self.lat_size, self.lat_size)
+            self.feed_fc = LinearResidualBlock(sum(self.conv_state_size), z_dim, z_dim * 2)
+            self.feed_dyn = DynaLinear(self.lat_size, z_dim, self.lat_size)
 
         if self.skip_fire:
             self.skip_fire_mask = torch.tensor(np.indices((1, 1, self.image_size + (1 if self.causal else 0), self.image_size + (1 if self.causal else 0))).sum(axis=0) % 2, requires_grad=False)
@@ -236,7 +240,7 @@ class Decoder(nn.Module):
                 seed = self.seed[seed_n, ...].mean(dim=0, keepdim=True)
             else:
                 seed = self.seed[seed_n:seed_n + 1, ...]
-            out = seed.to(float_type).repeat(batch_size, 1, 1, 1).requires_grad_(True)
+            out = seed.to(float_type).repeat(batch_size, 1, 1, 1)
         else:
             if isinstance(seed_n, tuple):
                 proj = self.in_proj[seed_n[0]:seed_n[1], ...].mean(dim=0, keepdim=True)
@@ -252,34 +256,37 @@ class Decoder(nn.Module):
             noise_mask = noise_mask * torch.round_(torch.rand([batch_size, self.n_calls], device=lat.device))
 
         out_embs = [out]
-        dyna_lat = lat
+        if self.env_feedback:
+            conv_state = self.feed_conv(out)
+            if self.multi_cut:
+                conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(conv_state, self.split_sizes, dim=1)
+                conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
+                                        conv_state_h.mean(dim=(1, 3)),
+                                        conv_state_w.mean(dim=(1, 2)),
+                                        conv_state_fh.mean(dim=3).view(batch_size, -1),
+                                        conv_state_fw.mean(dim=2).view(batch_size, -1),
+                                        conv_state_hw.mean(dim=1).view(batch_size, -1),
+                                        conv_state_g.mean(dim=(1, 2, 3)).view(batch_size, 1)], dim=1)
+            else:
+                conv_state = out.mean(dim=(2, 3))
+            dyna_lat = self.feed_dyn(self.feed_fc(conv_state), lat)
+        else:
+            dyna_lat = lat
         for c in range(self.n_calls):
-            if self.env_feedback:
-                conv_state = self.feed_conv(out)
-                if self.multi_cut:
-                    conv_state_f, conv_state_h, conv_state_w, conv_state_fh, conv_state_fw, conv_state_hw, conv_state_g = torch.split(conv_state, self.split_sizes, dim=1)
-                    conv_state = torch.cat([conv_state_f.mean(dim=(2, 3)),
-                                            conv_state_h.mean(dim=(1, 3)),
-                                            conv_state_w.mean(dim=(1, 2)),
-                                            conv_state_fh.mean(dim=3).view(batch_size, -1),
-                                            conv_state_fw.mean(dim=2).view(batch_size, -1),
-                                            conv_state_hw.mean(dim=1).view(batch_size, -1),
-                                            conv_state_g.mean(dim=(1, 2, 3)).view(batch_size, 1)], dim=1)
-                else:
-                    conv_state = out.mean(dim=(2, 3))
-                dyna_lat = self.frac_feedback(torch.cat([conv_state, dyna_lat], 1))
-            # dyna_lat = self.frac_lat(dyna_lat)
             if self.causal:
                 out = F.pad(out, [0, 1, 0, 1])
             out_new = out
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
+            pos_encoding = self.cell_to_wave(out, dyna_lat).mean(dim=(2, 3), keepdims=True)
+            pos_encoding = pos_encoding * self.cell_pos[c].repeat(batch_size, 1, 1, 1)
+            pos_encoding = self.wave_to_cell(pos_encoding, dyna_lat)
+            out_new = self.cell_sobel(out_new)
             if not self.auto_reg:
-                out_new = self.frac_norm(out_new)
-            pos_encoding = self.frac_pos[c].repeat(batch_size, 1, 1, 1).requires_grad_(True)
-            pos_encoding = self.frac_wave(pos_encoding, dyna_lat)
+                out_new = F.instance_norm(out_new)
+                pos_encoding = F.instance_norm(pos_encoding)
             out_new = torch.cat([out_new, pos_encoding], dim=1)
-            out_new = self.frac_dyna_conv(out_new, dyna_lat)
+            out_new = self.cell_to_cell(out_new, dyna_lat)
             if self.gated:
                 out_new, out_new_gate = torch.split(out_new, self.n_filter, dim=1)
                 out_new = out_new * torch.sigmoid(out_new_gate)

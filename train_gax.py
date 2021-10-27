@@ -237,7 +237,12 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                         # grad_mult(dis_encoder, 0.5 * (g_factor_enc + g_factor_dec))
                         # grad_mult(discriminator, 0.5 * (g_factor_enc + g_factor_dec))
 
-                        # grad_ema_update(dis_encoder.labs_encoder)
+                        # if isinstance(generator, torch.nn.DataParallel):
+                        #     grad_ema_update(dis_encoder.module.out_to_lat)
+                        #     grad_ema_update(dis_encoder.module.lat_to_lat)
+                        # else:
+                        #     grad_ema_update(dis_encoder.out_to_lat)
+                        #     grad_ema_update(dis_encoder.lat_to_lat)
 
                     return (loss_dis_enc_sum, labs_dis_enc_sign, reg_dis_enc_sum,
                             loss_dis_dec_sum, labs_dis_dec_sign, reg_dis_dec_sum,

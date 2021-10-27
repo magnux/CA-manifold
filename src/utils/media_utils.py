@@ -45,17 +45,20 @@ def rand_change_letters(letters):
     return torch.where(noise_mask == 1, rand_letters, letters)
 
 
-def rand_circle_masks(images, n_mask):
+def rand_circle_masks(images):
     b, c, h, w = images.size()
     x = torch.linspace(-1.0, 1.0, w).view(1, 1, w)
     y = torch.linspace(-1.0, 1.0, h).view(1, h, 1)
-    center = torch.rand([2, n_mask, 1, 1]) - 0.5
-    r = (torch.rand([n_mask, 1, 1]) * 0.3) + 0.1
+    center = torch.rand([2, b, 1, 1]) - 0.5
+    r = (torch.rand([b, 1, 1]) * 0.3) + 0.1
     x, y = (x-center[0, ...])/r, (y-center[1, ...])/r
     mask = (x*x+y*y < 1.0).to(dtype=torch.float32).to(device=images.device).unsqueeze(1)
-    damage = torch.ones_like(images)
-    damage[-n_mask:, ...] -= mask
-    return images * damage, mask
+    damage = torch.ones_like(images) - mask
+    cropped_images = images * damage
+    mushed_images = cropped_images + mask * (images * mask).mean()
+    shuffled_images = images.reshape(b, c, h * w)[:, :, np.random.choice(np.arange(0, h * w), h * w, replace=False)].reshape(b, c, h, w)
+    shuffled_images = cropped_images + mask * (shuffled_images * mask).mean()
+    return cropped_images, mushed_images, shuffled_images
 
 
 EMB_MATRIX = torch.eye(256, device='cpu')
