@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 import torch.utils.data.distributed
-from src.layers.posencoding import sin_cos_pos_encoding_dyn
+from src.layers.posencoding import sin_cos_pos_encoding_nd
 from src.layers.linearresidualblock import LinearResidualBlock
 from src.layers.sobel import SinSobel
 from src.layers.dynalinear import DynaLinear
@@ -46,9 +46,9 @@ class InjectedEncoder(nn.Module):
         self.conv_img = nn.Conv2d(self.in_chan if not self.ce_in else self.in_chan * 256, self.n_filter, 1, 1, 0)
 
         self.cell_sobel = SinSobel(self.n_filter, 3, 1)
-        self.register_buffer('cell_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
-        self.cell_to_wave = DynaResidualBlock(self.lat_size, self.n_filter, self.cell_pos.size(2), self.n_filter * 2)
-        self.wave_to_cell = DynaConv(self.lat_size, self.cell_pos.size(2), self.n_filter)
+        self.register_buffer('cell_pos', sin_cos_pos_encoding_nd(self.image_size, 2))
+        self.cell_to_wave = DynaResidualBlock(self.lat_size, self.n_filter, self.cell_pos.size(1), self.n_filter * 2)
+        self.wave_to_cell = DynaConv(self.lat_size, self.cell_pos.size(1), self.n_filter)
         self.cell_to_cell = DynaResidualBlock(self.lat_size, self.n_filter * 4, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
         if self.env_feedback:
@@ -102,7 +102,7 @@ class InjectedEncoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             pos_encoding = self.cell_to_wave(out, dyna_lat).mean(dim=(2, 3), keepdims=True)
-            pos_encoding = pos_encoding * self.cell_pos[c].repeat(batch_size, 1, 1, 1)
+            pos_encoding = pos_encoding * self.cell_pos.repeat(batch_size, 1, 1, 1)
             pos_encoding = self.wave_to_cell(pos_encoding, dyna_lat)
             out_new = self.cell_sobel(out_new)
             if not self.auto_reg:
@@ -203,9 +203,9 @@ class Decoder(nn.Module):
         self.register_buffer('in_proj', torch.nn.init.orthogonal_(torch.empty(self.n_seed, self.n_filter, 1, 1).repeat(1, 1, self.image_size, self.image_size)))
 
         self.cell_sobel = SinSobel(self.n_filter, 3, 1)
-        self.register_buffer('cell_pos', sin_cos_pos_encoding_dyn(self.image_size, 2, self.n_calls))
-        self.cell_to_wave = DynaResidualBlock(self.lat_size, self.n_filter, self.cell_pos.size(2), self.n_filter * 2)
-        self.wave_to_cell = DynaConv(self.lat_size, self.cell_pos.size(2), self.n_filter)
+        self.register_buffer('cell_pos', sin_cos_pos_encoding_nd(self.image_size, 2))
+        self.cell_to_wave = DynaResidualBlock(self.lat_size, self.n_filter, self.cell_pos.size(1), self.n_filter * 2)
+        self.wave_to_cell = DynaConv(self.lat_size, self.cell_pos.size(1), self.n_filter)
         self.cell_to_cell = DynaResidualBlock(self.lat_size, self.n_filter * 4, self.n_filter * (2 if self.gated else 1), self.n_filter * 2, lat_factor=2)
 
         if self.env_feedback:
@@ -279,7 +279,7 @@ class Decoder(nn.Module):
             if self.perception_noise and self.training:
                 out_new = out_new + (noise_mask[:, c].view(batch_size, 1, 1, 1) * 1e-2 * torch.randn_like(out_new))
             pos_encoding = self.cell_to_wave(out, dyna_lat).mean(dim=(2, 3), keepdims=True)
-            pos_encoding = pos_encoding * self.cell_pos[c].repeat(batch_size, 1, 1, 1)
+            pos_encoding = pos_encoding * self.cell_pos.repeat(batch_size, 1, 1, 1)
             pos_encoding = self.wave_to_cell(pos_encoding, dyna_lat)
             out_new = self.cell_sobel(out_new)
             if not self.auto_reg:
