@@ -1,0 +1,46 @@
+data:
+  name: celeba
+  type: image
+  train_dir: data/celeba
+  test_dir: data/celeba
+  image_size: 64
+  channels: 3
+  n_labels: 40
+network:
+  class: cell_ae_wavex_mix_min
+  kwargs:
+    ds_size: 64
+    n_filter: 16
+    embed_size: 256
+    lat_size: 512
+    n_calls: 4
+    shared_params: True
+    adain: False
+    dyncin: False
+    letter_encoding: False
+    perception_noise: False
+    fire_rate: 1.0
+z_dist:
+  type: gauss
+  z_dim: 256
+training:
+  out_dir: save/celeba_cell_ae_wavex_mix_min
+  batch_size: 64
+  batch_split: 4
+  batch_mult_steps: 1
+  n_workers: 2
+  optimizer: adam
+  lr: 0.0001
+  equalize_lr: false
+  n_epochs: 64
+  save_every: 512
+  lr_anneal: 1.0
+  lr_anneal_every: 0
+  monitoring: tensorboard
+  sample_every: 1
+  sample_labels: 40
+  d_reg_param: 10.
+  d_reg_every: 16
+  g_reg_every: 0
+  through_grads: True
+  inception_every: 0

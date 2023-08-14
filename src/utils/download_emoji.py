@@ -3,7 +3,7 @@ from multiprocessing.pool import ThreadPool
 from tqdm import tqdm
 from file_utils import download_url
 
-url_base = 'https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u%s.png'
+url_base = 'https://github.com/googlefonts/noto-emoji/raw/main/png/128/emoji_u%s.png'
 
 
 def download_emoji(entry):

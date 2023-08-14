@@ -8,7 +8,7 @@ class MixConv(nn.Module):
     def __init__(self, lat_size, fin, fout, dim=2, kernel_size=1, stride=1, padding=0, groups=1, lat_factor=1, n_mix=8):
         super(MixConv, self).__init__()
 
-        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_size = lat_size
         self.fin = fin
         self.fout = fout
         self.dim = dim
@@ -30,9 +30,8 @@ class MixConv(nn.Module):
             self.dyna_mix = nn.Linear(lat_size, n_mix)
         else:
             self.dyna_mix = nn.Sequential(
-                nn.Linear(lat_size, self.lat_size * lat_factor),
-                LinearResidualBlock(self.lat_size * lat_factor, self.lat_size * lat_factor),
-                LinearResidualBlock(self.lat_size * lat_factor, n_mix),
+                LinearResidualBlock(self.lat_size, int(self.lat_size * lat_factor)),
+                LinearResidualBlock(int(self.lat_size * lat_factor), n_mix),
             )
 
         self.prev_lat = None

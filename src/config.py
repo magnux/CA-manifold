@@ -2,8 +2,9 @@ import yaml
 from os import path
 from torch import optim
 from torch.nn import init
-from src.optimizers.adamp import AdamP, SGDP
 from src.optimizers.lr_scheduler import StepLRm
+from src.optimizers.adamp import AdamP, SGDP
+from src.optimizers.adashift import AdaShift
 
 
 # DEFAULT_CONFIG = path.join(path.dirname(__file__), 'configs/default.yaml')
@@ -49,13 +50,17 @@ def build_optimizer(network, config):
 
     # Optimizers
     if optimizer == 'adam':
-        optimizer = optim.Adam(params, lr=lr, betas=(0., 0.99), amsgrad=True)
-    elif optimizer == 'adamp':
-        optimizer = AdamP(params, lr=lr, betas=(0.5, 0.99), weight_decay=lr * 1e-2, nesterov=True)
+        optimizer = optim.Adam(params, lr=lr, betas=(0.9, 0.999), amsgrad=True)
     elif optimizer == 'sgd':
         optimizer = optim.SGD(params, lr=lr, momentum=0., nesterov=False)
+    elif optimizer == 'adamp':
+        optimizer = AdamP(params, lr=lr, betas=(0.9, 0.999), weight_decay=lr * 1e-3, nesterov=True)
     elif optimizer == 'sgdp':
         optimizer = SGDP(params, lr=lr, momentum=0.5, weight_decay=lr * 1e-2, nesterov=True)
+    elif optimizer == 'adashift':
+        optimizer = AdaShift(params, lr=lr, keep_num=10, betas=(0.9, 0.999))
+    else:
+        raise RuntimeError(f'{optimizer} not implemented')
 
     return optimizer
 
@@ -64,7 +69,7 @@ def build_lr_scheduler(optimizer, config, last_epoch=0):
     if config['training']['lr_anneal_every'] == 1 and config['training']['lr_anneal'] == 1.0:
         lr_scheduler = optim.lr_scheduler.OneCycleLR(optimizer, config['training']['lr'],
                                                      epochs=config['training']['n_epochs'],
-                                                     steps_per_epoch=config['training']['steps_per_epoch'],
+                                                     steps_per_epoch=config['training']['batches_per_epoch'],
                                                      last_epoch=last_epoch-1)
     else:
         lr_scheduler = StepLRm(

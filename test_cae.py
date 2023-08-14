@@ -188,7 +188,7 @@ with torch.no_grad():
     else:
         images, labels = get_inputs([int(len(trainset) * 0.042)], device)
     images_dec, out_embs = forward_pass(images, None, labels)
-    save_imgs(out_embs[1:, 0, :config['data']['channels'], :, :], test_dir, 'dec_steps', True)
+    save_imgs(decoder.out_conv(out_embs[1:, 0, :, :, :]), test_dir, 'dec_steps', True)
 
     print('Plotting Random CAs...')
     images, labels = get_inputs(np.random.choice(len(trainset), batch_size, False), device)
@@ -197,7 +197,7 @@ with torch.no_grad():
     images_dec, out_embs = forward_pass(images, None, labels)
     save_imgs(images_dec, os.path.join(test_dir, 'random'), 'dec_%s' % config_name)
     for i in range(batch_size):
-        save_imgs(out_embs[1:, i, :config['data']['channels'], :, :], os.path.join(test_dir, 'random'), '%d' % i, True)
+        save_imgs(decoder.out_conv(out_embs[1:, i, :, :, :]), os.path.join(test_dir, 'random'), '%d' % i, True)
 
     if args.mse:
         print('Computing MSE...')
@@ -231,7 +231,7 @@ with torch.no_grad():
         images_dec, out_embs = forward_pass(images, None, labels)
         save_imgs(images_dec, os.path.join(test_dir, 'worst'), 'dec_%s' % config_name)
         for i in range(batch_size):
-            save_imgs(out_embs[1:, i, :channels, :, :], os.path.join(test_dir, 'worst'), '%d' % i, True)
+            save_imgs(decoder.out_conv(out_embs[1:, i, :, :, :]), os.path.join(test_dir, 'worst'), '%d' % i, True)
 
     if args.persist:
         print('Plotting Persistence...')
@@ -244,7 +244,7 @@ with torch.no_grad():
         for n in range(1, (2 ** num_passes) + 1):
             images_dec, out_embs = dec(unicorn_enc, None if n == 1 else out_embs[-1, ...])
             if n == 1:
-                images_out.append(out_embs[0, :, :channels, ...])
+                images_out.append(decoder.out_conv(out_embs[0, :, :, ...]))
             if np.log2(n) % 1. == 0:
                 images_out.append(images_dec)
         images_out = torch.cat(images_out, 0)
@@ -262,12 +262,12 @@ with torch.no_grad():
             init_occ = init_image.clone()
             init_occ *= occ_mask
             num_passes = 7
-            images_out = [init_image[:, :channels, ...], init_occ[:, :channels, ...]]
+            images_out = [decoder.out_conv(init_image[:, :, ...]), decoder.out_conv(init_occ[:, :, ...])]
             for n in range(1, (2 ** num_passes) + 1):
                 images_dec, out_embs = dec(images_enc, init_occ)
                 init_occ = out_embs[-1, ...]
                 if np.log2(n) % 1. == 0:
-                    images_out.append(images_dec)
+                    images_out.append(decoder.out_conv(out_embs[-1, :, :, ...]))
             images_out = torch.cat(images_out, 0)
             save_imgs(images_out, os.path.join(test_dir, 'regen'), save_prefix)
 

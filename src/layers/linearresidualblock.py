@@ -12,9 +12,9 @@ class LinearResidualBlock(nn.Module):
 
         self.block = nn.Sequential(
             nn.Linear(self.fin, self.fhidden, bias=bias),
-            nn.ReLU(True),
+            nn.SiLU(),
             nn.Linear(self.fhidden, self.fhidden, bias=bias),
-            nn.ReLU(True),
+            nn.SiLU(),
             nn.Linear(self.fhidden, self.fout, bias=bias)
         )
         self.shortcut = nn.Linear(self.fin, self.fout, bias=bias)

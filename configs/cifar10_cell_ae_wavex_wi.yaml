@@ -1,0 +1,46 @@
+data:
+  name: cifar10
+  type: image
+  train_dir: data/cifar10
+  test_dir: data/cifar10
+  image_size: 32
+  channels: 3
+  n_labels: 10
+network:
+  class: cell_ae_wavex_wi
+  kwargs:
+    ds_size: 32
+    n_filter: 8
+    embed_size: 256
+    lat_size: 256
+    n_calls: 4
+    shared_params: True
+    adain: False
+    dyncin: False
+    letter_encoding: False
+    perception_noise: False
+    fire_rate: 1.0
+z_dist:
+  type: uniform
+  z_dim: 128
+training:
+  out_dir: save/cifar10_cell_ae_wavex_wi
+  batch_size: 64
+  batch_split: 1
+  batch_mult_steps: 1
+  n_workers: 2
+  optimizer: adam
+  lr: 0.0001
+  equalize_lr: false
+  n_epochs: 32
+  save_every: 512
+  lr_anneal: 1.0
+  lr_anneal_every: 0
+  monitoring: tensorboard
+  sample_every: 1
+  sample_labels: 10
+  d_reg_param: 10
+  d_reg_every: 16
+  g_reg_every: 0
+  through_grads: True
+  inception_every: 0

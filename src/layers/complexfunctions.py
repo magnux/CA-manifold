@@ -2,57 +2,129 @@
 # -*- coding: utf-8 -*-
 
 """
-based on: https://github.com/wavefrontshaping/complexPyTorch
+@author: spopoff
 """
+
+from torch.nn.functional import relu, max_pool2d, avg_pool2d, dropout, dropout2d, interpolate, sigmoid, tanh
 import torch
-from functools import partial
-from torch.nn.functional import relu, max_pool2d, dropout, dropout2d, conv1d, conv2d, conv3d
+
+def complex_matmul(A, B):
+    '''
+        Performs the matrix product between two complex matricess
+    '''
+
+    outp_real = torch.matmul(A.real, B.real) - torch.matmul(A.imag, B.imag)
+    outp_imag = torch.matmul(A.real, B.imag) + torch.matmul(A.imag, B.real)
+
+    return outp_real.type(torch.complex64) + 1j * outp_imag.type(torch.complex64)
+
+def complex_avg_pool2d(input, *args, **kwargs):
+    '''
+    Perform complex average pooling.
+    '''
+    absolute_value_real = avg_pool2d(input.real, *args, **kwargs)
+    absolute_value_imag =  avg_pool2d(input.imag, *args, **kwargs)
+
+    return absolute_value_real.type(torch.complex64)+1j*absolute_value_imag.type(torch.complex64)
+
+def complex_normalize(input):
+    '''
+    Perform complex normalization
+    '''
+    real_value, imag_value = input.real, input.imag
+    real_norm = (real_value - real_value.mean()) / real_value.std()
+    imag_norm = (imag_value - imag_value.mean()) / imag_value.std()
+
+    return real_norm.type(torch.complex64) + 1j*imag_norm.type(torch.complex64)
+
+def complex_relu(input):
+    return relu(input.real).type(torch.complex64)+1j*relu(input.imag).type(torch.complex64)
+
+def complex_sigmoid(input):
+    return sigmoid(input.real).type(torch.complex64)+1j*sigmoid(input.imag).type(torch.complex64)
+
+def complex_tanh(input):
+    return tanh(input.real).type(torch.complex64)+1j*tanh(input.imag).type(torch.complex64)
+
+def complex_opposite(input):
+    return -(input.real).type(torch.complex64)+1j*(-(input.imag).type(torch.complex64))
+
+def complex_stack(input, dim):
+    input_real = [x.real for x in input]
+    input_imag = [x.imag for x in input]
+    return torch.stack(input_real, dim).type(torch.complex64)+1j*torch.stack(input_imag, dim).type(torch.complex64)
+
+def _retrieve_elements_from_indices(tensor, indices):
+    flattened_tensor = tensor.flatten(start_dim=-2)
+    output = flattened_tensor.gather(dim=-1, index=indices.flatten(start_dim=-2)).view_as(indices)
+    return output
+
+def complex_upsample(input, size=None, scale_factor=None, mode='nearest',
+                             align_corners=None, recompute_scale_factor=None):
+    '''
+        Performs upsampling by separately interpolating the real and imaginary part and recombining
+    '''
+    outp_real = interpolate(input.real,  size=size, scale_factor=scale_factor, mode=mode,
+                                    align_corners=align_corners, recompute_scale_factor=recompute_scale_factor)
+    outp_imag = interpolate(input.imag,  size=size, scale_factor=scale_factor, mode=mode,
+                                    align_corners=align_corners, recompute_scale_factor=recompute_scale_factor)
+
+    return outp_real.type(torch.complex64) + 1j * outp_imag.type(torch.complex64)
+
+def complex_upsample2(input, size=None, scale_factor=None, mode='nearest',
+                             align_corners=None, recompute_scale_factor=None):
+    '''
+        Performs upsampling by separately interpolating the amplitude and phase part and recombining
+    '''
+    outp_abs = interpolate(input.abs(),  size=size, scale_factor=scale_factor, mode=mode,
+                                    align_corners=align_corners, recompute_scale_factor=recompute_scale_factor)
+    angle = torch.atan2(input.imag,input.real)
+    outp_angle = interpolate(angle,  size=size, scale_factor=scale_factor, mode=mode,
+                                    align_corners=align_corners, recompute_scale_factor=recompute_scale_factor)
+
+    return outp_abs \
+           * (torch.cos(angle).type(torch.complex64)+1j*torch.sin(angle).type(torch.complex64))
 
 
-def complex_relu(input_r, input_i):
-    return relu(input_r), relu(input_i)
+def complex_max_pool2d(input,kernel_size, stride=None, padding=0,
+                                dilation=1, ceil_mode=False, return_indices=False):
+    '''
+    Perform complex max pooling by selecting on the absolute value on the complex values.
+    '''
+    absolute_value, indices =  max_pool2d(
+                               input.abs(),
+                               kernel_size = kernel_size,
+                               stride = stride,
+                               padding = padding,
+                               dilation = dilation,
+                               ceil_mode = ceil_mode,
+                               return_indices = True
+                            )
+    # performs the selection on the absolute values
+    absolute_value = absolute_value.type(torch.complex64)
+    # retrieve the corresonding phase value using the indices
+    # unfortunately, the derivative for 'angle' is not implemented
+    angle = torch.atan2(input.imag,input.real)
+    # get only the phase values selected by max pool
+    angle = _retrieve_elements_from_indices(angle, indices)
+    return absolute_value \
+           * (torch.cos(angle).type(torch.complex64)+1j*torch.sin(angle).type(torch.complex64))
+
+def complex_dropout(input, p=0.5, training=True):
+    # need to have the same dropout mask for real and imaginary part,
+    # this not a clean solution!
+    #mask = torch.ones_like(input).type(torch.float32)
+    mask = torch.ones(*input.shape, dtype = torch.float32)
+    mask = dropout(mask, p, training)*1/(1-p)
+    mask.type(input.dtype)
+    return mask*input
 
 
-def complex_max_pool2d(input_r, input_i, kernel_size, stride=None, padding=0,
-                       dilation=1, ceil_mode=False, return_indices=False):
-    return max_pool2d(input_r, kernel_size, stride, padding, dilation, ceil_mode, return_indices), \
-           max_pool2d(input_i, kernel_size, stride, padding, dilation, ceil_mode, return_indices)
+def complex_dropout2d(input, p=0.5, training=True):
+    # need to have the same dropout mask for real and imaginary part,
+    # this not a clean solution!
+    mask = torch.ones(*input.shape, dtype = torch.float32)
+    mask = dropout2d(mask, p, training)*1/(1-p)
+    mask.type(input.dtype)
+    return mask*input
 
-
-def complex_dropout(input_r, input_i, p=0.5, training=True, inplace=False):
-    return dropout(input_r, p, training, inplace), \
-           dropout(input_i, p, training, inplace)
-
-
-def complex_dropout2d(input_r, input_i, p=0.5, training=True, inplace=False):
-    return dropout2d(input_r, p, training, inplace), \
-           dropout2d(input_i, p, training, inplace)
-
-
-def _complex_conv(input_r, input_i, weight_r, weight_i, bias_r=None, bias_i=None,
-                  stride=1, padding=0, dilation=1, groups=1, conv_func=None):
-    return (conv_func(input_r, weight_r, bias_r, stride, padding, dilation, groups) -
-            conv_func(input_i, weight_i, bias_i, stride, padding, dilation, groups),
-            conv_func(input_i, weight_r, bias_r, stride, padding, dilation, groups) +
-            conv_func(input_r, weight_i, bias_i, stride, padding, dilation, groups))
-
-
-complex_conv1d = partial(_complex_conv, conv_func=conv1d)
-complex_conv2d = partial(_complex_conv, conv_func=conv2d)
-complex_conv3d = partial(_complex_conv, conv_func=conv3d)
-
-
-def _complex_conv_sc(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1, conv_func=None):
-    input_r, input_i = torch.split(input, input.size(1) // 2, dim=1)
-    weight_r, weight_i = torch.split(weight, weight.size(1) // 2, dim=1)
-    if bias is not None:
-        bias_r, bias_i = torch.split(bias, bias.size(0) // 2, dim=0)
-    else:
-        bias_r, bias_i = None, None
-    return torch.cat(_complex_conv(input_r, input_i, weight_r, weight_i, bias_r, bias_i,
-                                   stride, padding, dilation, groups, conv_func), dim=1)
-
-
-complex_conv1d_sc = partial(_complex_conv_sc, conv_func=conv1d)
-complex_conv2d_sc = partial(_complex_conv_sc, conv_func=conv2d)
-complex_conv3d_sc = partial(_complex_conv_sc, conv_func=conv3d)

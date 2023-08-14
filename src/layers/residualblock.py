@@ -13,9 +13,9 @@ class ResidualBlock(nn.Module):
 
         self.block = nn.Sequential(
             conv_fn(self.fin, self.fhidden, kernel_size, stride=1, padding=padding, groups=groups, bias=bias),
-            nn.ReLU(True),
+            nn.GELU(),
             conv_fn(self.fhidden, self.fhidden, kernel_size, stride=1, padding=padding, groups=groups, bias=bias),
-            nn.ReLU(True),
+            nn.GELU(),
             conv_fn(self.fhidden, self.fout, kernel_size, stride=stride, padding=padding, groups=groups, bias=bias)
         )
         self.shortcut = conv_fn(self.fin, self.fout, kernel_size, stride=stride, padding=padding, groups=groups, bias=bias)

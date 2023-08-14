@@ -20,7 +20,9 @@ class LatentCube(nn.Module):
         self.frac_factor = self.frac_gauss.c_factor
         self.frac_groups = self.frac_gauss.c_factor // 5
         self.frac_norm = nn.InstanceNorm3d(self.n_filter * self.frac_factor)
-        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor, self.n_filter * self.frac_groups, self.n_filter * self.frac_groups, dim=3)
+        self.frac_dyna_conv = DynaResidualBlock(self.lat_size, self.n_filter * self.frac_factor,
+                                                self.n_filter * self.frac_groups, self.n_filter * self.frac_groups,
+                                                dim=3)
 
         self.seed = nn.Parameter(torch.nn.init.orthogonal_(torch.empty(1, self.n_filter)).view(1, self.n_filter, 1, 1, 1).repeat(1, 1, self.cube_size, self.cube_size, self.cube_size))
 

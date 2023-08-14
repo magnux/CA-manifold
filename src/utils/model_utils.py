@@ -110,14 +110,14 @@ def image_grad_smooth_hook(channels, g_factor=0.5):
     return partial(_grad_smooth_hook, channels=channels, g_factor=g_factor)
 
 
-def grad_ema_update(network, m=0.9):
+def grad_ema_update(network, momentum=0.9, mix_ratio=0.5):
     for p in network.parameters():
         if p.grad is not None:
             if not hasattr(p, 'grad_ema'):
                 p.grad_ema = p.grad.clone()
             else:
-                p.grad_ema = m * p.grad_ema + (1 - m) * p.grad.clone()
-                p.grad = p.grad_ema.clone()
+                p.grad_ema = momentum * p.grad_ema + (1 - momentum) * p.grad.clone()
+                p.grad = mix_ratio * p.grad + (1 - mix_ratio) *p.grad_ema.clone()
 
 
 def bkp_grad(network, bkp_name):
@@ -255,6 +255,10 @@ def grads_seed(batch_size, n_filter, image_size, device):
     seed = np.zeros((batch_size, n_filter, image_size, image_size))
     seed[:, :2, :, :] = np.indices((image_size, image_size))
     return torch.tensor(seed, device=device)
+
+
+def normalize_2nd_moment(x, dim=1, eps=1e-8):
+    return x * (x.square().mean(dim=dim, keepdim=True) + eps).rsqrt()
 
 
 class SamplePool:

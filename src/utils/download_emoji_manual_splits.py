@@ -4,7 +4,7 @@ from tqdm import tqdm
 from file_utils import download_url
 import yaml
 
-url_base = 'https://github.com/googlefonts/noto-emoji/raw/master/png/128/%s'
+url_base = 'https://github.com/googlefonts/noto-emoji/raw/main/png/128/%s'
 
 
 def download_emoji(sm):

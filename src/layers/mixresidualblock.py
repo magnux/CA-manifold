@@ -8,7 +8,7 @@ class MixResidualBlock(nn.Module):
     def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, groups=1, lat_factor=1, n_mix=8):
         super(MixResidualBlock, self).__init__()
 
-        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_size = lat_size
         self.fin = fin
         self.fout = fout
         self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden
@@ -38,9 +38,8 @@ class MixResidualBlock(nn.Module):
             self.dyna_mix = nn.Linear(lat_size, n_mix)
         else:
             self.dyna_mix = nn.Sequential(
-                nn.Linear(lat_size, self.lat_size * lat_factor),
-                LinearResidualBlock(self.lat_size * lat_factor, self.lat_size * lat_factor),
-                LinearResidualBlock(self.lat_size * lat_factor, n_mix),
+                LinearResidualBlock(self.lat_size, int(self.lat_size * lat_factor)),
+                LinearResidualBlock(int(self.lat_size * lat_factor), n_mix),
             )
 
         self.prev_lat = None
@@ -74,9 +73,9 @@ class MixResidualBlock(nn.Module):
         x_new = x.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
         x_new_s = self.f_conv(x_new, self.k_short, stride=self.stride, padding=self.padding, groups=batch_size * self.groups) + self.b_short
         x_new = self.f_conv(x_new, self.k_in, stride=1, padding=self.padding, groups=batch_size * self.groups) + self.b_in
-        x_new = F.relu(x_new, True)
+        x_new = F.gelu(x_new)
         x_new = self.f_conv(x_new, self.k_mid, stride=1, padding=self.padding, groups=batch_size * self.groups) + self.b_mid
-        x_new = F.relu(x_new, True)
+        x_new = F.gelu(x_new)
         x_new = self.f_conv(x_new, self.k_out, stride=self.stride, padding=self.padding, groups=batch_size * self.groups) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.reshape([batch_size, self.fout] + [x.size(d + 2) for d in range(self.dim)])

@@ -47,7 +47,7 @@ trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
                                           shuffle=True, num_workers=n_workers, drop_last=True)
 
-config['training']['steps_per_epoch'] = len(trainloader) // batch_split
+config['training']['batches_per_epoch'] = len(trainloader) // batch_split
 
 # Distributions
 zdist_mu, zdist_cov = load_multigauss_params(join(config['training']['out_dir'], 'irmae'), lat_size, device=device)
@@ -103,17 +103,15 @@ if config['training']['inception_every'] > 0:
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
-for epoch in range(model_manager.start_epoch, n_epochs):
-    with model_manager.on_epoch(epoch):
+for _ in range(model_manager.epoch, n_epochs):
+    with model_manager.on_epoch():
 
         running_loss_dec = np.zeros(window_size)
 
-        batch_mult = (int((epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
+        batch_mult = (int((model_manager.epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
 
-        it = (epoch * (len(trainloader) // batch_split))
-
-        t = trange(len(trainloader) // batch_split)
-        t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
+        t = trange(config['training']['batches_per_epoch'] - (model_manager.it % config['training']['batches_per_epoch']))
+        t.set_description('| ep: %d | lr: %.2e |' % (model_manager.epoch, model_manager.lr))
         for batch in t:
 
             with model_manager.on_batch():
@@ -156,28 +154,27 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                 t.set_postfix(loss_dec='%.2e' % (np.sum(running_loss_dec) / running_factor))
 
                 # Log progress
-                model_manager.log_manager.add_scalar('learning_rates', 'all', model_manager.lr, it=it)
+                model_manager.log_scalar('learning_rates',  'all',  model_manager.lr)
                 if model_manager.momentum is not None:
-                    model_manager.log_manager.add_scalar('learning_rates', 'all_mom', model_manager.momentum, it=it)
+                    model_manager.log_scalar('learning_rates',  'all_mom',  model_manager.momentum)
 
-                model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
-
-                it += 1
+                model_manager.log_scalar('losses',  'loss_dec',  loss_dec_sum)
 
     # save_multigauss_params(zdist_mu, zdist_cov, join(config['training']['out_dir'], 'irmae'))
 
     with torch.no_grad():
         # Log images
-        if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
+        if config['training']['sample_every'] > 0 and ((model_manager.epoch + 1) % config['training']['sample_every']) == 0:
+            model_manager.save()
             t.write('Creating samples...')
             images, _, lat_gen, trainiter = get_inputs(trainiter, batch_size, device)
             # images_gen, _, _ = decoder(lat_gen)
             lat_enc, _, _ = encoder(images)
             lat_dec = irm_translator(lat_enc)
             images_dec, _, _ = decoder(lat_dec)
-            model_manager.log_manager.add_imgs(images, 'all_input', it)
-            # model_manager.log_manager.add_imgs(images_gen, 'all_gen', it)
-            model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
+            model_manager.log_images(images,  'all_input')
+            # model_manager.log_images(images_gen,  'all_gen')
+            model_manager.log_images(images_dec,  'all_dec')
             # for lab in range(config['training']['sample_labels']):
             #     if labels.dim() == 1:
             #         fixed_lab = torch.full((batch_size,), lab, device=device, dtype=torch.int64)
@@ -186,7 +183,7 @@ for epoch in range(model_manager.start_epoch, n_epochs):
             #         fixed_lab[:, lab] = 1
             #     lat_gen = irm_translator(z_gen)
             #     images_gen, _, _ = decoder(lat_gen)
-            #     model_manager.log_manager.add_imgs(images_gen, 'class_%04d' % lab, it)
+            #     model_manager.log_images(images_gen,  'class_%04d' % lab)
 
         # Perform inception
         if config['training']['inception_every'] > 0 and ((epoch + 1) % config['training']['inception_every']) == 0 and epoch > 0:
@@ -194,8 +191,9 @@ for epoch in range(model_manager.start_epoch, n_epochs):
             inception_mean, inception_std, fid = compute_inception_score(None, decoder,
                                                                          10000, 10000, config['training']['batch_size'],
                                                                          zdist, None, fid_real_samples, device)
-            model_manager.log_manager.add_scalar('inception_score', 'mean', inception_mean, it=it)
-            model_manager.log_manager.add_scalar('inception_score', 'stddev', inception_std, it=it)
-            model_manager.log_manager.add_scalar('inception_score', 'fid', fid, it=it)
+            model_manager.log_scalar('inception_score',  'mean',  inception_mean)
+            model_manager.log_scalar('inception_score',  'stddev',  inception_std)
+            model_manager.log_scalar('inception_score',  'fid',  fid)
 
+model_manager.save()
 print('Training is complete...')

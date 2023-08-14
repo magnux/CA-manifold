@@ -48,7 +48,7 @@ trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
                                           shuffle=True, num_workers=n_workers, drop_last=True)
 
-config['training']['steps_per_epoch'] = len(trainloader) // batch_split
+config['training']['batches_per_epoch'] = len(trainloader) // batch_split
 
 # Networks
 networks_dict = {
@@ -92,17 +92,15 @@ for g in range(n_goals):
 
 window_size = math.ceil((len(trainloader) // batch_split) / 10)
 
-for epoch in range(model_manager.start_epoch, n_epochs):
-    with model_manager.on_epoch(epoch):
+for _ in range(model_manager.epoch, n_epochs):
+    with model_manager.on_epoch():
 
         running_loss = np.zeros(window_size)
 
-        batch_mult = (int((epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
+        batch_mult = (int((model_manager.epoch / n_epochs) * batch_mult_steps) + 1) * batch_split
 
-        it = (epoch * (len(trainloader) // batch_split))
-
-        t = trange(len(trainloader) // batch_split)
-        t.set_description('| ep: %d | lr: %.2e |' % (epoch, model_manager.lr))
+        t = trange(config['training']['batches_per_epoch'] - (model_manager.it % config['training']['batches_per_epoch']))
+        t.set_description('| ep: %d | lr: %.2e |' % (model_manager.epoch, model_manager.lr))
         for batch in t:
 
             with model_manager.on_batch():
@@ -169,17 +167,16 @@ for epoch in range(model_manager.start_epoch, n_epochs):
                 t.set_postfix(loss='%.2e' % (np.sum(running_loss) / running_factor))
 
                 # Log progress
-                model_manager.log_manager.add_scalar('learning_rates', 'all', model_manager.lr, it=it)
+                model_manager.log_scalar('learning_rates',  'all',  model_manager.lr)
                 if model_manager.momentum is not None:
-                    model_manager.log_manager.add_scalar('learning_rates', 'all_mom', model_manager.momentum, it=it)
+                    model_manager.log_scalar('learning_rates',  'all_mom',  model_manager.momentum)
 
-                model_manager.log_manager.add_scalar('losses', 'loss_dec', loss_dec_sum, it=it)
-
-                it += 1
+                model_manager.log_scalar('losses',  'loss_dec',  loss_dec_sum)
 
     with torch.no_grad():
         # Log images
-        if config['training']['sample_every'] > 0 and ((epoch + 1) % config['training']['sample_every']) == 0:
+        if config['training']['sample_every'] > 0 and ((model_manager.epoch + 1) % config['training']['sample_every']) == 0:
+            model_manager.save()
             t.write('Creating samples...')
 
             goals = []
@@ -204,7 +201,8 @@ for epoch in range(model_manager.start_epoch, n_epochs):
             images = torch.cat(goals, dim=3)
             images_dec = torch.cat(images_dec_l, dim=3)
 
-            model_manager.log_manager.add_imgs(images, 'all_input', it)
-            model_manager.log_manager.add_imgs(images_dec, 'all_dec', it)
+            model_manager.log_images(images,  'all_input')
+            model_manager.log_images(images_dec,  'all_dec')
 
+model_manager.save()
 print('Training is complete...')

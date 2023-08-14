@@ -87,7 +87,7 @@ def cov(m, rowvar=True, inplace=False):
 
 def get_multigauss_params(samples):
     zdist_mu = samples.mean(dim=0)
-    zdist_cov = cov(samples, False, True)
+    zdist_cov = cov(samples, False, False)
     return zdist_mu, zdist_cov
 
 

@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from src.layers.linearresidualblock import LinearResidualBlock
 import numpy as np
 
 
@@ -77,6 +78,105 @@ class RandGrads(nn.Module):
             weight_theta = getattr(self, 'weight%d_theta' % i) * (self.call_c % self.n_calls)
             rot_weight = self.rotate_weight(weight, weight_theta)
             g_out.append(self.conv(x, weight=rot_weight, stride=1, padding=padding, groups=self.groups))
+        return torch.cat(g_out, dim=1)
+
+
+class DynaRandGrads(nn.Module):
+    def __init__(self, lat_size, channels, kernel_sizes, paddings, dim=2, n_calls=1, mode='split_out', ind_chan=False, lat_factor=1):
+        super(DynaRandGrads, self).__init__()
+
+        self.lat_size = lat_size
+        self.channels = channels
+
+        if isinstance(kernel_sizes, int):
+            assert isinstance(paddings, int), 'if kernel_sizes is in paddings should be int too'
+            self.kernel_sizes = [[kernel_sizes for _ in range(dim)]]
+            self.paddings = [paddings]
+        else:
+            self.kernel_sizes = [[kernel_size for _ in range(dim)] for kernel_size in sorted(list(kernel_sizes))]
+            self.paddings = sorted(list(paddings))
+            assert len(kernel_sizes) == len(paddings), 'there should be equal number of kernel_sizes and paddings'
+
+        if dim == 1:
+            self.conv = F.conv1d
+        elif dim == 2:
+            self.conv = F.conv2d
+        elif dim == 3:
+            self.conv = F.conv3d
+        else:
+            raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
+
+        self.k_size = []
+        for i, kernel_size in enumerate(self.kernel_sizes):
+            self.k_size.append(self.channels * self.channels * (kernel_size[0] ** dim))
+            dyna_k = nn.Sequential(
+                LinearResidualBlock(self.lat_size, int(self.lat_size * lat_factor)),
+                LinearResidualBlock(int(self.lat_size * lat_factor), self.k_size[i] + self.channels, self.lat_size * 2),
+            )
+            s_bias = torch.zeros(self.k_size[i] + self.channels)
+            s_bias[self.k_size[i]:] = torch.randn(self.channels) * (1/n_calls) * np.pi
+            dyna_k[1].shortcut.bias.data.copy_(s_bias)
+            self.register_module('dyna_k%d' % i, dyna_k)
+
+        self.groups = channels if ind_chan else 1
+        self.dim = dim
+        self.mode = mode
+        self.n_calls = n_calls
+        self.call_c = 0
+
+        self.prev_lat = None
+        self.ks = [None for _ in self.kernel_sizes]
+        self.thetas = [None for _ in self.kernel_sizes]
+
+        if self.mode == 'rep_in':
+            self.c_factor = len(self.kernel_sizes) * (1 + 1)
+        elif self.mode == 'split_out':
+            self.c_factor = (len(self.kernel_sizes) * 1) + 1
+        else:
+            raise RuntimeError('supported modes are rep_in and split_out')
+
+    def rotate_weight(self, weight, weight_theta):
+        s = torch.sin(weight_theta)
+        c = torch.cos(weight_theta)
+        theta_rot = torch.zeros(weight_theta.shape[0], 2, 3, device=weight.device)
+        theta_rot[:, 0, 0] = c
+        theta_rot[:, 0, 1] = -s
+        theta_rot[:, 1, 0] = s
+        theta_rot[:, 1, 1] = c
+        grid = F.affine_grid(theta_rot, weight.size(), align_corners=False)
+        return F.grid_sample(weight, grid, align_corners=False)
+
+    def forward(self, x, lat):
+        batch_size = x.size(0)
+
+        if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
+            self.call_c = 0
+            for i in range(len(self.ks)):
+                dyna_k = getattr(self, 'dyna_k%d' % i)
+                k = dyna_k(lat)
+                k, theta = torch.split(k, [self.k_size[i], self.channels], dim=1)
+                k = k.view([batch_size, self.channels, self.channels // self.groups] + self.kernel_sizes[i])
+                self.ks[i] = k.reshape([batch_size * self.channels, self.channels // self.groups] + self.kernel_sizes[i])
+                self.thetas[i] = theta.reshape([batch_size * self.channels])
+
+            self.prev_lat = lat
+
+        self.call_c += 1
+        if self.mode == 'rep_in':
+            g_out = []
+        elif self.mode == 'split_out':
+            g_out = [x]
+        for i, padding in enumerate(self.paddings):
+            if self.mode == 'rep_in':
+                g_out.append(x)
+
+            theta = self.thetas[i] * (self.call_c % self.n_calls)
+            rot_weight = self.rotate_weight(self.ks[i], theta)
+
+            x_new = x.reshape([1, batch_size * self.channels] + [x.size(d + 2) for d in range(self.dim)])
+            x_new = self.conv(x_new, rot_weight, stride=1, padding=padding, groups=batch_size * self.groups)
+            x_new = x_new.reshape([batch_size, self.channels] + [x.size(d + 2) for d in range(self.dim)])
+            g_out.append(x_new)
         return torch.cat(g_out, dim=1)
 
 

@@ -6,15 +6,15 @@ from src.layers.posencoding import cos_pos_encoding_nd
 CE_ZERO = np.log(0.5)
 
 
-def compute_gan_loss(d_out, target, gan_type='softplus'):
+def compute_gan_loss(d_out, target, gan_type='new_relu'):
 
     if gan_type == 'standard':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
         loss = F.binary_cross_entropy_with_logits(d_out, target)
     elif gan_type == 'wgan':
-        loss = (1 - 2*target) * d_out.mean()
+        loss = ((1 - 2*target) * d_out).mean()
     elif gan_type == 'abs':
-        loss = (2*target - 1) * d_out.mean()
+        loss = ((2*target - 1) * d_out).mean()
         loss = loss.abs() if target == 1 else loss
     elif gan_type == 'mse':
         target = d_out.new_full(size=d_out.size(), fill_value=target)
@@ -31,16 +31,23 @@ def compute_gan_loss(d_out, target, gan_type='softplus'):
         loss = F.relu((1 - 2*target) * d_out).mean()
     elif gan_type == 'softplus':
         loss = F.softplus((1 - 2*target) * d_out).mean()
+    elif gan_type == 'double_softplus':
+        loss = (F.softplus((1 - 2*target) * d_out) - F.softplus((2*target - 1) * d_out)).mean()
     elif gan_type == 'new_mse':
-        target = d_out.new_full(size=d_out.size(), fill_value=(target - 0.5))
+        target = d_out.new_full(size=d_out.size(), fill_value=(1 - 2*target))
         loss = F.mse_loss(d_out, target)
+    elif gan_type == 'new_relu':
+        loss = F.relu(1 + ((1 - 2*target) * d_out)).mean()
+    elif gan_type == 'interstella':
+        x = (1 - 2*target) * d_out
+        loss = torch.maximum((torch.maximum(x, torch.ones_like(x) * -0.5554) + 0.5555).log() + 1, torch.sigmoid(x * 5)).mean()
     else:
         raise NotImplementedError
 
     return loss
 
 
-def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
+def compute_grad_reg(d_out, d_in, norm_type=2, margin=0, mask=None):
     batch_size = d_in.size(0)
     grad_d_in = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
@@ -61,12 +68,61 @@ def compute_grad_reg(d_out, d_in, norm_type=2, margin=0):
     elif norm_type == 'neg':
         grad_d_in = -1 * grad_d_in.abs()
 
-    reg = grad_d_in.view(batch_size, -1)
-    if norm_type == 'sqrt':
-        reg = reg / reg.size(1)
-    if margin > 0:
-        reg = torch.relu(reg - margin)
-    reg = reg.sum(1).mean()
+    if norm_type == 'cov':
+        # grad_d_in_norm = grad_d_in.pow(2).sum(1).mean()
+        # grad_d_in_cov = grad_d_in.reshape(batch_size, -1).var(dim=1).sqrt()
+        # grad_d_in_cov = grad_d_in_cov.view([1, batch_size]) @ grad_d_in_cov.view([batch_size, 1])
+        grad_d_in_cov = grad_d_in.reshape(batch_size, -1)
+        grad_d_in_cov = grad_d_in_cov @ grad_d_in_cov.t()
+        grad_d_in_cov = grad_d_in_cov * (1 - torch.eye(batch_size, device=grad_d_in_cov.device))
+        grad_d_in_cov = grad_d_in_cov.mean()
+        return grad_d_in_cov
+    else:
+        if mask is not None:
+            grad_d_in = grad_d_in * mask
+        reg = grad_d_in.view(batch_size, -1)
+        if norm_type == 'sqrt':
+            reg = reg / reg.size(1)
+        if margin > 0:
+            reg = torch.relu(reg - margin)
+        reg = reg.sum(1).mean()
+
+        return reg
+
+
+def compute_dir_grad_reg(d_out, d_out_inv, d_in, d_in_inv=None, margin=0):
+    batch_size = d_in[0].size(0) if isinstance(d_in, list) else d_in.size(0)
+    if d_in_inv is None:
+        d_in_inv = d_in
+    grad_d_in_l = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
+                                    create_graph=True, retain_graph=True, only_inputs=True)
+
+    grad_d_in_inv_l = torch.autograd.grad(outputs=d_out_inv.sum(), inputs=d_in_inv,
+                                        create_graph=True, retain_graph=True, only_inputs=True)
+    reg = 0.
+    for grad_d_in, grad_d_in_inv in zip(grad_d_in_l, grad_d_in_inv_l):
+        grad_d_in = grad_d_in.reshape(batch_size, -1)
+        # grad_d_in = torch.fft.fft2(grad_d_in, norm='ortho')
+        # grad_d_in = torch.cat([grad_d_in.real.to(torch.float32), grad_d_in.imag.to(torch.float32)], dim=1)
+        grad_d_in_inv = grad_d_in_inv.reshape(batch_size, -1).detach()
+        # grad_d_in_inv = torch.fft.fft2(grad_d_in_inv, norm='ortho')
+        # grad_d_in_inv = torch.cat([grad_d_in_inv.real.to(torch.float32), grad_d_in_inv.imag.to(torch.float32)], dim=1)
+        grad_d_in_diff = (grad_d_in - grad_d_in_inv).pow(2)
+        if margin > 0:
+            grad_d_in_diff = torch.relu(grad_d_in_diff - margin)
+        reg += grad_d_in_diff.mean()
+
+    return reg
+
+
+def compute_double_grad_reg(d_out, d_in):
+    grad_d_in = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
+                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
+    reg = grad_d_in.pow(2).sum()
+    double_grad_d_in = torch.autograd.grad(outputs=reg, inputs=d_in,
+                                           create_graph=True, retain_graph=True, only_inputs=True)[0]
+
+    reg = reg + double_grad_d_in.pow(2).sum()
 
     return reg
 
@@ -83,7 +139,7 @@ def compute_hinted_sample(g_in, d_out, target=1, gan_type='softplus'):
 
 
 def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, reg_loss, reg_loss_target,
-                      loss_dis=None, update_every=True, maximize=True, lr=0.01):
+                      loss_dis=None, update_every=True, maximize=True, lr=1e-2):
 
     # if loss_dis is not None:
     #     # Emergency break, in case the discriminator had slowly slip through the fence
@@ -94,7 +150,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
 
     # reg_param update
     delta_reg = reg_loss_target - reg_loss
-    reg_scale = 2 * reg_param / (reg_loss_target + reg_loss)
+    reg_scale = 2 * reg_param / (reg_loss_target + reg_loss + 1e-32)
     reg_update = lr * reg_scale * delta_reg
     if maximize:
         reg_param += reg_update
@@ -103,13 +159,13 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
 
     # reg_every update
     if update_every:
-        reg_ratio = (reg_loss / reg_loss_target)
+        reg_ratio = (reg_loss / (reg_loss_target + 1e-32))
         if reg_ratio <= 1.:
             reg_every += 0.5
         elif reg_ratio > 2.:
             reg_every /= 2
 
-    reg_param = np.clip(reg_param, 1e-16, reg_param_target * 1e4)
+    reg_param = np.clip(reg_param, reg_loss_target * 0.1, 1.)
     reg_every = np.clip(reg_every, 1, reg_every_target)
 
     return reg_every, reg_param
@@ -156,9 +212,26 @@ def update_ada_augment_p(current_p, logits_sign_mean, batch_size, ada_target=0.2
     return F.relu(current_p + adjust)
 
 
-def update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target):
-    g_factor_enc = np.clip(g_factor_enc - 1e-2 * (labs_dis_enc_sign - sign_mean_target), 0.1, 1.)
-    g_factor_dec = np.clip(g_factor_dec - 1e-2 * (labs_dis_dec_sign - sign_mean_target), 0.1, 1.)
+def update_g_factor(g_factor, lab_dis_sign, sign_mean_target, maximize=False, lr=1e-2):
+    delta_reg = sign_mean_target - lab_dis_sign
+    reg_update = lr * delta_reg
+
+    if maximize:
+        if reg_update < 0.:
+            reg_update *= 2
+        g_factor += reg_update
+    else:
+        if reg_update > 0.:
+            reg_update *= 2
+        g_factor -= reg_update
+
+    g_factor = np.clip(g_factor, 1e-16, 1.)
+    return g_factor
+
+
+def update_g_factors(g_factor_enc, g_factor_dec, labs_dis_enc_sign, labs_dis_dec_sign, sign_mean_target, maximize=False, lr=1e-2):
+    g_factor_enc = update_g_factor(g_factor_enc, labs_dis_enc_sign, sign_mean_target, maximize, lr)
+    g_factor_dec = update_g_factor(g_factor_dec, labs_dis_dec_sign, sign_mean_target, maximize, lr)
     return g_factor_enc, g_factor_dec
 
 
@@ -351,3 +424,23 @@ def age_gaussian_kl_loss(samples, kl_dir_pq=False):
     KL = (t1 + t2 - 0.5).mean()
 
     return KL
+
+
+def rage_gaussian_loss(x, target=1):
+    if target == 1:
+        return (1 - (-(x ** 2)).exp() + 1e-4 * x.abs()).mean()
+    else:
+        return ((-(x ** 2)).exp() - 1e-4 * x.abs()).mean()
+
+
+def fft_mse_loss(out, target, margin=0.):
+    out_fft = torch.fft.fft2(out, norm='ortho')
+    out_fft = torch.cat([out_fft.real.to(torch.float32), out_fft.imag.to(torch.float32)], dim=1)
+
+    target_fft = torch.fft.fft2(target, norm='ortho')
+    target_fft = torch.cat([target_fft.real.to(torch.float32), target_fft.imag.to(torch.float32)], dim=1)
+
+    if margin > 0.:
+        return F.relu((target_fft - out_fft).pow(2) - margin).mean()
+    else:
+        return F.mse_loss(out_fft, target_fft)

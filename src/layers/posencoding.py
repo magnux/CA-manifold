@@ -13,6 +13,22 @@ def lin_pos_encoding_1d(size):
     return torch.cat([pos_encoding_start, pos_encoding_end, pos_encoding_center], 1)
 
 
+def surf_encoding_nd(size, dim):
+    if isinstance(size, int):
+        size = (size,)
+        if dim > 0:
+            size = size * dim
+
+    surf_encodings = []
+    for d in range(2, dim + 2):
+        surf_encoding = (-1. + (2. / torch.arange(1 + size[d - 2], 1, -1, dtype=torch.float32)))
+        surf_encoding = surf_encoding.view(*[size[dd - 2] if dd == d else 1 for dd in range(dim + 2)])
+        surf_encoding = surf_encoding.repeat(*[size[dd - 2] if dd != d and dd > 1 else 1 for dd in range(dim + 2)])
+        surf_encodings.append(surf_encoding)
+
+    return torch.cat(surf_encodings, dim=1)
+
+
 def cos_pos_encoding_1d(size, phase=0., log_freq=True, freq_div=2., sub_freq_max=2):
     if log_freq:
         ## Note: freqs can be computed up to 'size', but taking intervals in 2^i intervals
@@ -65,7 +81,7 @@ def cos_pos_encoding_nd(size, dim, phase=0.):
                 pos_enc_l_comb.append(torch.cat(comb_l, 1))
         pos_encoding = torch.cat(pos_enc_l + pos_enc_l_comb, 1)
 
-    return torch.nn.functional.instance_norm(pos_encoding)
+    return pos_encoding
 
 
 def cos_pos_encoding_dyn(size, dim, n_calls):
@@ -97,7 +113,7 @@ def sin_cos_pos_encoding_1d_2(size, phase=0., pos_scale=32):
     return torch.tensor(np.stack(sin + cos)[None, :, :], dtype=torch.float32)
 
 
-def sin_cos_pos_encoding_nd(size, dim, version=1, phase=0.):
+def sin_cos_pos_encoding_nd(size, dim, version=1, phase=0., log_freq=True, pos_scale=32):
     if isinstance(size, int):
         size = (size,)
         if dim > 0:
@@ -112,14 +128,14 @@ def sin_cos_pos_encoding_nd(size, dim, version=1, phase=0.):
     # else :
     # TODO: check size tuples are correct
     if dim == 0:
-        pos_encoding = encoding_fun(size[0], phase).view(1, -1)
+        pos_encoding = encoding_fun(size[0], phase, pos_scale if version == 2 else log_freq).view(1, -1)
     elif dim == 1:
-        pos_encoding = encoding_fun(size[0], phase)
+        pos_encoding = encoding_fun(size[0], phase, pos_scale if version == 2 else log_freq)
     elif dim > 1:
         sin_enc_l = []
         cos_enc_l = []
         for d in range(2, dim + 2):
-            pos_enc = encoding_fun(size[d - 2], phase)
+            pos_enc = encoding_fun(size[d - 2], phase, pos_scale if version == 2 else log_freq)
             pos_enc = pos_enc.view(*[size[dd - 2] if dd == d else (pos_enc.size(1) if dd == 1 else 1) for dd in range(dim + 2)])
             pos_enc = pos_enc.repeat(*[size[dd - 2] if dd != d and dd > 1 else 1 for dd in range(dim + 2)])
             sin_enc, cos_enc = torch.split(pos_enc, pos_enc.shape[1] // 2, dim=1)
@@ -142,7 +158,7 @@ def sin_cos_pos_encoding_nd(size, dim, version=1, phase=0.):
                     pos_enc_l_comb.append(torch.cat(comb_l, 1))
         pos_encoding = torch.cat(sin_enc_l + cos_enc_l + pos_enc_l_comb, 1)
 
-    return torch.nn.functional.instance_norm(pos_encoding)
+    return pos_encoding
 
 
 def sin_cos_pos_encoding_dyn(size, dim, n_calls):
@@ -154,9 +170,10 @@ def sin_cos_pos_encoding_dyn(size, dim, n_calls):
 
 
 class PosEncoding(nn.Module):
-    def __init__(self, size, dim=1, version=1, n_calls=1):
+    def __init__(self, size, dim=1, version=1, n_calls=1, sum_out=False):
         super(PosEncoding, self).__init__()
         self.version = version
+        self.sum_out = sum_out
         if self.version == 3:
             self.register_buffer('pos_encoding', cos_pos_encoding_dyn(size, dim, n_calls))
         elif self.version == 4:
@@ -166,10 +183,19 @@ class PosEncoding(nn.Module):
 
     def forward(self, x, call_n=0):
         if self.version == 3 or self.version == 4:
-            pos_encoding = torch.cat([self.pos_encoding[call_n]] * x.size(0), 0)
+            if isinstance(call_n, int):
+                pos_encoding = torch.cat([self.pos_encoding[call_n]] * x.size(0), 0)
+            elif isinstance(call_n, torch.Tensor):
+                pos_encoding = self.pos_encoding[call_n].squeeze(1)
+            else:
+                raise RuntimeError('call_n has to be int or Tensor')
         else:
             pos_encoding = torch.cat([self.pos_encoding] * x.size(0), 0)
-        return torch.cat([x, pos_encoding], 1)
+
+        if self.sum_out:
+            return x + pos_encoding
+        else:
+            return torch.cat([x, pos_encoding], 1)
 
     def size(self):
         if self.version == 3 or self.version == 4:

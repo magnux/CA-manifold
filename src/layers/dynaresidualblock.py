@@ -8,7 +8,7 @@ class DynaResidualBlock(nn.Module):
     def __init__(self, lat_size, fin, fout, fhidden=None, dim=2, kernel_size=1, stride=1, padding=0, groups=1, lat_factor=1):
         super(DynaResidualBlock, self).__init__()
 
-        self.lat_size = lat_size if lat_size > 3 else 512
+        self.lat_size = lat_size
         self.fin = fin
         self.fout = fout
         self.fhidden = max((fin + fout), 1) if fhidden is None else fhidden
@@ -36,12 +36,11 @@ class DynaResidualBlock(nn.Module):
         k_total_size = (self.k_in_size + self.k_mid_size + self.k_out_size + self.k_short_size +
                         self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size)
         if lat_factor == 0:
-            self.dyna_k = nn.Linear(lat_size, k_total_size)
+            self.dyna_k = nn.Linear(self.lat_size, k_total_size)
         else:
             self.dyna_k = nn.Sequential(
-                nn.Linear(lat_size, self.lat_size * lat_factor),
-                LinearResidualBlock(self.lat_size * lat_factor, self.lat_size * lat_factor),
-                LinearResidualBlock(self.lat_size * lat_factor, k_total_size, self.lat_size * lat_factor * 2),
+                LinearResidualBlock(self.lat_size, int(self.fin * lat_factor)),
+                LinearResidualBlock(int(self.fin * lat_factor), k_total_size, int(self.fout * lat_factor) * 2),
             )
 
         self.prev_lat = None
@@ -54,7 +53,7 @@ class DynaResidualBlock(nn.Module):
 
     def forward(self, x, lat):
         batch_size = x.size(0)
-        
+
         if self.prev_lat is None or self.prev_lat.data_ptr() != lat.data_ptr():
             ks = self.dyna_k(lat)
             k_in, k_mid, k_out, k_short, b_in, b_mid, b_out, b_short = torch.split(ks, [self.k_in_size, self.k_mid_size,
@@ -82,9 +81,9 @@ class DynaResidualBlock(nn.Module):
         x_new = x.reshape([1, batch_size * self.fin] + [x.size(d + 2) for d in range(self.dim)])
         x_new_s = self.f_conv(x_new, self.k_short, stride=self.stride, padding=self.padding, groups=batch_size * self.groups) + self.b_short
         x_new = self.f_conv(x_new, self.k_in, stride=1, padding=self.padding, groups=batch_size * self.groups) + self.b_in
-        x_new = F.relu(x_new, True)
+        x_new = F.gelu(x_new)
         x_new = self.f_conv(x_new, self.k_mid, stride=1, padding=self.padding, groups=batch_size * self.groups) + self.b_mid
-        x_new = F.relu(x_new, True)
+        x_new = F.gelu(x_new)
         x_new = self.f_conv(x_new, self.k_out, stride=self.stride, padding=self.padding, groups=batch_size * self.groups) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.reshape([batch_size, self.fout] + [x.size(d + 2) for d in range(self.dim)])

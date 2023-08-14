@@ -5,7 +5,7 @@ from src.layers.linearresidualblock import LinearResidualBlock
 
 
 class DynaLinearResidualBlock(nn.Module):
-    def __init__(self, lat_size, fin, fout, fhidden=None, bias=True):
+    def __init__(self, lat_size, fin, fout, fhidden=None, bias=True, lat_factor=1):
         super(DynaLinearResidualBlock, self).__init__()
 
         self.lat_size = lat_size
@@ -18,16 +18,22 @@ class DynaLinearResidualBlock(nn.Module):
         self.w_mid_size = self.fhidden * self.fhidden
         self.w_out_size = self.fout * self.fhidden
         self.w_short_size = self.fout * self.fin
+
         self.b_in_size = self.fhidden if bias else 0
         self.b_mid_size = self.fhidden if bias else 0
         self.b_out_size = self.fout if bias else 0
         self.b_short_size = self.fout if bias else 0
 
-        self.dyna_w = nn.Sequential(
-            LinearResidualBlock(self.lat_size, self.lat_size),
-            LinearResidualBlock(self.lat_size, self.w_in_size + self.w_mid_size + self.w_out_size + self.w_short_size +
-                                               self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size, self.lat_size * 2),
-        )
+        w_total_size = (self.w_in_size + self.w_mid_size + self.w_out_size + self.w_short_size +
+                        self.b_in_size + self.b_mid_size + self.b_out_size + self.b_short_size)
+
+        if lat_factor == 0:
+            self.dyna_w = nn.Linear(self.lat_size, w_total_size)
+        else:
+            self.dyna_w = nn.Sequential(
+                LinearResidualBlock(self.lat_size, int(self.lat_size * lat_factor)),
+                LinearResidualBlock(int(self.lat_size * lat_factor), w_total_size, int(self.lat_size * lat_factor) * 2),
+            )
 
         self.prev_lat = None
         self.w_in, self.w_mid, self.w_out, self.w_short = None, None, None, None
@@ -58,9 +64,9 @@ class DynaLinearResidualBlock(nn.Module):
         x_new = x.view(batch_size, -1, self.fin)
         x_new_s = torch.bmm(x_new, self.w_short) + self.b_short
         x_new = torch.bmm(x_new, self.w_in) + self.b_in
-        x_new = F.relu(x_new, True)
+        x_new = F.silu(x_new)
         x_new = torch.bmm(x_new, self.w_mid) + self.b_mid
-        x_new = F.relu(x_new, True)
+        x_new = F.silu(x_new)
         x_new = torch.bmm(x_new, self.w_out) + self.b_out
         x_new = x_new + x_new_s
         x_new = x_new.view(x.shape[:-1] + (self.fout,))

@@ -15,7 +15,7 @@ import numpy as np
 from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 
 asyncio_address = 'localhost'
-asyncio_port = 8888
+asyncio_port = 9888
 video_fps = 15
 video_secs = 60
 
@@ -117,7 +117,7 @@ def gen_image_stream(model_name):
         refresh_images[model_name].clear()
 
         old_image = current_images[model_name]
-        refresh_images[model_name].wait(60)
+        refresh_images[model_name].wait(300)
         if current_images[model_name] == old_image:
             print(model_name, ' timed out, cleaning up')
             video_writers[model_name].close()

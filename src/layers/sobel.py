@@ -74,7 +74,7 @@ def get_sin_sobel_kernel_nd(channels, kernel_size, dim, left_sided=False):
 
 
 class SinSobel(nn.Module):
-    def __init__(self, channels, kernel_sizes, paddings, dim=2, left_sided=False, mode='split_out'):
+    def __init__(self, channels, kernel_sizes, paddings, dim=2, left_sided=False, mode='interleave_out', norm=True, norm_groups=1):
         super(SinSobel, self).__init__()
 
         if isinstance(kernel_sizes, int):
@@ -92,6 +92,9 @@ class SinSobel(nn.Module):
         self.groups = channels
         self.paddings = paddings
         self.dim = dim
+
+        if mode not in ['split_out', 'interleave_out']:
+            raise RuntimeError('supported modes are split_out and interleave_out')
         self.mode = mode
 
         if dim == 1:
@@ -103,24 +106,31 @@ class SinSobel(nn.Module):
         else:
             raise RuntimeError('Only 1, 2 and 3 dimensions are supported. Received {}.'.format(dim))
 
-        if self.mode == 'rep_in':
-            self.c_factor = len(kernel_sizes) * (dim + 1)
-        elif self.mode == 'split_out':
-            self.c_factor = (len(kernel_sizes) * dim) + 1
-        else:
-            raise RuntimeError('supported modes are rep_in and split_out')
+        self.c_factor = (len(kernel_sizes) * dim) + 1
+
+        self.norm = nn.GroupNorm(norm_groups, channels * self.c_factor) if norm else None
 
     def forward(self, x):
-        if self.mode == 'rep_in':
-            s_out = []
-        elif self.mode == 'split_out':
-            s_out = [x]
+        s_out_l = [x]
         for i, padding in enumerate(self.paddings):
-            if self.mode == 'rep_in':
-                s_out.append(x)
             weight = getattr(self, 'weight%d' % i)
-            s_out.append(self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups))
-        return torch.cat(s_out, dim=1)
+            x_sob = self.conv(x, weight=weight, stride=1, padding=padding, groups=self.groups)
+            if self.mode == 'interleave_out':
+                s_out_l.extend(torch.chunk(x_sob, self.dim, dim=1))
+            elif self.mode == 'split_out':
+                s_out_l.append(x_sob)
+
+        s_out = None
+        if self.mode == 'interleave_out':
+            out_shape = [int(s) * (self.c_factor if i == 1 else 1) for i, s in enumerate(x.shape)]
+            s_out = torch.stack(s_out_l, dim=2).view(out_shape)
+        elif self.mode == 'split_out':
+            s_out = torch.cat(s_out_l, dim=1)
+
+        if self.norm is not None:
+            s_out = self.norm(s_out)
+
+        return s_out
 
 
 if __name__ == '__main__':

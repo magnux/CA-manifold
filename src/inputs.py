@@ -2,8 +2,11 @@ import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import numpy as np
-from src.utils.pngadataset import PNGADataset
-from src.utils.movingmnist import MovingMnistDataset
+from src.utils.mnist_dataset import MNIST
+from src.utils.celeba_dataset import CelebA
+from src.utils.cifar_dataset import CIFAR10
+from src.utils.pnga_dataset import PNGADataset
+from src.utils.movingmnist_dataset import MovingMnistDataset
 # from src.utils.captiondataset import CaptionDataset
 
 
@@ -26,14 +29,11 @@ def get_dataset(name, type, data_dir, size=32):
             dataset = datasets.DatasetFolder(data_dir, npy_loader, ['npy'])
             # n_labels = len(dataset.classes)
         elif name == 'mnist':
-            dataset = datasets.MNIST(root=data_dir, train=True, download=True,
-                                     transform=transform)
+            dataset = MNIST(root=data_dir, train=True, download=True, transform=transform)
         elif name == 'celeba':
-            dataset = datasets.CelebA(root=data_dir, split="train", target_type="attr", download=True,
-                                      transform=transform)
+            dataset = CelebA(root=data_dir, split="train", target_type="attr", download=True, transform=transform)
         elif name == 'cifar10':
-            dataset = datasets.CIFAR10(root=data_dir, train=True, download=True,
-                                       transform=transform)
+            dataset = CIFAR10(root=data_dir, train=True, download=True, transform=transform)
         elif name == 'emoji':
             dataset = PNGADataset(data_dir, transform, True)
         else:
