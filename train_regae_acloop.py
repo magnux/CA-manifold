@@ -29,7 +29,8 @@ config_name = splitext(basename(args.config))[0]
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-config['network']['kwargs']['reversible'] = True
+config['network']['kwargs']['n_conds'] = 2
+# config['network']['kwargs']['reversible'] = True
 
 image_size = config['data']['image_size']
 channels = config['data']['channels']
@@ -37,7 +38,6 @@ n_labels = config['data']['n_labels']
 n_filter = config['network']['kwargs']['n_filter']
 n_calls = config['network']['kwargs']['n_calls']
 lat_size = config['network']['kwargs']['lat_size']
-injected_encoder = config['network']['kwargs'].get('injected_encoder', False)
 # letter_encoding = config['network']['kwargs']['letter_encoding']
 n_epochs = config['training']['n_epochs']
 batch_size = config['training']['batch_size']
@@ -50,15 +50,17 @@ n_workers = config['training']['n_workers']
 # Inputs
 trainset = get_dataset(name=config['data']['name'], type=config['data']['type'],
                        data_dir=config['data']['train_dir'], size=config['data']['image_size'])
+samples_weight = torch.ones(len(trainset)) / len(trainset)
+sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight))
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_split_size,
-                                          shuffle=True, num_workers=n_workers, drop_last=True)
+                                          shuffle=False, num_workers=n_workers, drop_last=True, sampler=sampler)
 
 config['training']['batches_per_epoch'] = len(trainloader) // batch_split
 
 # Networks
 networks_dict = {
-    'clean_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder' if injected_encoder else 'Encoder'},
-    'noisy_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder' if injected_encoder else 'Encoder'},
+    'clean_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
+    'noisy_encoder': {'class': config['network']['class'], 'sub_class': 'LabsInjectedEncoder'},
     'decoder': {'class': config['network']['class'], 'sub_class': 'Decoder'},
 }
 # if letter_encoding:
@@ -150,10 +152,7 @@ def sample_regae(images_or_lat, labels, prev_perm=None, next_perm=None, dec_only
     if not dec_only:
         images = images_or_lat
 
-        if injected_encoder:
-            lat_enc, out_embs, _ = clean_encoder_sample(images, labels)
-        else:
-            lat_enc, out_embs, _ = clean_encoder_sample(images)
+        lat_enc, out_embs, _ = clean_encoder_sample(images, (labels[next_perm] if fussion_progress > 0.5 else labels[prev_perm]) if prev_perm is not None else labels)
 
         # if letter_encoding:
         #     letters = letter_encoder(lat_enc)
@@ -183,13 +182,13 @@ def sample_regae(images_or_lat, labels, prev_perm=None, next_perm=None, dec_only
     for call_idx in range(n_calls):
         nf = noise_factor(call_idx)
         images_init = (1 - nf) * requantize(images_dec) + nf * noise_init_sample[call_idx + 1]
-        images_dec = decoder_sample(images_init, lat_dec, None)
+        images_dec = decoder_sample(images_init, (lat_dec, None))
 
     for call_idx in range(n_calls):
         nf = noise_factor(call_idx)
         images_init = requantize(images_dec) + nf * torch.group_norm(torch.randn((batch_split_size, channels, image_size, image_size), device=device), 1).detach_().requires_grad_(False)
         nlat_dec, _, _ = noisy_encoder_sample(images_init, (labels[next_perm] if fussion_progress > 0.5 else labels[prev_perm]) if prev_perm is not None else labels)
-        images_dec = decoder_sample(images_init, None, nlat_dec)
+        images_dec = decoder_sample(images_init, (None, nlat_dec))
 
     return requantize(images_dec)
 
@@ -240,6 +239,9 @@ n_epochs *= 1 + train_phase
 n_frames = video_fps * (train_phase + 1)
 jamm_idcs = [i for i in range(1, batch_split_size)] + [0]
 
+if train_phase > 1:
+    new_sample_weights = trainloader.sampler.weights.clone()
+
 print('Starting training, phase: %d' % train_phase)
 
 for _ in range(model_manager.epoch, n_epochs):
@@ -252,6 +254,12 @@ for _ in range(model_manager.epoch, n_epochs):
         t = trange(config['training']['batches_per_epoch'] - (model_manager.it % config['training']['batches_per_epoch']), dynamic_ncols=True)
         t.set_description('| ep: %d | lr: %.2e |' % (model_manager.epoch, model_manager.lr))
         for batch in t:
+
+            if train_phase > 1 and model_manager.it % 100 == 99:
+                trainloader.sampler.weights = new_sample_weights
+                with torch.no_grad():
+                    new_sample_weights = new_sample_weights.clone()
+                    new_sample_weights = (new_sample_weights + new_sample_weights.mean()) / 2
 
             with model_manager.on_batch():
 
@@ -270,13 +278,20 @@ for _ in range(model_manager.epoch, n_epochs):
                     for b in range(batch_mult):
                         # np.random.shuffle(train_perm)
 
-                        images, labels, trainiter, _ = get_inputs(trainiter, batch_split_size, device)
+                        images, labels, trainiter, idxes = get_inputs(trainiter, batch_split_size, device)
 
-                        # Encoding
-                        if injected_encoder:
-                            lat_enc, _, _ = clean_encoder(images, labels)
-                        else:
-                            lat_enc, _, _ = clean_encoder(images)
+                        lat_enc, out_embs_enc, _ = clean_encoder(images, labels)
+
+                        if train_phase > 1:
+                            with torch.no_grad():
+                                inv_acts = 0.
+                                for out_emb in out_embs_enc:
+                                    inv_acts_max = out_emb.max(3, keepdim=True)[0].max(2, keepdim=True)[0]
+                                    inv_acts_min = out_emb.min(3, keepdim=True)[0].min(2, keepdim=True)[0]
+                                    inv_acts_tmp = (out_emb - inv_acts_min) / (inv_acts_max - inv_acts_min)
+                                    inv_acts += 1 / (inv_acts_tmp.mean(dim=(1, 2, 3)) + 1e-4).to('cpu')
+                                inv_acts /= len(out_embs_enc)
+                                new_sample_weights[idxes] = (new_sample_weights[idxes] + inv_acts) / 2
 
                         # if letter_encoding:
                         #     letters = letter_encoder(lat_enc)
@@ -303,7 +318,7 @@ for _ in range(model_manager.epoch, n_epochs):
 
                         images_init = (1 - nf) * images + nf * noise_init
 
-                        images_out = decoder(images_init, lat_dec, None)
+                        images_out = decoder(images_init, (lat_dec, None))
 
                         loss_dec = (1 / batch_mult) * F.mse_loss(images_out, images)
                         model_manager.loss_backward(loss_dec, nets_to_train)
@@ -311,9 +326,20 @@ for _ in range(model_manager.epoch, n_epochs):
 
                         images_init = images + nf * noise_init
 
-                        nlat_dec, _, _ = noisy_encoder(images_init, labels)
+                        nlat_dec, out_embs_enc, _ = noisy_encoder(images_init, labels)
 
-                        images_out = decoder(images_init, None, nlat_dec)
+                        if train_phase > 1:
+                            with torch.no_grad():
+                                inv_acts = 0.
+                                for out_emb in out_embs_enc:
+                                    inv_acts_max = out_emb.max(3, keepdim=True)[0].max(2, keepdim=True)[0]
+                                    inv_acts_min = out_emb.min(3, keepdim=True)[0].min(2, keepdim=True)[0]
+                                    inv_acts_tmp = (out_emb - inv_acts_min) / (inv_acts_max - inv_acts_min)
+                                    inv_acts += 1 / (inv_acts_tmp.mean(dim=(1, 2, 3)) + 1e-4).to('cpu')
+                                inv_acts /= len(out_embs_enc)
+                                new_sample_weights[idxes] = (new_sample_weights[idxes] + inv_acts) / 2
+
+                        images_out = decoder(images_init, (None, nlat_dec))
 
                         loss_denoise = (1 / batch_mult) * F.mse_loss(images_out, images)
                         model_manager.loss_backward(loss_denoise, nets_to_train)

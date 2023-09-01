@@ -72,7 +72,7 @@ networks_dict = {
     'critic': {'class': 'base', 'sub_class': 'ContrastiveCritic'},
 }
 
-model_manager = ModelManager('regae_adv', networks_dict, config)
+model_manager = ModelManager('regae_mix', networks_dict, config)
 mixer = model_manager.get_network('mixer')
 critic = model_manager.get_network('critic')
 
@@ -386,7 +386,7 @@ for _ in range(model_manager.epoch, n_epochs):
                     images_gen = torch.cat(images_gen_l)
                     # images_gen = torch.cat([images_test, images_gen], dim=3)
 
-                stream_images(images_gen, config_name + '/regae_adv', config['training']['out_dir'] + '/regae_adv')
+                stream_images(images_gen, config_name + '/regae_mix', config['training']['out_dir'] + '/regae_mix')
 
                 if (model_manager.it + 1) % n_frames == 0:
                     prev_perm = next_perm

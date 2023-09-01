@@ -435,15 +435,12 @@ class LatCompressor(nn.Module):
         return lat
 
 
-class ContrastiveCritic(nn.Module):
-    def __init__(self, lat_size, norm_lat=True, n_layers=4, **kwargs):
+class ContrastiveDiscriminator(nn.Module):
+    def __init__(self, lat_size, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.norm_lat = norm_lat
 
-        self.lat_to_lat = nn.Sequential(
-            *([LinearResidualBlockS(self.lat_size, self.lat_size) for _ in range(n_layers)]),
-        )
+        self.lat_to_lat = nn.Linear(self.lat_size, self.lat_size)
         self.lat_to_score = nn.Linear(self.lat_size * 2 + self.lat_size ** 2, 1)
 
     def forward(self, lat_a, lat_b):
@@ -457,10 +454,9 @@ class ContrastiveCritic(nn.Module):
 
 
 class ContrastiveMixer(nn.Module):
-    def __init__(self, lat_size, norm_lat=True, n_layers=4, **kwargs):
+    def __init__(self, lat_size, n_layers=4, **kwargs):
         super().__init__()
         self.lat_size = lat_size
-        self.norm_lat = norm_lat
 
         self.lat_to_mix = nn.Linear(self.lat_size ** 2, int(self.lat_size ** 0.5))
 

@@ -109,7 +109,7 @@ class NInjectedEncoder(LabsInjectedEncoder):
 
 
 class Decoder(nn.Module):
-    def __init__(self, lat_size, image_size, channels, n_filter,
+    def __init__(self, lat_size, image_size, channels, n_filter, n_conds=1,
                  zoom_factor=0, gravity=False, reversible=False, **kwargs):
         super().__init__()
         self.out_chan = channels
@@ -128,30 +128,31 @@ class Decoder(nn.Module):
 
         self.rev_swich_emb = nn.Linear(1, self.lat_size)
 
-        self.cell_to_cell = ResidualUS(self.n_filter, self.n_filter * (2 if gravity else 1), (2 ** self.zoom_factor * self.image_size), True, 3 if reversible else 2, self.lat_size)
+        self.cell_to_cell = ResidualUS(self.n_filter, self.n_filter * (2 if gravity else 1), (2 ** self.zoom_factor * self.image_size), True, n_conds + 1 if reversible else n_conds, self.lat_size)
 
         self.out_conv = ResidualBlockS(self.n_filter, self.out_chan)
 
-    def forward(self, img_init, lat, nlat, rev_switch=None):
+    def forward(self, img_init, conds, rev_switch=None):
+
+        if isinstance(conds, torch.Tensor):
+            conds = (conds,)
 
         cell_in = img_init
         if self.zoom_factor > 0:
             cell_in = F.interpolate(cell_in, size=(2 ** self.zoom_factor * self.image_size), mode='bilinear', align_corners=False)
         cell_in = self.in_conv(cell_in)
 
+        rev_switch_emb = None
         if self.reversible:
             if rev_switch is not None:
-                rev_swich_emb = self.rev_swich_emb(rev_switch)
-            else:
-                rev_swich_emb = None
-            cell_out = self.cell_to_cell(cell_in, (lat, nlat, rev_swich_emb))
-        else:
-            cell_out = self.cell_to_cell(cell_in, (lat, nlat))
+                rev_switch_emb = self.rev_swich_emb(rev_switch)
+
+        cell_out = self.cell_to_cell(cell_in, conds + (rev_switch_emb,) if self.reversible is not None else conds)
 
         if self.gravity:
             cell_out, cell_out_g = torch.chunk(cell_out, 2, 1)
-            cell_out = cell_out * (torch.relu(cell_out_g + 1) + 1e-4)
-            # cell_out = cell_out * torch.exp(cell_out_g)
+            # cell_out = cell_out * (torch.relu(cell_out_g + 1) + 1e-4)
+            cell_out = cell_out * torch.exp(cell_out_g)
 
         if self.zoom_factor > 0:
             cell_out = F.interpolate(cell_out, size=self.image_size, mode='bilinear', align_corners=False)

@@ -48,10 +48,10 @@ def compute_gan_loss(d_out, target, gan_type='new_relu'):
 
 
 def compute_grad_reg(d_out, d_in, norm_type=2, margin=0, mask=None):
-    batch_size = d_in.size(0)
+    batch_size = d_in[0].size(0) if isinstance(d_in, list) else d_in.size(0)
     grad_d_in = torch.autograd.grad(outputs=d_out.sum(), inputs=d_in,
                                     create_graph=True, retain_graph=True, only_inputs=True)[0]
-    assert(grad_d_in.size() == d_in.size())
+    # assert(grad_d_in.size() == d_in.size())
 
     if norm_type == 1:
         grad_d_in = grad_d_in.abs()
@@ -165,7 +165,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
         elif reg_ratio > 2.:
             reg_every /= 2
 
-    reg_param = np.clip(reg_param, reg_loss_target * 0.1, 1.)
+    reg_param = np.clip(reg_param, 1e-3, 1e3)
     reg_every = np.clip(reg_every, 1, reg_every_target)
 
     return reg_every, reg_param
