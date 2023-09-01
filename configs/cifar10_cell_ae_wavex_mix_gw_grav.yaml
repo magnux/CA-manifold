@@ -32,9 +32,9 @@ training:
   batch_mult_steps: 1
   n_workers: 2
   optimizer: adam
-  lr: 0.00001
+  lr: 0.0001
   equalize_lr: false
-  n_epochs: 1024
+  n_epochs: 256
   save_every: 256
   lr_anneal: 1.0
   lr_anneal_every: 0
