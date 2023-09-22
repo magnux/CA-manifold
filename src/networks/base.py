@@ -440,14 +440,15 @@ class ContrastiveDiscriminator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
 
-        self.lat_to_lat = nn.Linear(self.lat_size, self.lat_size)
+        self.lata_to_lat_mat = nn.Linear(self.lat_size, self.lat_size)
+        self.latb_to_lat_mat = nn.Linear(self.lat_size, self.lat_size)
         self.lat_to_score = nn.Linear(self.lat_size * 2 + self.lat_size ** 2, 1)
 
     def forward(self, lat_a, lat_b):
 
-        lat_a = self.lat_to_lat(lat_a)
-        lat_b = self.lat_to_lat(lat_b)
-        lat_mat = ((lat_a[:, :, None] * lat_b[:, None, :]) / self.lat_size).view(lat_a.size(0), lat_a.size(1) ** 2)
+        lat_a = self.lata_to_lat_mat(lat_a)
+        lat_b = self.latb_to_lat_mat(lat_b)
+        lat_mat = torch.softmax((lat_a[:, :, None] * lat_b[:, None, :]) / self.lat_size, dim=1).view(lat_a.size(0), lat_a.size(1) ** 2)
         lat_mat = torch.cat([lat_a, lat_b, lat_mat], dim=1)
         score = self.lat_to_score(lat_mat)
         return score

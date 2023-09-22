@@ -69,7 +69,7 @@ networks_dict = {
 #         'letter_decoder': {'class': 'base', 'sub_class': 'LetterDecoderS'},
 #     })
 
-model_manager = ModelManager('regae_acloop', networks_dict, config, to_avg=['clean_encoder', 'noisy_encoder', 'decoder'])
+model_manager = ModelManager('regae_acloop_rev', networks_dict, config, to_avg=['clean_encoder', 'noisy_encoder', 'decoder'])
 clean_encoder = model_manager.get_network('clean_encoder')
 clean_encoder_avg = model_manager.get_network('clean_encoder', avg=True)
 noisy_encoder = model_manager.get_network('noisy_encoder')
@@ -131,9 +131,7 @@ def requantize(x):
 
 
 noise_mask = None
-noise_init_sample = [
-    torch.group_norm(torch.randn((batch_split_size, channels, image_size, image_size), device=device), 1).detach_().requires_grad_(False)
-for _ in range(n_calls + 1)]
+noise_init_sample = torch.group_norm(torch.randn((batch_split_size, channels, image_size, image_size), device=device), 1).detach_().requires_grad_(False)
 
 
 def sample_regae(images_or_lat, labels, prev_perm=None, next_perm=None, dec_only=False, use_avg=True):
@@ -178,11 +176,7 @@ def sample_regae(images_or_lat, labels, prev_perm=None, next_perm=None, dec_only
     else:
         lat_dec = images_or_lat
 
-    images_dec = noise_init_sample[0]
-    for call_idx in range(n_calls):
-        nf = noise_factor(call_idx)
-        images_init = (1 - nf) * requantize(images_dec) + nf * noise_init_sample[call_idx + 1]
-        images_dec = decoder_sample(images_init, (lat_dec, None))
+    images_dec = decoder_sample(noise_init_sample, (lat_dec, None))
 
     for call_idx in range(n_calls):
         nf = noise_factor(call_idx)
@@ -264,8 +258,8 @@ for _ in range(model_manager.epoch, n_epochs):
             with model_manager.on_batch():
 
                 # loss_kl_sum = 0
-                loss_dec_sum = 0
-                loss_denoise_sum = 0
+                loss_dec_sum, loss_dec_rev_sum = 0, 0
+                loss_denoise_sum, loss_denoise_rev_sum = 0, 0
 
                 if next_perm is None:
                     next_perm = prev_perm.copy()
@@ -275,7 +269,7 @@ for _ in range(model_manager.epoch, n_epochs):
 
                 with model_manager.on_step(['clean_encoder', 'noisy_encoder', 'decoder']) as nets_to_train:  # + (['letter_encoder', 'letter_decoder'] if letter_encoding else [])
 
-                    for b in range(batch_mult):
+                    for b in range(batch_mult * 2):
                         # np.random.shuffle(train_perm)
 
                         images, labels, trainiter, idxes = get_inputs(trainiter, batch_split_size, device)
@@ -318,11 +312,14 @@ for _ in range(model_manager.epoch, n_epochs):
 
                         images_init = (1 - nf) * images + nf * noise_init
 
-                        images_out = decoder(images_init, (lat_dec, None))
+                        images_out = decoder(images_init, (lat_dec, None), rev_switch if b % 2 == 1 else None)
 
-                        loss_dec = (1 / batch_mult) * F.mse_loss(images_out, images)
+                        loss_dec = (1 / batch_mult) * F.mse_loss(images_out, noise_init if b % 2 == 1 else images)
                         model_manager.loss_backward(loss_dec, nets_to_train)
-                        loss_dec_sum += loss_dec.item()
+                        if b % 2 == 0:
+                            loss_dec_sum += loss_dec.item()
+                        else:
+                            loss_dec_rev_sum += loss_dec.item()
 
                         images_init = images + nf * noise_init
 
@@ -339,11 +336,14 @@ for _ in range(model_manager.epoch, n_epochs):
                                 inv_acts /= len(out_embs_enc)
                                 new_sample_weights[idxes] = (new_sample_weights[idxes] + inv_acts) / 2
 
-                        images_out = decoder(images_init, (None, nlat_dec))
+                        images_out = decoder(images_init, (None, nlat_dec), rev_switch if b % 2 == 1 else None)
 
-                        loss_denoise = (1 / batch_mult) * F.mse_loss(images_out, images)
+                        loss_denoise = (1 / batch_mult) * F.mse_loss(images_out, noise_init if b % 2 == 1 else images)
                         model_manager.loss_backward(loss_denoise, nets_to_train)
-                        loss_denoise_sum += loss_denoise.item()
+                        if b % 2 == 0:
+                            loss_denoise_sum += loss_denoise.item()
+                        else:
+                            loss_denoise_rev_sum += loss_denoise.item()
 
                 model_manager.set_err(loss_dec_sum + loss_denoise_sum)
 
@@ -359,7 +359,7 @@ for _ in range(model_manager.epoch, n_epochs):
                             images_dec_l.append(images_dec)
                         images_dec = torch.cat(images_dec_l)
 
-                    stream_images(images_dec, config_name + '/regae_acloop', config['training']['out_dir'] + '/regae_acloop')
+                    stream_images(images_dec, config_name + '/regae_acloop_rev', config['training']['out_dir'] + '/regae_acloop_rev')
 
                 if ((model_manager.it + 1) / config['training']['stream_every']) % n_frames == 0:
                     prev_perm = next_perm
@@ -378,7 +378,9 @@ for _ in range(model_manager.epoch, n_epochs):
 
                 # model_manager.log_scalar('losses', 'loss_kl', loss_kl_sum)
                 model_manager.log_scalar('losses', 'loss_dec', loss_dec_sum)
+                model_manager.log_scalar('losses', 'loss_dec_rev', loss_dec_rev_sum)
                 model_manager.log_scalar('losses', 'loss_denoise', loss_denoise_sum)
+                model_manager.log_scalar('losses', 'loss_denoise_rev', loss_denoise_rev_sum)
 
     with torch.no_grad():
         # Log images

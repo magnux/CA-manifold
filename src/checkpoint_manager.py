@@ -39,7 +39,7 @@ class CheckpointManager(object):
                 if k in out_dict:
                     out_dict_mod = {}
                     for old_k in out_dict[k]:
-                        # if 'cell_to_cell.cond_tmp' in old_k:
+                        # if 'cell_to_cell.cond_tmp' in old_k or 'cell_to_cell.cond_fc_2' in old_k or 'cell_to_cell.cond_conv_2' in old_k:
                         #     continue
                         out_dict_mod[old_k.replace('meta_k', 'dyna_k')] = out_dict[k][old_k]
                     out_dict[k] = out_dict_mod
