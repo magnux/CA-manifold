@@ -141,12 +141,12 @@ def compute_hinted_sample(g_in, d_out, target=1, gan_type='softplus'):
 def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, reg_loss, reg_loss_target,
                       loss_dis=None, update_every=True, maximize=True, lr=1e-2):
 
-    # if loss_dis is not None:
-    #     # Emergency break, in case the discriminator had slowly slip through the fence
-    #     if loss_dis < 0.1:
-    #         if update_every:
-    #             reg_every = 1
-    #         return reg_every, reg_param
+    if loss_dis is not None:
+        # Emergency break, in case the discriminator had slowly slip through the fence
+        if loss_dis < 0.1:
+            if update_every:
+                reg_every = 1
+            return reg_every, reg_param
 
     # reg_param update
     delta_reg = reg_loss_target - reg_loss
@@ -154,8 +154,10 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
     reg_update = lr * reg_scale * delta_reg
     if maximize:
         reg_param += reg_update
+        reg_param = np.clip(reg_param, reg_loss_target, reg_param_target)
     else:
         reg_param -= reg_update
+        reg_param = np.clip(reg_param, reg_param_target, reg_loss_target)
 
     # reg_every update
     if update_every:
@@ -165,8 +167,7 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
         elif reg_ratio > 2.:
             reg_every /= 2
 
-    reg_param = np.clip(reg_param, 1e-3, 1e3)
-    reg_every = np.clip(reg_every, 1, reg_every_target)
+        reg_every = np.clip(reg_every, 1, reg_every_target)
 
     return reg_every, reg_param
 
