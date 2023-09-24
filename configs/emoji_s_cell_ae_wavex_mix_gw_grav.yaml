@@ -42,7 +42,7 @@ training:
   stream_every: 47
   sample_every: 16
   sample_labels: 9
-  d_reg_param: 10
+  d_reg_param: 1
   d_reg_every: 16
   g_reg_every: 0
   through_grads: True
