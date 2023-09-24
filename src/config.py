@@ -51,7 +51,7 @@ def build_optimizer(network, config):
     # Optimizers
     if optimizer == 'adam':
         optimizer = optim.Adam(params, lr=lr, betas=(0.9, 0.999), amsgrad=True)
-    if optimizer == 'adam05':
+    elif optimizer == 'adam05':
         optimizer = optim.Adam(params, lr=lr, betas=(0.5, 0.5), amsgrad=True)
     elif optimizer == 'sgd':
         optimizer = optim.SGD(params, lr=lr, momentum=0., nesterov=False)
