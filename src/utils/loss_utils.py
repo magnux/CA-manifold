@@ -154,10 +154,10 @@ def update_reg_params(reg_every, reg_every_target, reg_param, reg_param_target, 
     reg_update = lr * reg_scale * delta_reg
     if maximize:
         reg_param += reg_update
-        reg_param = np.clip(reg_param, reg_loss_target, reg_param_target)
+        reg_param = np.clip(reg_param, 0.5 * reg_loss_target, reg_param_target)
     else:
         reg_param -= reg_update
-        reg_param = np.clip(reg_param, reg_param_target, reg_loss_target)
+        reg_param = np.clip(reg_param, reg_param_target, 2 * reg_loss_target)
 
     # reg_every update
     if update_every:
