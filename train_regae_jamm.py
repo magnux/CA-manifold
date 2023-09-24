@@ -190,7 +190,7 @@ jamm_idcs = [i for i in range(1, batch_split_size)] + [0]
 mtemps = mask_templates(image_size * 2)
 
 # # Discriminator reg target
-reg_dis_target = 1e-4 * (0.7 ** (train_phase % 8))
+reg_dis_target = 0.5 * lr * (0.7 ** (train_phase % 8))
 
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', d_reg_every if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
