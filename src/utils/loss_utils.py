@@ -104,7 +104,7 @@ def compute_dir_grad_reg(d_out, d_out_inv, d_in, d_in_inv=None, margin=0):
         grad_d_in = grad_d_in.reshape(batch_size, -1)
         # grad_d_in = torch.fft.fft2(grad_d_in, norm='ortho')
         # grad_d_in = torch.cat([grad_d_in.real.to(torch.float32), grad_d_in.imag.to(torch.float32)], dim=1)
-        grad_d_in_inv = grad_d_in_inv.reshape(batch_size, -1).detach()
+        grad_d_in_inv = grad_d_in_inv.reshape(batch_size, -1) #.detach()
         # grad_d_in_inv = torch.fft.fft2(grad_d_in_inv, norm='ortho')
         # grad_d_in_inv = torch.cat([grad_d_in_inv.real.to(torch.float32), grad_d_in_inv.imag.to(torch.float32)], dim=1)
         grad_d_in_diff = (grad_d_in - grad_d_in_inv).pow(2)

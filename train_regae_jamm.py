@@ -353,23 +353,23 @@ for _ in range(model_manager.epoch, n_epochs):
                 with model_manager.on_step(['encoder', 'decoder']) as nets_to_train:
 
                     for b in range(batch_mult):
-                        images, labels, trainiter, _ = get_inputs(trainiter, batch_split_size, device)
-
-                        with torch.no_grad():
-                            noise_init = torch.group_norm(torch.randn_like(images), 1)
-
-                        images_init, idx = mask_jamm(images, noise_init, mtemps, scale_factor=2, return_idx=True, mask_weight=torch.rand((batch_split_size, 1, 1, 1), device=device))
-                        lat_dec, _, _ = encoder(images_init, labels)
-                        images_dec = decoder(noise_init, lat_dec)
-                        images_dec = mask_jamm(images, images_dec, mtemps, scale_factor=2, idx=idx)
-
-                        lat_top_enc, _, _ = dis_encoder(images, labels)
-                        lat_top_enc_c, _, _ = dis_encoder(images_dec, labels)
-                        labs_enc = discriminator(lat_top_enc, lat_top_enc_c)
-
-                        loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
-                        model_manager.loss_backward(loss_gen_enc, nets_to_train)
-                        loss_gen_enc_sum += loss_gen_enc.item()
+                        # images, labels, trainiter, _ = get_inputs(trainiter, batch_split_size, device)
+                        #
+                        # with torch.no_grad():
+                        #     noise_init = torch.group_norm(torch.randn_like(images), 1)
+                        #
+                        # images_init, idx = mask_jamm(images, noise_init, mtemps, scale_factor=2, return_idx=True, mask_weight=torch.rand((batch_split_size, 1, 1, 1), device=device))
+                        # lat_dec, _, _ = encoder(images_init, labels)
+                        # images_dec = decoder(noise_init, lat_dec)
+                        # images_dec = mask_jamm(images, images_dec, mtemps, scale_factor=2, idx=idx)
+                        #
+                        # lat_top_enc, _, _ = dis_encoder(images, labels)
+                        # lat_top_enc_c, _, _ = dis_encoder(images_dec, labels)
+                        # labs_enc = discriminator(lat_top_enc, lat_top_enc_c)
+                        #
+                        # loss_gen_enc = (1 / batch_mult) * compute_gan_loss(labs_enc, 0)
+                        # model_manager.loss_backward(loss_gen_enc, nets_to_train)
+                        # loss_gen_enc_sum += loss_gen_enc.item()
 
                         images, labels, trainiter, _ = get_inputs(trainiter, batch_split_size, device)
 
@@ -425,7 +425,7 @@ for _ in range(model_manager.epoch, n_epochs):
                 model_manager.log_scalar('losses', 'loss_dis_dec',  loss_dis_dec_sum)
                 model_manager.log_scalar('losses', 'labs_dis_dec_sign',  labs_dis_dec_sign)
 
-                model_manager.log_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum)
+                # model_manager.log_scalar('losses', 'loss_gen_enc', loss_gen_enc_sum)
                 model_manager.log_scalar('losses', 'loss_gen_dec', loss_gen_dec_sum)
 
                 model_manager.log_scalar('regs', 'reg_dis_enc',  reg_dis_enc_sum)
