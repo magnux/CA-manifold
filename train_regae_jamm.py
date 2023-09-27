@@ -190,7 +190,7 @@ jamm_idcs = [i for i in range(1, batch_split_size)] + [0]
 mtemps = mask_templates(image_size * 2)
 
 # # Discriminator reg target
-reg_dis_target = (lr ** 2) * (0.7 ** (train_phase % 8))
+reg_dis_target = 0.5 * lr * (0.7 ** (train_phase % 8))
 
 d_reg_every_mean = model_manager.log_manager.get_last('regs', 'd_reg_every_mean', d_reg_every if d_reg_every > 0 else 0)
 d_reg_every_mean_next = d_reg_every_mean
@@ -275,9 +275,9 @@ for _ in range(model_manager.epoch, n_epochs):
                         loss_dis_enc_sum += loss_dis_enc.item()
 
                         if d_reg_every_mean > 0 and model_manager.it % int(d_reg_every_mean) == 0:
-                            reg_dis_enc = compute_grad_reg(loss_dis_enc, [images, images_dec])
+                            reg_dis_enc = d_reg_factor * compute_grad_reg(loss_dis_enc, [images, images_dec])
                             model_manager.loss_backward(reg_dis_enc, nets_to_train)#, retain_graph=True)
-                            reg_dis_enc_sum += reg_dis_enc.item()
+                            reg_dis_enc_sum += reg_dis_enc.item() / d_reg_factor
 
                             # if np.random.rand() >= 0.5:
                             #     labs_enc_c = discriminator(lat_top_enc_c, lat_top_enc)
@@ -324,9 +324,9 @@ for _ in range(model_manager.epoch, n_epochs):
                         loss_dis_dec_sum += loss_dis_dec.item()
 
                         if d_reg_every_mean > 0 and model_manager.it % int(d_reg_every_mean) == 0:
-                            # reg_dis_dec = compute_grad_reg(loss_dis_dec, [images, images_dec])
+                            # reg_dis_dec = d_reg_factor * compute_grad_reg(loss_dis_dec, [images, images_dec])
                             # model_manager.loss_backward(reg_dis_dec, nets_to_train, retain_graph=True)
-                            # reg_dis_dec_sum += reg_dis_dec.item()
+                            # reg_dis_dec_sum += reg_dis_dec.item() / d_reg_factor
 
                             # if np.random.rand() >= 0.5:
                             #     labs_dec_c = discriminator(lat_top_dec, lat_top_dec_c)
@@ -342,7 +342,7 @@ for _ in range(model_manager.epoch, n_epochs):
                             reg_dis_dec_sum += reg_dis_dec_dir.item() / d_reg_factor
 
                     if d_reg_every_mean > 0 and model_manager.it % int(d_reg_every_mean) == 0:
-                        reg_dis_max = reg_dis_dec_sum  # max(reg_dis_enc_sum, reg_dis_dec_sum)
+                        reg_dis_max = reg_dis_enc_sum  # max(reg_dis_enc_sum, reg_dis_dec_sum)
                         loss_dis_min = min(loss_dis_enc_sum, loss_dis_dec_sum)
                         d_reg_every_mean = d_reg_every_mean_next
                         d_reg_every_mean_next, d_reg_param_mean = update_reg_params(d_reg_every_mean_next, d_reg_every,

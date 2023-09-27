@@ -440,7 +440,11 @@ class ContrastiveDiscriminator(nn.Module):
         super().__init__()
         self.lat_size = lat_size
 
-        self.lat_to_score = nn.Linear(self.lat_size * 2, 1)
+        self.lat_to_score = nn.Sequential(
+            nn.Linear(self.lat_size * 2, self.lat_size * 8),
+            nn.Linear(self.lat_size * 8, self.lat_size * 2),
+            nn.Linear(self.lat_size * 2, 1)
+        )
 
     def forward(self, lat_a, lat_b):
 
